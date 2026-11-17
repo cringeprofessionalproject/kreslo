@@ -573,6 +573,7 @@ export function App() {
   }>({ tone: 'idle', label: 'НА СМЕНЕ' });
 
   const [isRecordingReel, setIsRecordingReel] = useState(false);
+  const [isFinalizingReel, setIsFinalizingReel] = useState(false);
   const [recSeconds, setRecSeconds] = useState(0);
   const [recordedReel, setRecordedReel] = useState<RecordedReelResult | null>(null);
   const [reelShareModalOpen, setReelShareModalOpen] = useState(false);
@@ -861,25 +862,28 @@ export function App() {
   }, []);
 
   const takeLiveScreenshot = useCallback(async () => {
-    sfxVictory();
     const blob = await captureLiveGameScreenBlob(liveReelStateRef.current);
     if (!blob) return;
-    const fileName = `KRESLO-${pack.id}-smena${week}.png`;
-    const file = new File([blob], fileName, { type: 'image/png' });
+    const fileName = `kreslo-${pack.id}-smena${week}.png`;
+    const file = new File([blob], fileName, { type: 'image/png', lastModified: Date.now() });
 
     if (
       typeof navigator !== 'undefined' &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
+      typeof navigator.share === 'function' &&
+      (!navigator.canShare || navigator.canShare({ files: [file] }))
     ) {
       try {
         await navigator.share({ files: [file] });
+        sfxVictory();
         return;
       } catch (err) {
         if (err instanceof DOMException && err.name === 'AbortError') return;
+        const msg = err instanceof Error ? err.message.toLowerCase() : '';
+        if (msg.includes('abort') || msg.includes('cancel')) return;
       }
     }
 
+    sfxVictory();
     try {
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
@@ -932,15 +936,24 @@ export function App() {
     setPendingRecordOnFaceLock(false);
     setMicRecordingDuck(false);
     const rec = recorderRef.current;
-    if (!rec) return;
+    if (!rec) {
+      setIsFinalizingReel(false);
+      return null;
+    }
     recorderRef.current = null;
     setIsRecordingReel(false);
-    const result = await rec.stop();
-    if (result) {
-      setRecordedReel(result);
-      if (openPreview) {
-        setReelShareModalOpen(true);
+    setIsFinalizingReel(true);
+    try {
+      const result = await rec.stop();
+      if (result) {
+        setRecordedReel(result);
+        if (openPreview) {
+          setReelShareModalOpen(true);
+        }
       }
+      return result;
+    } finally {
+      setIsFinalizingReel(false);
     }
   }, []);
 
@@ -1093,6 +1106,15 @@ export function App() {
       setIncomingSms(null);
       setReactionMood({ tone: 'idle', label: 'НА СМЕНЕ' });
       setFaceSnapshotUrl(null);
+      setReelShareModalOpen(false);
+      setIsFinalizingReel(false);
+      setRecordedReel((prev) => {
+        if (prev?.url) URL.revokeObjectURL(prev.url);
+        return null;
+      });
+      if (shareRunActive && !recorderRef.current) {
+        setPendingRecordOnFaceLock(true);
+      }
       setIqHits(0);
       setIqTotal(0);
       setLastInsight(null);
@@ -1120,7 +1142,7 @@ export function App() {
       setInHub(false);
       sfxCardFlip();
     },
-    [drawNextForPack, meta.attemptsByPack, resetCardDomTransformImmediate]
+    [drawNextForPack, meta.attemptsByPack, resetCardDomTransformImmediate, shareRunActive]
   );
 
   const removeExitingGhost = useCallback((doneSeq: number) => {
@@ -1297,6 +1319,9 @@ export function App() {
         const isNew = !meta.unlockedEndings.includes(finalEnd.id);
         setFlags(nextFlags);
         setWeek(nextWeek);
+        if (recorderRef.current) {
+          setIsFinalizingReel(true);
+        }
 
         window.setTimeout(() => {
           setIncomingSms(null);
@@ -1315,9 +1340,13 @@ export function App() {
 
           setActiveEnding({ def: finalEnd, isNew });
           if (recorderRef.current) {
+            // Записываем 0.45 сек финального штампа и финализируем MP4 прямо для кнопки в окне итогов
+            // (openPreview = false, чтобы не открывать скрытую вторую модалку под итогами!)
             window.setTimeout(() => {
-              void stopReelRecording(true);
-            }, 1400);
+              void stopReelRecording(false);
+            }, 450);
+          } else {
+            setIsFinalizingReel(false);
           }
         }, 250);
         return;
@@ -2397,26 +2426,6 @@ export function App() {
 
       {privacyModalOpen && <PrivacyZeroPiiModal onClose={() => setPrivacyModalOpen(false)} />}
 
-      {reelShareModalOpen && recordedReel && (
-        <ReelReadyShareModal
-          pack={pack}
-          reel={recordedReel}
-          masteryPct={computedMasteryPct}
-          weeksSurvived={week}
-          onShared={() => {
-            sendAnonymousPulse('share_click', pack.id);
-            setMeta((m) => ({
-              ...m,
-              telemetry: {
-                ...m.telemetry,
-                sharesClicked: (m.telemetry.sharesClicked ?? 0) + 1,
-              },
-            }));
-          }}
-          onClose={() => setReelShareModalOpen(false)}
-        />
-      )}
-
       {intermission && (
         <BlockIntermissionModal
           pack={pack}
@@ -2517,7 +2526,8 @@ export function App() {
           iqTotal={iqTotal}
           isPackFullyUnlocked={packFullyOpen}
           faceSnapshotUrl={faceSnapshotUrl}
-          hasRecordedReel={Boolean(recordedReel)}
+          recordedReel={recordedReel}
+          isFinalizingReel={isFinalizingReel}
           onOpenRecordedReel={() => setReelShareModalOpen(true)}
           onStartReactionRun={() => {
             setActiveEnding(null);
@@ -2564,6 +2574,26 @@ export function App() {
 
       {museumOpen && (
         <MuseumModal pack={pack} meta={meta} onClose={() => setMuseumOpen(false)} />
+      )}
+
+      {reelShareModalOpen && recordedReel && (
+        <ReelReadyShareModal
+          pack={pack}
+          reel={recordedReel}
+          masteryPct={computedMasteryPct}
+          weeksSurvived={week}
+          onShared={() => {
+            sendAnonymousPulse('share_click', pack.id);
+            setMeta((m) => ({
+              ...m,
+              telemetry: {
+                ...m.telemetry,
+                sharesClicked: (m.telemetry.sharesClicked ?? 0) + 1,
+              },
+            }));
+          }}
+          onClose={() => setReelShareModalOpen(false)}
+        />
       )}
     </div>
   );

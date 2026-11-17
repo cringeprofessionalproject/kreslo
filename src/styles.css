@@ -5608,3 +5608,13 @@ body {
   font-size: 14.5px;
   font-weight: 600;
 }
+
+/* Шторка предпросмотра видео гарантированно открывается поверх окна итогов смены */
+.reel-share-backdrop {
+  z-index: 5200;
+}
+
+.cta-btn:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}

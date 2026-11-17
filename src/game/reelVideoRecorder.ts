@@ -15,7 +15,7 @@ export interface LiveReelFrameState {
   dragX: number;
   flyDir: 'left' | 'right' | null;
   masteryPct: number;
-  reactionStatus: { text: string; tone: 'idle' | 'good' | 'warn' };
+  reactionStatus: { text: string; tone: 'good' | 'warn' | 'idle' };
   placement: FacePlacement;
   magnetized?: boolean;
   freeXNorm?: number;
@@ -29,11 +29,14 @@ export interface LiveReelFrameState {
 
 export interface RecordedReelResult {
   blob: Blob;
+  file: File;
   url: string;
   mimeType: 'video/mp4' | 'video/webm';
   extension: 'mp4' | 'webm';
   durationSec: number;
 }
+
+export type ShareReelOutcome = 'shared' | 'aborted' | 'unsupported';
 
 function stripEmojis(input: string): string {
   return input
@@ -42,35 +45,159 @@ function stripEmojis(input: string): string {
     .trim();
 }
 
-function pickRecorderMime(): {
-  recorderMime: string;
-  cleanMime: 'video/mp4' | 'video/webm';
-  extension: 'mp4' | 'webm';
-} {
-  if (typeof MediaRecorder === 'undefined') {
-    return { recorderMime: 'video/mp4', cleanMime: 'video/mp4', extension: 'mp4' };
-  }
-  const mp4Candidates = [
-    'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
-    'video/mp4;codecs=avc1',
-    'video/mp4',
-  ];
-  for (const m of mp4Candidates) {
-    if (MediaRecorder.isTypeSupported(m)) {
-      return { recorderMime: m, cleanMime: 'video/mp4', extension: 'mp4' };
+function createOptimalMediaRecorder(
+  stream: MediaStream,
+  hasAudio: boolean
+): { recorder: MediaRecorder; fallbackExt: 'mp4' | 'webm' } {
+  const candidates = hasAudio
+    ? [
+        'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
+        'video/mp4;codecs=avc1.4D401F,mp4a.40.2',
+        'video/mp4;codecs=avc1,mp4a.40.2',
+        'video/mp4',
+        'video/mp4;codecs=avc1.42E01E,opus',
+        'video/mp4;codecs=avc1,opus',
+        'video/webm;codecs=h264,opus',
+        'video/webm;codecs=vp9,opus',
+        'video/webm;codecs=vp8,opus',
+        'video/webm',
+      ]
+    : [
+        'video/mp4;codecs=avc1.42E01E',
+        'video/mp4;codecs=avc1.4D401F',
+        'video/mp4;codecs=avc1',
+        'video/mp4',
+        'video/webm;codecs=h264',
+        'video/webm;codecs=vp9',
+        'video/webm;codecs=vp8',
+        'video/webm',
+      ];
+
+  for (const mime of candidates) {
+    if (typeof MediaRecorder.isTypeSupported === 'function' && !MediaRecorder.isTypeSupported(mime)) {
+      continue;
+    }
+    try {
+      const recorder = new MediaRecorder(stream, {
+        mimeType: mime,
+        videoBitsPerSecond: 3_500_000,
+      });
+      return {
+        recorder,
+        fallbackExt: mime.includes('mp4') ? 'mp4' : 'webm',
+      };
+    } catch {
+      // Переходим к следующему кандидату
     }
   }
-  const webmCandidates = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm',
-  ];
-  for (const m of webmCandidates) {
-    if (MediaRecorder.isTypeSupported(m)) {
-      return { recorderMime: m, cleanMime: 'video/webm', extension: 'webm' };
+
+  const recorder = new MediaRecorder(stream);
+  const actual = (recorder.mimeType || '').toLowerCase();
+  return {
+    recorder,
+    fallbackExt: actual.includes('webm') ? 'webm' : 'mp4',
+  };
+}
+
+/**
+ * Перепаковывает фрагментированный fMP4 (который выдаёт WebKit MediaRecorder на iPhone)
+ * или WebM в плоский стандартный MP4 с fastStart (ftyp -> moov -> mdat, H.264 + AAC).
+ * Без этого Apple PHPhotoLibrary скрывает пункт «Сохранить видео» (в Галерею / Фото)!
+ */
+async function remuxToFastStartMp4(rawBlob: Blob): Promise<Blob | null> {
+  if (!rawBlob || rawBlob.size < 256) return null;
+  let mb: typeof import('mediabunny');
+  try {
+    mb = await import('mediabunny');
+  } catch {
+    return null;
+  }
+  const { BlobSource, BufferTarget, Conversion, Input, MATROSKA, MP4, Mp4OutputFormat, Output, QTFF, WEBM } = mb;
+  const input = new Input({
+    source: new BlobSource(rawBlob),
+    formats: [MP4, QTFF, WEBM, MATROSKA],
+  });
+  try {
+    const target = new BufferTarget();
+    const output = new Output({
+      format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
+      target,
+    });
+    const conv = await Conversion.init({
+      input,
+      output,
+      video: { codec: 'avc' },
+      audio: { codec: 'aac' },
+      showWarnings: false,
+    });
+    if (conv.isValid && conv.utilizedTracks.length > 0) {
+      await conv.execute();
+      if (target.buffer && target.buffer.byteLength >= 256) {
+        return new Blob([target.buffer], { type: 'video/mp4' });
+      }
+    }
+
+    // Резервный проход без принудительного перекодирования дорожек
+    const targetFallback = new BufferTarget();
+    const outputFallback = new Output({
+      format: new Mp4OutputFormat({ fastStart: 'in-memory' }),
+      target: targetFallback,
+    });
+    const convFallback = await Conversion.init({
+      input,
+      output: outputFallback,
+      showWarnings: false,
+    });
+    if (!convFallback.isValid || convFallback.utilizedTracks.length === 0) {
+      return null;
+    }
+    await convFallback.execute();
+    if (!targetFallback.buffer || targetFallback.buffer.byteLength < 256) {
+      return null;
+    }
+    return new Blob([targetFallback.buffer], { type: 'video/mp4' });
+  } catch {
+    return null;
+  } finally {
+    input.dispose();
+  }
+}
+
+/**
+ * Открывает системное меню iOS / Android ТОЛЬКО с видеофайлом (без text/url/title),
+ * чтобы iOS гарантированно показала «Сохранить видео» прямо в Галерею (Фото).
+ * Вызывается первой строкой обработчика клика для сохранения Transient User Activation.
+ */
+export async function shareRecordedReelToGallery(
+  reel: RecordedReelResult
+): Promise<ShareReelOutcome> {
+  if (typeof navigator === 'undefined' || typeof navigator.share !== 'function') {
+    return 'unsupported';
+  }
+  const sharePayload: ShareData = { files: [reel.file] };
+  if (typeof navigator.canShare === 'function') {
+    try {
+      if (!navigator.canShare(sharePayload)) {
+        return 'unsupported';
+      }
+    } catch {
+      return 'unsupported';
     }
   }
-  return { recorderMime: '', cleanMime: 'video/mp4', extension: 'mp4' };
+
+  try {
+    await navigator.share(sharePayload);
+    return 'shared';
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return 'aborted';
+    }
+    const msg = err instanceof Error ? err.message.toLowerCase() : '';
+    if (msg.includes('abort') || msg.includes('cancel')) {
+      return 'aborted';
+    }
+    return 'unsupported';
+  }
 }
 
 function roundRect(
@@ -474,14 +601,16 @@ export async function captureLiveGameScreenBlob(state: LiveReelFrameState): Prom
 }
 
 /**
- * Запись вертикального 9:16 видео (720×1280 @ 30 FPS) с исправленной совместимостью iOS Safari:
- * - БЕЗ фрагментирующего timeslice в recorder.start() (чтобы iOS писал единый валидный .mp4 с точным временем!);
- * - Чистый MIME 'video/mp4' на выходном файле, чтобы на iPhone открывалось штатное «Сохранить видео» / Telegram / Instagram!
+ * Запись вертикального 9:16 видео (720×1280 @ 30 FPS) с полной поддержкой Галереи iOS («Сохранить видео»):
+ * 1) H.264 + AAC при захвате;
+ * 2) Мгновенный локальный ремуксинг fMP4 -> плоский стандартный MP4 с fastStart (ftyp -> moov -> mdat) в ОЗУ;
+ * 3) Предсозданный File с чистым MIME 'video/mp4' для мгновенного вызова navigator.share без потери User Activation.
  */
 export class ReelVideoRecorder {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private recorder: MediaRecorder | null = null;
+  private fallbackExt: 'mp4' | 'webm' = 'mp4';
   private chunks: BlobPart[] = [];
   private rafId: number | null = null;
   private lastDrawMs = 0;
@@ -498,6 +627,8 @@ export class ReelVideoRecorder {
 
   start(optionalAudioStream?: MediaStream | null): boolean {
     if (typeof MediaRecorder === 'undefined') return false;
+    // Фоново прогреваем чанк MP4-ремуксера сразу при старте записи
+    void import('mediabunny').catch(() => {});
 
     this.chunks = [];
     this.startedAt = performance.now();
@@ -505,24 +636,22 @@ export class ReelVideoRecorder {
     this.renderFrame();
 
     const canvasStream = this.canvas.captureStream(30);
+    let hasAudio = false;
     if (optionalAudioStream) {
       optionalAudioStream.getAudioTracks().forEach((track) => {
         if (track.readyState === 'live') {
           canvasStream.addTrack(track);
+          hasAudio = true;
         }
       });
     }
 
-    const { recorderMime } = pickRecorderMime();
     try {
-      this.recorder = recorderMime
-        ? new MediaRecorder(canvasStream, {
-            mimeType: recorderMime,
-            videoBitsPerSecond: 3_500_000,
-          })
-        : new MediaRecorder(canvasStream);
+      const picked = createOptimalMediaRecorder(canvasStream, hasAudio);
+      this.recorder = picked.recorder;
+      this.fallbackExt = picked.fallbackExt;
     } catch {
-      this.recorder = new MediaRecorder(canvasStream);
+      return false;
     }
 
     this.recorder.ondataavailable = (ev) => {
@@ -531,7 +660,7 @@ export class ReelVideoRecorder {
       }
     };
 
-    // КРИТИЧНО ДЛЯ iOS SAFARI: запускаем start() БЕЗ timeslice, чтобы получить цельный валидный .mp4 контейнер!
+    // Запускаем без фрагментирующего timeslice, чтобы получить единый поток пакетов
     this.recorder.start();
 
     const loop = (now: number) => {
@@ -558,21 +687,34 @@ export class ReelVideoRecorder {
       }
 
       const rec = this.recorder;
-      const fallback = pickRecorderMime();
+      const fallbackExt = this.fallbackExt;
       const durationSec = Math.max(1, Math.round((performance.now() - this.startedAt) / 1000));
 
-      rec.onstop = () => {
-        const rawMime = (rec.mimeType || fallback.recorderMime || '').toLowerCase();
-        const isMp4 = rawMime.includes('mp4') || fallback.extension === 'mp4';
-        // Чистый MIME без ';codecs=...' — иначе iOS Share Sheet сохраняет «странный» нераспознанный файл!
-        const cleanMime: 'video/mp4' | 'video/webm' = isMp4 ? 'video/mp4' : 'video/webm';
-        const cleanExt: 'mp4' | 'webm' = isMp4 ? 'mp4' : 'webm';
+      rec.onstop = async () => {
+        const rawMime = (rec.mimeType || '').toLowerCase();
+        const rawIsMp4 = rawMime.includes('mp4') || fallbackExt === 'mp4';
+        const rawCleanMime: 'video/mp4' | 'video/webm' = rawIsMp4 ? 'video/mp4' : 'video/webm';
+        const rawBlob = new Blob(this.chunks, { type: rawCleanMime });
 
-        const blob = new Blob(this.chunks, { type: cleanMime });
-        const url = URL.createObjectURL(blob);
+        // Пересобираем fMP4 / WebM в плоский fastStart MP4, который iPhone Фото (PHPhotoLibrary)
+        // на 100% распознаёт как родное видео и предлагает кнопку «Сохранить видео» в Галерею!
+        const remuxedMp4 = await remuxToFastStartMp4(rawBlob);
+        const finalBlob = remuxedMp4 ?? rawBlob;
+        const cleanMime: 'video/mp4' | 'video/webm' = remuxedMp4 ? 'video/mp4' : rawCleanMime;
+        const cleanExt: 'mp4' | 'webm' = remuxedMp4 ? 'mp4' : rawIsMp4 ? 'mp4' : 'webm';
+
+        const stamp = Date.now().toString().slice(-5);
+        const fileName = `kreslo-shift-${stamp}.${cleanExt}`;
+        const file = new File([finalBlob], fileName, {
+          type: cleanMime,
+          lastModified: Date.now(),
+        });
+
+        const url = URL.createObjectURL(finalBlob);
         this.recorder = null;
         resolve({
-          blob,
+          blob: finalBlob,
+          file,
           url,
           mimeType: cleanMime,
           extension: cleanExt,

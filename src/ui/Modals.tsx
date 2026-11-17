@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { sfxCoffeeSave, sfxVictory } from '../audio';
 import { CAMPAIGN_BLOCKS, getBlockForWeek, type BlockMetaInfo } from '../game/blockCampaignEngine';
+import {
+  shareRecordedReelToGallery,
+  type RecordedReelResult,
+} from '../game/reelVideoRecorder';
 import { renderEditorialSharePoster } from '../game/shareCardRenderer';
 import type { EndingDef, JobPack, PersistentMeta, PillarMeta, Stats } from '../types';
 import { EditorialCardPortrait } from './CharacterArt';
@@ -190,7 +194,8 @@ interface EndingModalProps {
   iqTotal: number;
   isPackFullyUnlocked: boolean;
   faceSnapshotUrl?: string | null;
-  hasRecordedReel?: boolean;
+  recordedReel?: RecordedReelResult | null;
+  isFinalizingReel?: boolean;
   onOpenRecordedReel?: () => void;
   onStartReactionRun?: () => void;
   onTrackShare: () => void;
@@ -213,7 +218,8 @@ export function EndingModal({
   iqTotal,
   isPackFullyUnlocked,
   faceSnapshotUrl,
-  hasRecordedReel,
+  recordedReel,
+  isFinalizingReel,
   onOpenRecordedReel,
   onTrackShare,
   onUnlockMoreFromEnding,
@@ -225,6 +231,7 @@ export function EndingModal({
   const [shareToast, setShareToast] = useState<string | null>(null);
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
+  const [posterFile, setPosterFile] = useState<File | null>(null);
   const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
   const primaryRestart =
@@ -235,6 +242,7 @@ export function EndingModal({
 
   const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 78;
   const blockReached = getBlockForWeek(weeksSurvived);
+  const showVideoControls = Boolean(recordedReel) || Boolean(isFinalizingReel);
 
   useEffect(() => {
     let cancelled = false;
@@ -251,6 +259,10 @@ export function EndingModal({
       if (!cancelled) {
         setPosterPreviewUrl(res.previewDataUrl);
         setPosterBlob(res.blob);
+        if (res.blob) {
+          const fname = `kreslo-screen-${weeksSurvived}smen.png`;
+          setPosterFile(new File([res.blob], fname, { type: 'image/png', lastModified: Date.now() }));
+        }
       }
     });
     return () => {
@@ -258,10 +270,44 @@ export function EndingModal({
     };
   }, [attemptNumber, ending, faceSnapshotUrl, finalStats, iqHits, iqTotal, pack, weeksSurvived]);
 
-  const handleShareClick = async () => {
-    if (hasRecordedReel && onOpenRecordedReel) {
-      onOpenRecordedReel();
+  const handleSaveVideoDirect = async () => {
+    if (!recordedReel) return;
+    // Вызываем системный iOS Share Sheet первой строкой обработчика (без потери User Activation)
+    const outcome = await shareRecordedReelToGallery(recordedReel);
+    if (outcome === 'shared') {
+      sfxVictory();
+      onTrackShare();
+      setShareToast('Видео сохранено / отправлено');
+      window.setTimeout(() => setShareToast(null), 2800);
       return;
+    }
+    if (outcome === 'aborted') {
+      return;
+    }
+    // Если браузер (например ПК или ограниченный WebView) не поддерживает прямую отправку файла —
+    // открываем предпросмотр видео поверх окна итогов!
+    onOpenRecordedReel?.();
+  };
+
+  const handlePosterShareClick = async () => {
+    if (
+      posterFile &&
+      typeof navigator !== 'undefined' &&
+      typeof navigator.share === 'function' &&
+      (!navigator.canShare || navigator.canShare({ files: [posterFile] }))
+    ) {
+      try {
+        await navigator.share({ files: [posterFile] });
+        sfxVictory();
+        onTrackShare();
+        setShareToast('Скрин сохранён / отправлен');
+        window.setTimeout(() => setShareToast(null), 2600);
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        const msg = err instanceof Error ? err.message.toLowerCase() : '';
+        if (msg.includes('abort') || msg.includes('cancel')) return;
+      }
     }
 
     onTrackShare();
@@ -287,24 +333,7 @@ export function EndingModal({
     }
     if (!blob || !url) return;
 
-    const cleanFileName = `KRESLO-Screen-${weeksSurvived}smen.png`;
-    const file = new File([blob], cleanFileName, { type: 'image/png' });
-
-    if (
-      typeof navigator !== 'undefined' &&
-      navigator.canShare &&
-      navigator.canShare({ files: [file] })
-    ) {
-      try {
-        await navigator.share({ files: [file] });
-        setShareToast('Скрин сохранён / отправлен');
-        window.setTimeout(() => setShareToast(null), 2600);
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') return;
-      }
-    }
-
+    const cleanFileName = `kreslo-screen-${weeksSurvived}smen.png`;
     try {
       if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
@@ -410,29 +439,68 @@ export function EndingModal({
         )}
 
         <div className="ee-actions">
+          {showVideoControls && (
+            <button
+              type="button"
+              className="cta-btn primary big icon-inline-btn"
+              disabled={!recordedReel}
+              onClick={handleSaveVideoDirect}
+            >
+              <IconShare size={18} />
+              <span>
+                {!recordedReel
+                  ? 'Готовим видео для Галереи…'
+                  : `Сохранить видео (${recordedReel.durationSec} сек)`}
+              </span>
+            </button>
+          )}
+
           {ending.isVictory && onContinueEndless ? (
-            <button type="button" className="cta-btn primary big" onClick={onContinueEndless}>
+            <button
+              type="button"
+              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              onClick={onContinueEndless}
+            >
               Бесконечный режим →
             </button>
           ) : checkpointBlock > 1 && !ending.isVictory ? (
-            <button type="button" className="cta-btn primary big" onClick={onRestartFromCheckpoint}>
+            <button
+              type="button"
+              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              onClick={onRestartFromCheckpoint}
+            >
               С чекпоинта (Блок {checkpointBlock === 2 ? 'II' : 'III'})
             </button>
           ) : (
-            <button type="button" className="cta-btn primary big" onClick={onRestartFromZero}>
+            <button
+              type="button"
+              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              onClick={onRestartFromZero}
+            >
               Попробовать ещё раз
             </button>
           )}
 
           <div className="two-col-btns">
-            <button
-              type="button"
-              className="cta-btn subtle icon-inline-btn"
-              onClick={handleShareClick}
-            >
-              <IconShare size={16} />
-              <span>{hasRecordedReel ? 'Видео 9:16' : 'Скрин'}</span>
-            </button>
+            {showVideoControls ? (
+              <button
+                type="button"
+                className="cta-btn subtle"
+                disabled={!recordedReel}
+                onClick={() => onOpenRecordedReel?.()}
+              >
+                Смотреть видео
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cta-btn subtle icon-inline-btn"
+                onClick={handlePosterShareClick}
+              >
+                <IconShare size={16} />
+                <span>Скрин</span>
+              </button>
+            )}
             <button type="button" className="cta-btn subtle" onClick={onSwitchPack}>
               К курсам
             </button>

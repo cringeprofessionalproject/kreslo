@@ -5,7 +5,10 @@ import {
   LiveFaceCutoutTracker,
   type TrackedFacePose,
 } from '../game/faceTrackerEngine';
-import type { RecordedReelResult } from '../game/reelVideoRecorder';
+import {
+  shareRecordedReelToGallery,
+  type RecordedReelResult,
+} from '../game/reelVideoRecorder';
 import type { JobPack } from '../types';
 import { IconShare } from './Icons';
 import { useSheetPullToDismiss } from './useNativeGestures';
@@ -622,44 +625,47 @@ export function ReelReadyShareModal({
 
   const downloadVideoDirect = () => {
     sfxVictory();
-    const fileName = `KRESLO-${pack.id}-${weeksSurvived}smen.${reel.extension}`;
+    const fileName = `kreslo-${pack.id}-${weeksSurvived}smen.${reel.extension}`;
     const a = document.createElement('a');
     a.href = reel.url;
     a.download = fileName;
     a.click();
     onShared();
-    setStatusMsg(`Видео .${reel.extension} сохранено!`);
+    setStatusMsg(`Файл .${reel.extension} загружен`);
   };
 
   const shareOrDownloadVideo = async () => {
-    sfxVictory();
-    const fileName = `KRESLO-${pack.id}-${weeksSurvived}smen.${reel.extension}`;
-    const videoFile = new File([reel.blob], fileName, { type: reel.mimeType });
+    // КРИТИЧНО: вызываем navigator.share первой строкой (до аудио и любых эффектов),
+    // чтобы Safari сохранил Transient User Activation и показал «Сохранить видео» в Фото!
+    const outcome = await shareRecordedReelToGallery(reel);
+    if (outcome === 'shared') {
+      sfxVictory();
+      onShared();
+      setStatusMsg('Видео сохранено / отправлено');
+      return;
+    }
+    if (outcome === 'aborted') {
+      return;
+    }
 
-    if (
-      typeof navigator !== 'undefined' &&
-      navigator.canShare &&
-      navigator.canShare({ files: [videoFile] })
-    ) {
-      try {
-        await navigator.share({
-          files: [videoFile],
-        });
-        onShared();
-        setStatusMsg('Готово! Видео сохранено / отправлено.');
-        return;
-      } catch (err) {
-        if (err instanceof DOMException && err.name === 'AbortError') {
-          return;
-        }
-      }
+    const isIosDevice =
+      typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIosDevice) {
+      setStatusMsg(
+        'Встроенный браузер ограничил доступ к Фото — откройте сайт в Safari или нажмите «Скачать файл»'
+      );
+      return;
     }
 
     downloadVideoDirect();
   };
 
   return (
-    <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
+    <div
+      className="overlay-backdrop reel-share-backdrop"
+      style={backdropStyle}
+      onClick={onClose}
+    >
       <div
         className="paywall-sheet native-ios-sheet"
         {...sheetProps}
@@ -684,7 +690,7 @@ export function ReelReadyShareModal({
           onClick={shareOrDownloadVideo}
         >
           <IconShare size={18} />
-          <span>Сохранить видео ({reel.durationSec} сек)</span>
+          <span>В Галерею / Поделиться ({reel.durationSec} сек)</span>
         </button>
 
         <div className="two-col-btns">
