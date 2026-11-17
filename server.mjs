@@ -33,7 +33,7 @@ const VALID_EVENTS = new Set([
 const VALID_PACKS = new Set([
   'it_product',
   'smm_insta',
-  'rector_nii',
+  'sales_rop',
   'plastic_surgeon',
   'renovation_pro',
   'wb_seller',
@@ -41,7 +41,7 @@ const VALID_PACKS = new Set([
   'tender_44fz',
   'it_cfo',
   'pvz_december',
-  'barista_acup',
+  'ux_designer',
   'hr_family',
 ]);
 

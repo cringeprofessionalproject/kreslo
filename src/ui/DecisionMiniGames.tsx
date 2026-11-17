@@ -67,7 +67,7 @@ function NightChatSim({
   standalone,
   onComplete,
 }: Omit<DecisionMiniGameProps, 'kind'>) {
-  const scenario = NIGHT_CHAT_SCENARIOS[pack.id] ?? NIGHT_CHAT_SCENARIOS.rector_nii;
+  const scenario = NIGHT_CHAT_SCENARIOS[pack.id] ?? NIGHT_CHAT_SCENARIOS.it_product;
   const [stepIdx, setStepIdx] = useState(0);
   const [typing, setTyping] = useState(true);
   const [pickedReplyIdx, setPickedReplyIdx] = useState<number | null>(null);

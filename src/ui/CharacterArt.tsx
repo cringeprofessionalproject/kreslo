@@ -49,13 +49,13 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinLight: '#F6EDE4',
     skinShade: '#E2CFC1',
   },
-  rector_nii: {
-    bg: '#12221C',
-    bgDeep: '#0A1410',
-    glow: '#264B3D',
-    suit: '#172A23',
-    suitAlt: '#24392F',
-    accent: '#D8A95B',
+  sales_rop: {
+    bg: '#142029',
+    bgDeep: '#0B1218',
+    glow: '#274357',
+    suit: '#192834',
+    suitAlt: '#243747',
+    accent: '#E0A458',
     skinLight: '#F3EAD9',
     skinShade: '#DDD0B8',
   },
@@ -129,13 +129,13 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinLight: '#F4EDE5',
     skinShade: '#E0D1C2',
   },
-  barista_acup: {
-    bg: '#221812',
-    bgDeep: '#130D09',
-    glow: '#493224',
-    suit: '#2A1E17',
-    suitAlt: '#3B2A20',
-    accent: '#DDA466',
+  ux_designer: {
+    bg: '#1E1826',
+    bgDeep: '#100C15',
+    glow: '#423254',
+    suit: '#261E31',
+    suitAlt: '#342942',
+    accent: '#DF9B78',
     skinLight: '#F5EDE3',
     skinShade: '#E1D1BF',
   },
@@ -845,14 +845,10 @@ export function EditorialCardPortrait({
           </>
         )}
 
-        {packId === 'rector_nii' && (
-          /* Академическая сфера / колоннада НИИ */
+        {packId === 'sales_rop' && (
+          /* Воронка продаж и конверсия */
           <>
-            <path d="M13 17 L26 10 L39 17 Z" />
-            <line x1="17" y1="17" x2="17" y2="32" />
-            <line x1="26" y1="17" x2="26" y2="32" />
-            <line x1="35" y1="17" x2="35" y2="32" />
-            <line x1="13" y1="33" x2="39" y2="33" />
+            <polygon points="12,11 40,11 30,23 30,34 22,36 22,23" />
           </>
         )}
 
@@ -915,11 +911,11 @@ export function EditorialCardPortrait({
           </>
         )}
 
-        {packId === 'barista_acup' && (
-          /* Чашка спешелти-кофе */
+        {packId === 'ux_designer' && (
+          /* Перо кривых Безье и сетка дизайна */
           <>
-            <path d="M14 17 H34 V26 A9 9 0 0 1 25 35 H23 A9 9 0 0 1 14 26 Z" />
-            <path d="M34 19 H38 A3.5 3.5 0 0 1 38 26 H34" />
+            <path d="M26 10 L36 24 L29 35 H23 L16 24 Z" />
+            <circle cx="26" cy="22" r="2.2" fill={pal.accent} />
           </>
         )}
 

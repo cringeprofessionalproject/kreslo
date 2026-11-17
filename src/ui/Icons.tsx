@@ -119,7 +119,7 @@ export function PillarSvgIcon({
 }) {
   // Деньги / Казна / Маржа / ФОТ / Бюджет
   const moneyMap: Partial<Record<PackId, StatKey>> = {
-    rector_nii: 's1',
+    sales_rop: 's1',
     smm_insta: 's2',
     plastic_surgeon: 's3',
     renovation_pro: 's1',
@@ -129,13 +129,13 @@ export function PillarSvgIcon({
     it_cfo: 's1',
     it_product: 's1',
     pvz_december: 's4',
-    barista_acup: 's1',
+    ux_designer: 's4',
     hr_family: 's1',
   };
 
   // Закон / Порядок / Надзор / ИБ
   const lawMap: Partial<Record<PackId, StatKey>> = {
-    rector_nii: 's4',
+    sales_rop: 's4',
     smm_insta: 's4',
     plastic_surgeon: 's4',
     renovation_pro: 's4',
@@ -148,12 +148,12 @@ export function PillarSvgIcon({
 
   // Инженерия / Качество / Эстетика / Система
   const craftMap: Partial<Record<PackId, StatKey>> = {
-    rector_nii: 's2',
+    sales_rop: 's2',
     plastic_surgeon: 's2',
     renovation_pro: 's2',
     sec_sysadmin: 's2',
     it_product: 's2',
-    barista_acup: 's2',
+    ux_designer: 's2',
     pvz_december: 's3',
     wb_seller: 's2',
   };

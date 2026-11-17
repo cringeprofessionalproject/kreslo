@@ -224,33 +224,47 @@ function triggerProceduralGrooveStep() {
   stepCounter += 1;
 }
 
-function syncBackgroundMusic(duckVoice = false) {
+function triggerProceduralAmbientPad() {
+  if (profile !== 'classic' || !unlocked || micDuckActive) return;
+  const ac = ensureCtx();
+  if (!ac) return;
+  const t = ac.currentTime;
+  const prog = CHORD_PROGRESSIONS[activeCategory] ?? CHORD_PROGRESSIONS.tech_b2b;
+  const chord = prog[Math.floor(stepCounter / 4) % prog.length];
+  stepCounter += 1;
+
+  chord.forEach((freq, idx) => {
+    const osc = ac.createOscillator();
+    const lpf = ac.createBiquadFilter();
+    const g = ac.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(idx === 0 ? freq * 0.5 : freq, t);
+    lpf.type = 'lowpass';
+    lpf.frequency.setValueAtTime(640, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.linearRampToValueAtTime(idx === 0 ? 0.026 : 0.015, t + 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0005, t + 2.7);
+    osc.connect(lpf).connect(g).connect(outNode(ac));
+    osc.start(t);
+    osc.stop(t + 2.8);
+  });
+}
+
+function syncBackgroundMusic(_duckVoice = false) {
   if (typeof window === 'undefined') return;
 
-  // Останавливаем классический MP3, если выбран другой профиль
-  if (profile !== 'classic' || micDuckActive) {
-    classicAudioEl?.pause();
-  }
-
-  if (profile === 'classic' && !micDuckActive) {
-    if (!classicAudioEl) {
-      classicAudioEl = new Audio('./assets/audio/ambient_academy.mp3');
-      classicAudioEl.loop = true;
-      classicAudioEl.preload = 'auto';
-    }
-    classicAudioEl.volume = duckVoice ? 0.07 : 0.22;
-    if (unlocked && classicAudioEl.paused) {
-      void classicAudioEl.play().catch(() => {});
-    }
-  }
-
-  if (profile === 'groove' && unlocked && !micDuckActive) {
-    if (grooveTimer === null) {
-      grooveTimer = window.setInterval(triggerProceduralGrooveStep, 340);
-    }
-  } else if (grooveTimer !== null) {
+  if (grooveTimer !== null) {
     window.clearInterval(grooveTimer);
     grooveTimer = null;
+  }
+
+  if (!unlocked || micDuckActive) return;
+
+  if (profile === 'groove') {
+    grooveTimer = window.setInterval(triggerProceduralGrooveStep, 340);
+  } else if (profile === 'classic') {
+    triggerProceduralAmbientPad();
+    grooveTimer = window.setInterval(triggerProceduralAmbientPad, 2400);
   }
 }
 

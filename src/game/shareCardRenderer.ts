@@ -276,7 +276,7 @@ export async function renderEditorialSharePoster(params: ShareCardParams): Promi
   c.fillStyle = '#7E8D86';
   c.font = '600 25px ui-monospace, monospace';
   c.textAlign = 'center';
-  c.fillText('КРЕСЛО  ·  edu.heuristics.ru', 540, 1796);
+  c.fillText('КРЕСЛО  ·  Симулятор рабочих решений', 540, 1796);
   c.textAlign = 'left';
 
   const previewDataUrl = canvas.toDataURL('image/png');

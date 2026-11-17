@@ -171,14 +171,14 @@ interface VaultAndB2bModalProps {
 
 export function VaultAndB2bModal({
   meta,
-  initialTab = 'b2b',
+  initialTab = 'telemetry',
   onUnlockVaultDemand,
-  onTrackB2bClick,
   onClose,
 }: VaultAndB2bModalProps) {
-  const [tab, setTab] = useState<'vault' | 'b2b' | 'telemetry'>(initialTab);
+  const [tab, setTab] = useState<'vault' | 'telemetry'>(
+    initialTab === 'vault' ? 'vault' : 'telemetry'
+  );
   const [openedDoc, setOpenedDoc] = useState<ProVaultDoc | null>(null);
-  const [copiedB2b, setCopiedB2b] = useState(false);
   const [statsScope, setStatsScope] = useState<'server' | 'local'>('server');
   const [serverStats, setServerStats] = useState<ServerAggregateStats | null>(null);
   const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
@@ -271,19 +271,21 @@ export function VaultAndB2bModal({
       >
         <div className="sheet-grabber-bar" />
         <div className="pw-top-row">
-          <span className="eyebrow-tag">МАТЕРИАЛЫ И МЕТРИКИ СПРОСА · ЭВРИСТИКА</span>
+          <h3 className="acs-title" style={{ fontSize: 19, margin: 0 }}>
+            Материалы и статистика
+          </h3>
           <button type="button" className="close-round-btn" onClick={onClose}>
             <IconClose size={16} />
           </button>
         </div>
 
-        <div className="vault-tabs-row">
+        <div className="ios-segmented-control">
           <button
             type="button"
             className={tab === 'telemetry' ? 'active' : ''}
             onClick={() => setTab('telemetry')}
           >
-            Метрики спроса
+            Статистика
           </button>
           <button
             type="button"
@@ -292,75 +294,7 @@ export function VaultAndB2bModal({
           >
             Чек-листы (4)
           </button>
-          <button
-            type="button"
-            className={tab === 'b2b' ? 'active' : ''}
-            onClick={() => setTab('b2b')}
-          >
-            Для бизнеса
-          </button>
         </div>
-
-        {tab === 'b2b' && (
-          <div className="pw-options-stack">
-            <div className="pw-card pro-card">
-              <div className="pw-card-badge">WHITE-LABEL РАЗРАБОТКА · СРОК 5 ДНЕЙ</div>
-              <h4>Кастомный тренажёр под задачи вашей компании</h4>
-              <p className="pw-sponsor-desc">
-                Адаптируем игровой движок под онбординг сотрудников, проверку регламентов (продажи,
-                ИБ, 152-ФЗ, охрана труда) или интерактивный стенд для отраслевой конференции.
-              </p>
-              <div className="two-col-btns">
-                <a
-                  href="https://heuristics.ru"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="cta-btn primary link-as-btn"
-                  onClick={onTrackB2bClick}
-                >
-                  Связаться на heuristics.ru ↗
-                </a>
-                <button
-                  type="button"
-                  className="cta-btn subtle"
-                  onClick={async () => {
-                    onTrackB2bClick();
-                    sfxCoffeeSave();
-                    try {
-                      await navigator.clipboard.writeText(
-                        'Здравствуйте! Посмотрели тренажёр «КРЕСЛО» — хотим обсудить разработку корпоративного сценария.'
-                      );
-                    } catch {
-                      // ignore
-                    }
-                    setCopiedB2b(true);
-                    window.setTimeout(() => setCopiedB2b(false), 2500);
-                  }}
-                >
-                  {copiedB2b ? 'Текст скопирован' : 'Скопировать запрос'}
-                </button>
-              </div>
-            </div>
-
-            <div className="pw-card sponsor-card">
-              <div className="pw-card-badge">АКАДЕМИЯ ПРИКЛАДНЫХ ПРОГРАММ</div>
-              <h4>Платформа тренажёров edu.heuristics.ru</h4>
-              <p className="pw-sponsor-desc">
-                Короткие 4-дневные программы по 152-ФЗ, 44-ФЗ, КИИ, СКС и разработке продукта с
-                практической проверкой рабочих документов.
-              </p>
-              <a
-                href="https://edu.heuristics.ru"
-                target="_blank"
-                rel="noreferrer"
-                className="cta-btn secondary link-as-btn"
-                onClick={onTrackB2bClick}
-              >
-                Перейти на edu.heuristics.ru ↗
-              </a>
-            </div>
-          </div>
-        )}
 
         {tab === 'vault' && (
           <div className="pw-options-stack">

@@ -442,9 +442,7 @@ export function EndingModal({
         {shareToast && <div className="saved-toast">{shareToast}</div>}
 
         <div className="ee-quiet-footer">
-          <a href="https://edu.heuristics.ru" target="_blank" rel="noreferrer">
-            Практикумы Академии Эвристика · edu.heuristics.ru ↗
-          </a>
+          <span>Смахните вниз, чтобы начать новую смену</span>
         </div>
       </div>
     </div>

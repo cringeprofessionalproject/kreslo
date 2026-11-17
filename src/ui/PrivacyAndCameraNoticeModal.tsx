@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSheetPullToDismiss } from './useNativeGestures';
 
-// ───────── 1. ПРОЗРАЧНОЕ УВЕДОМЛЕНИЕ О 100% ЛОКАЛЬНОЙ РАБОТЕ КАМЕРЫ ПЕРЕД ПЕРВЫМ ВКЛЮЧЕНИЕМ ─────────
+// ───────── 1. ЧИСТОЕ APPLE iOS ОКНО ПЕРЕД ВКЛЮЧЕНИЕМ КАМЕРЫ (БЕЗ НЕЙРОСЛОПНЫХ РАМОК) ─────────
 
 interface CameraLocalNoticeModalProps {
   onConfirmLiveCamera: (withMic: boolean) => void;
@@ -20,50 +20,58 @@ export function CameraLocalNoticeModal({
   return (
     <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
       <div
-        className="info-sheet native-ios-sheet"
+        className="info-sheet apple-clean-sheet native-ios-sheet"
         {...sheetProps}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-grabber-bar" />
-        <span className="eyebrow-tag">ЛОКАЛЬНЫЙ РЕЖИМ · 0% ПЕРЕДАЧИ ДАННЫХ</span>
-        <h3 className="sheet-serif-title">Камера работает только на вашем устройстве</h3>
 
-        <p className="info-lead">
-          В этом режиме игра вырезает контур лица в реальном времени прямо внутри вашего браузера,
-          чтобы вы могли записать смешное видео прохождения себе в телефон.
-        </p>
-
-        <div className="info-danger-card safe">
-          <strong>Никакого сбора биометрии и персональных данных</strong>
-          <p>
-            Видеопоток, звук и контур лица обрабатываются исключительно в оперативной памяти вашего
-            устройства, <b>не отправляются на сервер</b>, нигде у нас не сохраняются и не
-            используются для установления личности.
+        <div className="acs-header">
+          <h3 className="acs-title">Режим с живым лицом</h3>
+          <p className="acs-body">
+            Камера обрабатывается только внутри браузера на этом устройстве, чтобы вырезать лицо на
+            героя и сохранить ролик в память телефона. Видео и звук никуда не отправляются и не
+            хранятся на сервере.
           </p>
         </div>
 
-        <label className="mic-checkbox-row" style={{ padding: '4px 2px' }}>
-          <input
-            type="checkbox"
-            checked={includeMic}
-            onChange={(e) => setIncludeMic(e.target.checked)}
-          />
-          <span>Также включить микрофон для записи ваших голосовых реакций</span>
-        </label>
-
-        <button
-          type="button"
-          className="cta-btn primary big"
-          onClick={() => onConfirmLiveCamera(includeMic)}
+        {/* Нативная iOS-строка с переключателем вместо сырого чекбокса */}
+        <div
+          className="ios-grouped-row clickable"
+          role="switch"
+          aria-checked={includeMic}
+          tabIndex={0}
+          onClick={() => setIncludeMic((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault();
+              setIncludeMic((v) => !v);
+            }
+          }}
         >
-          Понятно, включить камеру
-        </button>
+          <div className="igr-labels">
+            <strong>Записывать голос с микрофона</strong>
+            <span>Добавит живые реакции в видеоролик</span>
+          </div>
+          <span className={`ios-toggle-pill ${includeMic ? 'on' : ''}`} aria-hidden="true">
+            <span className="ios-toggle-knob" />
+          </span>
+        </div>
 
-        <div className="two-col-btns">
-          <button type="button" className="cta-btn subtle" onClick={onPickStaticSelfie}>
-            Выбрать фото-селфи
+        <div className="acs-actions">
+          <button
+            type="button"
+            className="apple-sheet-btn primary"
+            onClick={() => onConfirmLiveCamera(includeMic)}
+          >
+            Включить камеру
           </button>
-          <button type="button" className="cta-btn subtle" onClick={onClose}>
+
+          <button type="button" className="apple-sheet-btn secondary" onClick={onPickStaticSelfie}>
+            Выбрать фото из галереи
+          </button>
+
+          <button type="button" className="apple-sheet-btn ghost" onClick={onClose}>
             Отмена
           </button>
         </div>
@@ -72,7 +80,7 @@ export function CameraLocalNoticeModal({
   );
 }
 
-// ───────── 2. СПРАВКА О КОНФИДЕНЦИАЛЬНОСТИ (0% ПДн) И ПРАВОВОЙ ДИСКЛЕЙМЕР ─────────
+// ───────── 2. ЛАКОНИЧНАЯ СПРАВКА О ДАННЫХ В СТИЛЕ APPLE SETTINGS ─────────
 
 export function PrivacyZeroPiiModal({ onClose }: { onClose: () => void }) {
   const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
@@ -80,56 +88,48 @@ export function PrivacyZeroPiiModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
       <div
-        className="info-sheet native-ios-sheet"
+        className="info-sheet apple-clean-sheet native-ios-sheet"
         {...sheetProps}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-grabber-bar" />
-        <span className="eyebrow-tag">КОНФИДЕНЦИАЛЬНОСТЬ И ПРАВОВАЯ ИНФОРМАЦИЯ</span>
-        <h3 className="sheet-serif-title">Игра не собирает персональные данные</h3>
 
-        <div className="privacy-points-list">
-          <div className="info-danger-card safe">
-            <strong>1. Без регистрации, форм и cookies</strong>
+        <div className="acs-header">
+          <h3 className="acs-title">Конфиденциальность</h3>
+          <p className="acs-body">
+            В этой версии симулятора не используются персональные данные, регистрация и сторонние
+            рекламные трекеры.
+          </p>
+        </div>
+
+        <div className="ios-grouped-list">
+          <div className="ios-grouped-item">
+            <strong>Камера и микрофон — только на устройстве</strong>
             <p>
-              В тренажёре нет учётных записей, форм ввода имени, телефона или почты, рекламных
-              трекеров и файлов cookie. Все шрифты и ресурсы загружаются локально без обращения к
-              зарубежным CDN.
+              Наложение лица и запись ролика выполняются в оперативной памяти вашего браузера без
+              выгрузки на сервер и без биометрической идентификации.
             </p>
           </div>
 
-          <div className="info-danger-card safe">
-            <strong>2. Камера и микрофон — строго на вашем устройстве</strong>
+          <div className="ios-grouped-item">
+            <strong>Без аккаунтов, форм и cookies</strong>
             <p>
-              При включении режима видеозаписи обработка изображения и звука выполняется только
-              локально в браузере вашего смартфона или компьютера. Видео, фото и координаты маски не
-              передаются на сервер и не используются для биометрической идентификации (ст. 11
-              152-ФЗ).
+              Прогресс смен хранится локально в памяти вашего браузера (localStorage). Все шрифты и
+              ресурсы загружаются без внешних рекламных сетей.
             </p>
           </div>
 
-          <div className="info-danger-card safe">
-            <strong>3. Только безымянные суммарные счётчики</strong>
+          <div className="ios-grouped-item">
+            <strong>Игровой характер сценариев</strong>
             <p>
-              Личный прогресс хранится локально в памяти вашего браузера (localStorage). Сервер
-              считает только общие математические суммы нажатий по курсам (например, общее число
-              запущенных смен) — без сохранения IP-адресов, User-Agent и любых идентификаторов
-              пользователя.
-            </p>
-          </div>
-
-          <div className="info-danger-card low">
-            <strong>4. Образовательный и игровой характер</strong>
-            <p>
-              Все персонажи и сюжеты вымышлены. Ситуации в симуляторе носят просветительский и
-              развлекательный характер и не являются индивидуальной юридической, медицинской или
-              финансовой консультацией.
+              Все персонажи и ситуации вымышлены, носят развлекательный и просветительский характер
+              и не заменяют профильную консультацию специалиста.
             </p>
           </div>
         </div>
 
-        <button type="button" className="cta-btn primary" onClick={onClose}>
-          Закрыть
+        <button type="button" className="apple-sheet-btn secondary" onClick={onClose}>
+          Готово
         </button>
       </div>
     </div>

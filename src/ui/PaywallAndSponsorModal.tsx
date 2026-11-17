@@ -24,33 +24,35 @@ export function ProInsightModal({
   return (
     <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
       <div
-        className="info-sheet pro-insight-sheet native-ios-sheet"
+        className="info-sheet apple-clean-sheet native-ios-sheet"
         {...sheetProps}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-grabber-bar" />
         <div className="pw-top-row">
-          <span className={`stamp-pill ${wasSmartChoice ? 'ok' : 'fail'}`}>
-            {wasSmartChoice
-              ? 'ВЕРНЫЙ ХОД'
-              : `ЧАСТАЯ ОШИБКА (${entry.crowdFailPct}% ИГРОКОВ)`}
+          <span className={`ee-pill ${wasSmartChoice ? 'ok' : 'fail'}`}>
+            {wasSmartChoice ? 'Верный ход' : `Частая ловушка (${entry.crowdFailPct}%)`}
           </span>
-          <span className="iq-live-chip">Опыт {iqPct}%</span>
+          <span className="ee-meta">Опыт {iqPct}%</span>
         </div>
 
-        <div className="norm-badge-line">{entry.normTag}</div>
-
-        <h3 className="sheet-serif-title">{entry.shortFact}</h3>
-        <p className="info-lead">{entry.deepWhy}</p>
-
-        <div className="info-danger-card safe">
-          <strong>
-            Точных решений в «{pack.shortTitle}»: {sessionHits} из {sessionTotal}
-          </strong>
+        <div className="acs-header">
+          <span className="acs-subtag">{entry.normTag}</span>
+          <h3 className="acs-title">{entry.shortFact}</h3>
+          <p className="acs-body">{entry.deepWhy}</p>
         </div>
 
-        <button type="button" className="cta-btn subtle" onClick={onClose}>
-          Понятно
+        <div className="ios-grouped-row">
+          <div className="igr-labels">
+            <strong>Точных решений в «{pack.shortTitle}»</strong>
+          </div>
+          <span className="igr-value">
+            {sessionHits} из {sessionTotal}
+          </span>
+        </div>
+
+        <button type="button" className="apple-sheet-btn secondary" onClick={onClose}>
+          Готово
         </button>
       </div>
     </div>

@@ -377,7 +377,7 @@ function DrawerSheet({
               [
                 ['groove', 'Грув + Штампы'],
                 ['asmr', 'Только ASMR'],
-                ['classic', 'Эмбиент НИИ'],
+                ['classic', 'Мягкий эмбиент'],
                 ['off', 'Без звука'],
               ] as [SoundProfile, string][]
             ).map(([key, label]) => (
@@ -2140,7 +2140,7 @@ export function App() {
           <div className="hub-sheet apple-hub-sheet">
             <div className="apple-hub-header">
               <div className="ahh-titles">
-                <span className="ahh-eyebrow">Академия Эвристика</span>
+                <span className="ahh-eyebrow">Симулятор решений</span>
                 <h1 className="ahh-large-title">Кресло</h1>
               </div>
 

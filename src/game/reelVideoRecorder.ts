@@ -430,7 +430,7 @@ export function drawGameScreenToCanvas(
   c.fillStyle = '#7E8D86';
   c.font = '600 17px ui-monospace, monospace';
   c.textAlign = 'center';
-  c.fillText('КРЕСЛО · edu.heuristics.ru', VW / 2, 1236);
+  c.fillText('КРЕСЛО · Тренажёр решений', VW / 2, 1236);
   c.textAlign = 'left';
 
   // 7. Финал во время записи видео

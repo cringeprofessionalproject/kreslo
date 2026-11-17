@@ -61,7 +61,7 @@ export interface EndingDef {
 }
 
 export type PackId =
-  | 'rector_nii'
+  | 'sales_rop'
   | 'smm_insta'
   | 'plastic_surgeon'
   | 'renovation_pro'
@@ -71,7 +71,7 @@ export type PackId =
   | 'it_cfo'
   | 'it_product'
   | 'pvz_december'
-  | 'barista_acup'
+  | 'ux_designer'
   | 'hr_family';
 
 export type PackCategory = 'all' | 'tech_b2b' | 'market_media' | 'real_sector';
