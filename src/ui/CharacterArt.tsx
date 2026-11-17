@@ -149,6 +149,76 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinLight: '#F4EFE6',
     skinShade: '#DFD5C5',
   },
+  cctv_installer: {
+    bg: '#121E24',
+    bgDeep: '#0A1115',
+    glow: '#264352',
+    suit: '#182830',
+    suitAlt: '#223742',
+    accent: '#63C2D6',
+    skinLight: '#F2ECE2',
+    skinShade: '#DCD1C0',
+  },
+  scs_designer: {
+    bg: '#111E2D',
+    bgDeep: '#09111B',
+    glow: '#234263',
+    suit: '#17293D',
+    suitAlt: '#213852',
+    accent: '#76B5F0',
+    skinLight: '#F3EFE8',
+    skinShade: '#DCD4C7',
+  },
+  car_flipper: {
+    bg: '#231A14',
+    bgDeep: '#140E0A',
+    glow: '#4E3624',
+    suit: '#2A1F18',
+    suitAlt: '#3B2B21',
+    accent: '#E8A24E',
+    skinLight: '#F4ECE1',
+    skinShade: '#DFCEBC',
+  },
+  barista_pro: {
+    bg: '#241913',
+    bgDeep: '#140D09',
+    glow: '#4F3526',
+    suit: '#2C1E16',
+    suitAlt: '#3D2A1F',
+    accent: '#E2A66B',
+    skinLight: '#F6EEE4',
+    skinShade: '#E2D2C1',
+  },
+  sales_manager: {
+    bg: '#162128',
+    bgDeep: '#0C1317',
+    glow: '#2C4654',
+    suit: '#1C2B34',
+    suitAlt: '#273B47',
+    accent: '#DFAC60',
+    skinLight: '#F4ECE0',
+    skinShade: '#DFD1BD',
+  },
+  office_manager: {
+    bg: '#1B221E',
+    bgDeep: '#0F1411',
+    glow: '#35473D',
+    suit: '#222C26',
+    suitAlt: '#2F3D35',
+    accent: '#8ECFAA',
+    skinLight: '#F5EFE7',
+    skinShade: '#E0D5C7',
+  },
+  ai_agent: {
+    bg: '#122022',
+    bgDeep: '#091113',
+    glow: '#244A4F',
+    suit: '#172A2D',
+    suitAlt: '#213B3F',
+    accent: '#7AE3CE',
+    skinLight: '#EDF4F2',
+    skinShade: '#D3E1DD',
+  },
 };
 
 const FEMALE_TOKENS = [
@@ -924,6 +994,73 @@ export function EditorialCardPortrait({
           <>
             <circle cx="26" cy="17" r="4.5" />
             <path d="M16 33 C17 26, 35 26, 36 33" strokeLinecap="round" />
+          </>
+        )}
+
+        {packId === 'cctv_installer' && (
+          /* Объектив уличной IP-камеры */
+          <>
+            <rect x="13" y="14" width="22" height="14" rx="4" />
+            <polygon points="35,17 41,14 41,28 35,25" />
+            <circle cx="23" cy="21" r="3.2" fill={pal.accent} />
+            <line x1="18" y1="28" x2="14" y2="35" />
+          </>
+        )}
+
+        {packId === 'scs_designer' && (
+          /* Патч-панель СКС и трасса чертежа */
+          <>
+            <rect x="12" y="13" width="28" height="10" rx="2" />
+            <circle cx="17" cy="18" r="1.5" fill={pal.accent} />
+            <circle cx="23" cy="18" r="1.5" fill={pal.accent} />
+            <circle cx="29" cy="18" r="1.5" fill={pal.accent} />
+            <polyline points="17,23 17,33 35,33 35,23" />
+          </>
+        )}
+
+        {packId === 'car_flipper' && (
+          /* Силуэт кузова и датчик толщиномера */
+          <>
+            <path d="M12 26 L16 18 H34 L39 26 V32 H12 Z" />
+            <circle cx="18" cy="32" r="3" fill={pal.accent} />
+            <circle cx="33" cy="32" r="3" fill={pal.accent} />
+          </>
+        )}
+
+        {packId === 'barista_pro' && (
+          /* Чашка капучино и пар */
+          <>
+            <path d="M15 19 H33 V26 C33 31, 29 34, 24 34 C19 34, 15 31, 15 26 Z" />
+            <path d="M33 21 H37 C38.5 21, 38.5 26, 37 26 H33" />
+            <path d="M21 15 C21 12, 23 12, 23 10 M27 15 C27 12, 29 12, 29 10" strokeLinecap="round" />
+          </>
+        )}
+
+        {packId === 'sales_manager' && (
+          /* Сделка и рост личного плана */
+          <>
+            <rect x="14" y="11" width="24" height="24" rx="4" />
+            <polyline points="19,27 24,22 27,25 33,17" strokeLinecap="round" strokeLinejoin="round" />
+          </>
+        )}
+
+        {packId === 'office_manager' && (
+          /* Канцелярская скрепка-органайзер офиса */
+          <path
+            d="M21 25 V15 C21 11.5, 29 11.5, 29 15 V28 C29 33, 18 33, 18 28 V17"
+            strokeLinecap="round"
+          />
+        )}
+
+        {packId === 'ai_agent' && (
+          /* Нейронный узел ИИ-агента */
+          <>
+            <rect x="17" y="14" width="18" height="18" rx="4" />
+            <circle cx="26" cy="23" r="3" fill={pal.accent} />
+            <line x1="26" y1="9" x2="26" y2="14" />
+            <line x1="26" y1="32" x2="26" y2="37" />
+            <line x1="12" y1="23" x2="17" y2="23" />
+            <line x1="35" y1="23" x2="40" y2="23" />
           </>
         )}
       </g>

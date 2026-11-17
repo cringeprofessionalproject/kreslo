@@ -120,6 +120,7 @@ export function PillarSvgIcon({
   // Деньги / Казна / Маржа / ФОТ / Бюджет
   const moneyMap: Partial<Record<PackId, StatKey>> = {
     sales_rop: 's1',
+    sales_manager: 's1',
     smm_insta: 's2',
     plastic_surgeon: 's3',
     renovation_pro: 's1',
@@ -131,11 +132,18 @@ export function PillarSvgIcon({
     pvz_december: 's4',
     ux_designer: 's4',
     hr_family: 's1',
+    cctv_installer: 's1',
+    scs_designer: 's1',
+    car_flipper: 's1',
+    barista_pro: 's1',
+    office_manager: 's1',
+    ai_agent: 's1',
   };
 
   // Закон / Порядок / Надзор / ИБ
   const lawMap: Partial<Record<PackId, StatKey>> = {
     sales_rop: 's4',
+    sales_manager: 's4',
     smm_insta: 's4',
     plastic_surgeon: 's4',
     renovation_pro: 's4',
@@ -144,11 +152,17 @@ export function PillarSvgIcon({
     tender_44fz: 's3',
     it_cfo: 's2',
     it_product: 's4',
+    cctv_installer: 's4',
+    scs_designer: 's2',
+    car_flipper: 's4',
+    office_manager: 's2',
+    ai_agent: 's4',
   };
 
   // Инженерия / Качество / Эстетика / Система
   const craftMap: Partial<Record<PackId, StatKey>> = {
     sales_rop: 's2',
+    sales_manager: 's2',
     plastic_surgeon: 's2',
     renovation_pro: 's2',
     sec_sysadmin: 's2',
@@ -156,6 +170,11 @@ export function PillarSvgIcon({
     ux_designer: 's2',
     pvz_december: 's3',
     wb_seller: 's2',
+    cctv_installer: 's2',
+    scs_designer: 's4',
+    car_flipper: 's2',
+    barista_pro: 's2',
+    ai_agent: 's2',
   };
 
   if (moneyMap[packId] === statKey) {

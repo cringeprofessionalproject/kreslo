@@ -34,6 +34,7 @@ const VALID_PACKS = new Set([
   'it_product',
   'smm_insta',
   'sales_rop',
+  'sales_manager',
   'plastic_surgeon',
   'renovation_pro',
   'wb_seller',
@@ -43,6 +44,12 @@ const VALID_PACKS = new Set([
   'pvz_december',
   'ux_designer',
   'hr_family',
+  'cctv_installer',
+  'scs_designer',
+  'car_flipper',
+  'barista_pro',
+  'office_manager',
+  'ai_agent',
 ]);
 
 const VALID_SOURCES = new Set(['intermission', 'ending', 'hub', 'vault']);

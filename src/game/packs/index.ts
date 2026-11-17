@@ -1,11 +1,18 @@
 import type { DilemmaCard, JobPack, PackCategory, PackId } from '../../types';
+import { AI_AGENT_PACK } from './aiAgent';
+import { BARISTA_PRO_PACK } from './baristaPro';
+import { CAR_FLIPPER_PACK } from './carFlipper';
+import { CCTV_INSTALLER_PACK } from './cctvInstaller';
 import { HR_RECRUITER_PACK } from './hrRecruiter';
 import { IT_FIN_DIRECTOR_PACK } from './itFinDirector';
+import { OFFICE_MANAGER_PACK } from './officeManager';
 import { PLASTIC_SURGEON_PACK } from './plasticSurgeon';
 import { PRODUCT_MANAGER_PACK } from './productManager';
 import { PVZ_MANAGER_PACK } from './pvzManager';
 import { RENOVATION_PRO_PACK } from './renovationPro';
+import { SALES_MANAGER_PACK } from './salesManager';
 import { SALES_ROP_PACK } from './salesRop';
+import { SCS_DESIGNER_PACK } from './scsDesigner';
 import { SEC_SYSADMIN_PACK } from './secSysadmin';
 import { SMM_PRODUCER_PACK } from './smmProducer';
 import { TENDER_SPEC_PACK } from './tenderSpec';
@@ -54,11 +61,18 @@ function withCategory(pack: JobPack, category: PackCategory): JobPack {
   };
 }
 
-// 12 массовых мейнстримных специальностей (Продакт-менеджер первым по умолчанию)
+// 19 массовых специальностей (Продакт-менеджер первым по умолчанию)
 export const JOB_PACKS: JobPack[] = [
   withCategory(PRODUCT_MANAGER_PACK, 'tech_b2b'),
-  withCategory(SMM_PRODUCER_PACK, 'market_media'),
+  withCategory(AI_AGENT_PACK, 'tech_b2b'),
+  withCategory(SALES_MANAGER_PACK, 'market_media'),
   withCategory(SALES_ROP_PACK, 'market_media'),
+  withCategory(BARISTA_PRO_PACK, 'real_sector'),
+  withCategory(CAR_FLIPPER_PACK, 'real_sector'),
+  withCategory(OFFICE_MANAGER_PACK, 'market_media'),
+  withCategory(CCTV_INSTALLER_PACK, 'real_sector'),
+  withCategory(SCS_DESIGNER_PACK, 'tech_b2b'),
+  withCategory(SMM_PRODUCER_PACK, 'market_media'),
   withCategory(UX_DESIGNER_PACK, 'tech_b2b'),
   withCategory(WB_SELLER_PACK, 'market_media'),
   withCategory(PLASTIC_SURGEON_PACK, 'real_sector'),
