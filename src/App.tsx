@@ -7,10 +7,14 @@ import {
   setMicRecordingDuck,
   setSoundProfile,
   sfxCardFlip,
+  sfxCardGrab,
+  sfxCardSnapBack,
   sfxCoffeeSave,
   sfxGameOver,
   sfxSwipeCommit,
+  sfxThresholdLock,
   sfxTiltTick,
+  sfxUiTap,
   sfxVictory,
   vibrate,
   type SoundProfile,
@@ -36,6 +40,7 @@ import {
   captureFaceSnapshotDataUrl,
   captureLiveGameScreenBlob,
   type LiveReelFrameState,
+  type OutgoingReelCardAnim,
   type RecordedReelResult,
   ReelVideoRecorder,
 } from './game/reelVideoRecorder';
@@ -212,8 +217,8 @@ interface ExitingCardSnapshot {
 }
 
 /**
- * Улетающая верхняя карточка: анимируется на GPU через Web Animations API
- * строго из субпиксельной точки отпускания пальца — без малейшего рывка или телепортации!
+ * Улетающая верхняя карточка: совершает законченный физический полёт по дуге ЗА пределы экрана
+ * при полной непрозрачности (без «пропадания на полпути»), со световой печатью выбора и 3D-разворотом!
  */
 function OutgoingCardGhost({
   snapshot,
@@ -227,29 +232,98 @@ function OutgoingCardGhost({
   useLayoutEffect(() => {
     const el = ghostRef.current;
     if (!el) return;
-    const targetX = snapshot.side === 'left' ? -520 : 520;
-    const targetY = snapshot.fromY + 26;
-    const targetRot = snapshot.side === 'left' ? -17 : 17;
 
-    const anim = el.animate(
-      [
-        {
-          transform: `translate3d(${snapshot.fromX.toFixed(1)}px, ${snapshot.fromY.toFixed(
-            1
-          )}px, 0) rotate(${snapshot.fromRot.toFixed(2)}deg)`,
-          opacity: 1,
-        },
-        {
-          transform: `translate3d(${targetX}px, ${targetY.toFixed(1)}px, 0) rotate(${targetRot}deg)`,
-          opacity: 0,
-        },
-      ],
-      {
-        duration: 350,
-        easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-        fill: 'forwards',
-      }
-    );
+    const dirSign = snapshot.side === 'left' ? -1 : 1;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 430;
+    // Гарантированный вылет целиком за границу экрана устройства (+ запас на поворот карточки)
+    const exitDist = Math.max(580, Math.round(vw * 1.24));
+    const targetX = dirSign * exitDist;
+    const targetRot = dirSign * 25;
+    const targetTiltY = dirSign * 14;
+    const wasTapOrMicroFlick = Math.abs(snapshot.fromX) < 24;
+
+    const keyframes: Keyframe[] = wasTapOrMicroFlick
+      ? [
+          {
+            offset: 0,
+            transform: `perspective(1100px) translate3d(${snapshot.fromX.toFixed(
+              1
+            )}px, ${snapshot.fromY.toFixed(1)}px, 0) rotate(${snapshot.fromRot.toFixed(
+              2
+            )}deg) rotateY(0deg) scale(1)`,
+            opacity: 1,
+          },
+          {
+            // Короткий тактильный подъём карточки со штампом выбора, чтобы глаз считал решение
+            offset: 0.18,
+            transform: `perspective(1100px) translate3d(${(dirSign * 34).toFixed(
+              1
+            )}px, -10px, 0) rotate(${(dirSign * 4.2).toFixed(2)}deg) rotateY(${(
+              dirSign * 4
+            ).toFixed(1)}deg) scale(1.024)`,
+            opacity: 1,
+          },
+          {
+            // Полная плотность вплоть до пересечения края экрана!
+            offset: 0.74,
+            transform: `perspective(1100px) translate3d(${(targetX * 0.72).toFixed(
+              1
+            )}px, 38px, 0) rotate(${(targetRot * 0.78).toFixed(2)}deg) rotateY(${(
+              targetTiltY * 0.8
+            ).toFixed(1)}deg) scale(0.985)`,
+            opacity: 0.96,
+          },
+          {
+            offset: 1,
+            transform: `perspective(1100px) translate3d(${targetX}px, 92px, 0) rotate(${targetRot}deg) rotateY(${targetTiltY}deg) scale(0.92)`,
+            opacity: 0,
+          },
+        ]
+      : [
+          {
+            offset: 0,
+            transform: `perspective(1100px) translate3d(${snapshot.fromX.toFixed(
+              1
+            )}px, ${snapshot.fromY.toFixed(1)}px, 0) rotate(${snapshot.fromRot.toFixed(
+              2
+            )}deg) rotateY(${(dirSign * 3).toFixed(1)}deg) scale(1)`,
+            opacity: 1,
+          },
+          {
+            offset: 0.42,
+            transform: `perspective(1100px) translate3d(${(
+              snapshot.fromX +
+              (targetX - snapshot.fromX) * 0.46
+            ).toFixed(1)}px, ${(snapshot.fromY + 24).toFixed(1)}px, 0) rotate(${(
+              snapshot.fromRot +
+              (targetRot - snapshot.fromRot) * 0.48
+            ).toFixed(2)}deg) rotateY(${(targetTiltY * 0.55).toFixed(1)}deg) scale(0.995)`,
+            opacity: 1,
+          },
+          {
+            offset: 0.78,
+            transform: `perspective(1100px) translate3d(${(
+              snapshot.fromX +
+              (targetX - snapshot.fromX) * 0.82
+            ).toFixed(1)}px, ${(snapshot.fromY + 56).toFixed(1)}px, 0) rotate(${(
+              targetRot * 0.88
+            ).toFixed(2)}deg) rotateY(${(targetTiltY * 0.88).toFixed(1)}deg) scale(0.965)`,
+            opacity: 0.94,
+          },
+          {
+            offset: 1,
+            transform: `perspective(1100px) translate3d(${targetX}px, ${(
+              snapshot.fromY + 96
+            ).toFixed(1)}px, 0) rotate(${targetRot}deg) rotateY(${targetTiltY}deg) scale(0.92)`,
+            opacity: 0,
+          },
+        ];
+
+    const anim = el.animate(keyframes, {
+      duration: wasTapOrMicroFlick ? 540 : 480,
+      easing: 'cubic-bezier(0.3, 0.05, 0.22, 1)',
+      fill: 'forwards',
+    });
 
     anim.onfinish = () => onDone(snapshot.seq);
     return () => {
@@ -261,7 +335,10 @@ function OutgoingCardGhost({
     snapshot.side === 'left' ? snapshot.card.left.label : snapshot.card.right.label;
 
   return (
-    <div ref={ghostRef} className="dilemma-card apple-spring-card outgoing-ghost-card">
+    <div
+      ref={ghostRef}
+      className={`dilemma-card apple-spring-card outgoing-ghost-card exit-${snapshot.side}`}
+    >
       <div className="dc-portrait-area">
         {snapshot.card.videoClip ? (
           <video
@@ -655,8 +732,11 @@ export function App() {
     rot: number;
     inlineBtnSide: 'left' | 'right' | null;
     movedMax: number;
+    grabPlayed: boolean;
+    lockedSide: 'left' | 'right' | null;
   } | null>(null);
   const tiltZoneRef = useRef<'left' | 'none' | 'right'>('none');
+  const outgoingReelAnimRef = useRef<OutgoingReelCardAnim | null>(null);
 
   // Экранный жест «Свайп от края экрана» (Назад в каталог / Вперёд к смене)
   const edgeSwipeRef = useRef<{
@@ -726,6 +806,7 @@ export function App() {
     rightLabel: currentCard.right.label,
     dragX: cardMotionRef.current.dx,
     flyDir: exitingCards.length > 0 ? exitingCards[exitingCards.length - 1].side : null,
+    outgoingCard: outgoingReelAnimRef.current,
     masteryPct: computedMasteryPct,
     reactionStatus: { text: reactionMood.label, tone: reactionMood.tone },
     placement: isFaceMagnetized ? 'card_head' : 'circle_bottom',
@@ -1162,7 +1243,8 @@ export function App() {
       sfxSwipeCommit(side);
       if (opt.voiceClip) playVoice(opt.voiceClip);
 
-      // Фиксируем улетающую карточку в отдельный независимый GPU-слой без малейшего рывка!
+      // Фиксируем улетающую карточку и для GPU-слоя экрана, и для 9:16 видеозаписи!
+      const fromX = releaseOrigin?.fromX ?? 0;
       const snap: ExitingCardSnapshot = {
         seq: cardSeq,
         card: currentCard,
@@ -1170,9 +1252,20 @@ export function App() {
         blockNum: activeBlock.blockNum,
         hideFace: shareRunActive && isFaceMagnetized,
         side,
-        fromX: releaseOrigin?.fromX ?? 0,
+        fromX,
         fromY: releaseOrigin?.fromY ?? 0,
         fromRot: releaseOrigin?.fromRot ?? 0,
+      };
+      outgoingReelAnimRef.current = {
+        speaker: currentCard.speaker,
+        role: currentCard.role,
+        cardText: currentCard.text,
+        leftLabel: currentCard.left.label,
+        rightLabel: currentCard.right.label,
+        side,
+        fromX,
+        startedAtMs: performance.now(),
+        durationMs: Math.abs(fromX) < 24 ? 540 : 480,
       };
       setExitingCards((prev) => [...prev.slice(-1), snap]);
       resetCardDomTransformImmediate();
@@ -1572,6 +1665,8 @@ export function App() {
       rot: 0,
       inlineBtnSide: inlineSide,
       movedMax: 0,
+      grabPlayed: false,
+      lockedSide: null,
     };
     tiltZoneRef.current = 'none';
   };
@@ -1593,12 +1688,17 @@ export function App() {
     const totalMove = Math.hypot(rawDx, rawDy);
     if (totalMove > drag.movedMax) drag.movedMax = totalMove;
 
+    if (!drag.grabPlayed && totalMove > 4) {
+      drag.grabPlayed = true;
+      sfxCardGrab();
+    }
+
     if (totalMove > 14 && faceTuneHudOpen) {
       setFaceTuneHudOpen(false);
     }
 
     const dampedY = (rawDy / (1 + Math.abs(rawDy) * 0.006)) * 0.22;
-    const rotDeg = rawDx * 0.044;
+    const rotDeg = rawDx * 0.046;
 
     drag.dx = rawDx;
     drag.dy = dampedY;
@@ -1616,16 +1716,29 @@ export function App() {
 
     const pull = Math.min(1, Math.max(0, (Math.abs(rawDx) - 6) / 64));
     if (back1ElRef.current) {
-      back1ElRef.current.style.transform = `translate3d(0px, ${(10 * (1 - pull)).toFixed(
+      back1ElRef.current.style.transform = `translate3d(0px, ${(11 * (1 - pull)).toFixed(
         1
-      )}px, 0px) scale(${(0.94 + pull * 0.055).toFixed(3)})`;
-      back1ElRef.current.style.opacity = (0.82 + pull * 0.18).toFixed(2);
+      )}px, 0px) scale(${(0.945 + pull * 0.05).toFixed(3)})`;
+      back1ElRef.current.style.opacity = (0.78 + pull * 0.22).toFixed(2);
     }
 
     const z: 'left' | 'none' | 'right' = rawDx < -18 ? 'left' : rawDx > 18 ? 'right' : 'none';
     if (z !== tiltZoneRef.current) {
       tiltZoneRef.current = z;
-      if (z !== 'none') sfxTiltTick();
+      if (z !== 'none') sfxTiltTick(z);
+    }
+
+    // Тактильный механический замок при дотягивании карточки до порога принятия решения (>= 68px)
+    if (rawDx <= -68 && drag.lockedSide !== 'left') {
+      drag.lockedSide = 'left';
+      sfxThresholdLock('left', true);
+    } else if (rawDx >= 68 && drag.lockedSide !== 'right') {
+      drag.lockedSide = 'right';
+      sfxThresholdLock('right', true);
+    } else if (drag.lockedSide && Math.abs(rawDx) < 50) {
+      const prevSide = drag.lockedSide;
+      drag.lockedSide = null;
+      sfxThresholdLock(prevSide, false);
     }
 
     // 2. Обновляем React-стейт шкал ТОЛЬКО при смене одного из 12 шагов натяжения
@@ -1659,6 +1772,10 @@ export function App() {
     if (dx >= 68 || (dx >= 26 && vx > 0.48)) {
       commitChoice('right', { fromX: dx, fromY: dy, fromRot: rot });
       return;
+    }
+
+    if (Math.abs(dx) > 14) {
+      sfxCardSnapBack();
     }
 
     // Плавный пружинный возврат строго из субпиксельной точки отпускания пальца через GPU Web Animations API!
@@ -1761,12 +1878,15 @@ export function App() {
         onChange={onQuickSelfiePicked}
       />
 
-      {/* ИДЕАЛЬНО ВЫРОВНЕННАЯ ВЕРХНЯЯ ПАНЕЛЬ: ВСЕ КАПСУЛЫ СТРОГО 40px */}
+      {/* ИДЕАЛЬНО ВЫРОВНЕННАЯ КОМПАКТНАЯ ВЕРХНЯЯ ПАНЕЛЬ */}
       <header className="top-bar unified-bar">
         <button
           type="button"
           className="hb-pill hb-pack-pill"
-          onClick={() => setInHub(true)}
+          onClick={() => {
+            sfxUiTap(true);
+            setInHub(true);
+          }}
           title="К выбору режима (или свайп от левого края)"
         >
           <IconGrid size={15} />
@@ -1779,7 +1899,10 @@ export function App() {
             <button
               type="button"
               className="hb-pill hb-video-pill"
-              onClick={() => void activateSharePlaythroughMode()}
+              onClick={() => {
+                sfxUiTap(true);
+                void activateSharePlaythroughMode();
+              }}
               title="Включить живое лицо и запись видео"
             >
               <span className="hb-dot idle" />
@@ -1790,7 +1913,10 @@ export function App() {
               <button
                 type="button"
                 className={`hb-pill hb-tune-pill ${faceTuneHudOpen ? 'on' : ''}`}
-                onClick={() => setFaceTuneHudOpen((v) => !v)}
+                onClick={() => {
+                  sfxUiTap();
+                  setFaceTuneHudOpen((v) => !v);
+                }}
                 title="Настроить размер и положение лица"
               >
                 Лицо
@@ -1800,7 +1926,10 @@ export function App() {
                 <button
                   type="button"
                   className="hb-pill hb-video-pill recording"
-                  onClick={() => void stopReelRecording(true)}
+                  onClick={() => {
+                    sfxUiTap(true);
+                    void stopReelRecording(true);
+                  }}
                   title="Остановить запись и сохранить видео"
                 >
                   <span className="hb-dot rec" />
@@ -1813,6 +1942,7 @@ export function App() {
                   type="button"
                   className="hb-pill hb-video-pill waiting"
                   onClick={() => {
+                    sfxUiTap();
                     if (!webcamStream && !customPhotoUrl) {
                       quickSelfieInputRef.current?.click();
                     } else {
@@ -1831,7 +1961,10 @@ export function App() {
           <button
             type="button"
             className="hb-circle-btn"
-            onClick={() => setMenuDrawerOpen(true)}
+            onClick={() => {
+              sfxUiTap();
+              setMenuDrawerOpen(true);
+            }}
             aria-label="Параметры"
           >
             <IconDots size={18} />
@@ -1856,8 +1989,8 @@ export function App() {
         })}
       </div>
 
-      {/* 4 ЧИСТЫХ ПОКАЗАТЕЛЯ: РАСТУТ ТОЛЬКО + И - */}
-      <section className="pillars-bar">
+      {/* КОМПАКТНАЯ ЮВЕЛИРНАЯ ПАНЕЛЬ 4 ПОКАЗАТЕЛЕЙ (ОСВОБОЖДАЕТ ПРОСТРАНСТВО ПОД ГЛАВНУЮ КАРТОЧКУ!) */}
+      <section className="pillars-bar compact-jewel-pillars">
         {pack.pillars.map((pil) => {
           const val = stats[pil.key];
           const fullDelta = fullBalancedDeltas[pil.key] ?? 0;
@@ -1870,44 +2003,51 @@ export function App() {
             <button
               key={pil.key}
               type="button"
-              className={`pillar-col clickable-pillar ${danger ? 'danger-pulse' : ''} ${
-                prog.active ? (prog.displayDelta > 0 ? 'preview-up' : 'preview-down') : ''
-              } ${willCrash ? 'preview-crash-warn' : ''}`}
-              onClick={() => setInspectedPillar(pil)}
+              className={`pillar-col clickable-pillar compact-pillar-pill ${
+                danger ? 'danger-pulse' : ''
+              } ${prog.active ? (prog.displayDelta > 0 ? 'preview-up' : 'preview-down') : ''} ${
+                willCrash ? 'preview-crash-warn' : ''
+              }`}
+              onClick={() => {
+                sfxUiTap();
+                setInspectedPillar(pil);
+              }}
             >
-              <div className="delta-badge-slot">
-                {prog.active ? (
-                  <span
-                    className={`preview-num clean-delta ${
-                      prog.displayDelta > 0 ? 'plus' : 'minus'
-                    }`}
-                  >
-                    {prog.displayDelta > 0 ? `+${prog.displayDelta}` : prog.displayDelta}
-                  </span>
-                ) : justChanged !== 0 ? (
-                  <span
-                    key={`${poppingDeltas.seq}_${pil.key}`}
-                    className={`floating-delta ${justChanged > 0 ? 'plus' : 'minus'}`}
-                  >
-                    {justChanged > 0 ? `+${justChanged}` : justChanged}
-                  </span>
-                ) : (
-                  <span className="pillar-val-top">{val}%</span>
-                )}
-              </div>
-
               <div className="pillar-vessel">
                 <div
                   className={`pillar-fill ${danger ? 'critical' : ''}`}
                   style={{ height: `${val}%` }}
                 />
                 <span className="pillar-svg-wrap">
-                  <PillarSvgIcon packId={pack.id} statKey={pil.key} size={20} />
+                  <PillarSvgIcon packId={pack.id} statKey={pil.key} size={15} />
                 </span>
               </div>
 
-              <div className="pillar-caption">
-                <span>{pil.label}</span>
+              <div className="pillar-meta-stack">
+                <div className="delta-badge-slot">
+                  {prog.active ? (
+                    <span
+                      className={`preview-num clean-delta ${
+                        prog.displayDelta > 0 ? 'plus' : 'minus'
+                      }`}
+                    >
+                      {prog.displayDelta > 0 ? `+${prog.displayDelta}` : prog.displayDelta}
+                    </span>
+                  ) : justChanged !== 0 ? (
+                    <span
+                      key={`${poppingDeltas.seq}_${pil.key}`}
+                      className={`floating-delta ${justChanged > 0 ? 'plus' : 'minus'}`}
+                    >
+                      {justChanged > 0 ? `+${justChanged}` : justChanged}
+                    </span>
+                  ) : (
+                    <span className="pillar-val-top">{val}%</span>
+                  )}
+                </div>
+
+                <div className="pillar-caption">
+                  <span>{pil.label}</span>
+                </div>
               </div>
             </button>
           );
