@@ -1,0 +1,9 @@
+{
+  "appId": "ru.heuristics.nii.department0",
+  "appName": "НИИ Эвристика",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  }
+}

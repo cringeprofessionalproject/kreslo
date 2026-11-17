@@ -1,0 +1,519 @@
+import { useEffect, useState } from 'react';
+import { sfxCoffeeSave, sfxVictory } from '../audio';
+import { CAMPAIGN_BLOCKS, getBlockForWeek, type BlockMetaInfo } from '../game/blockCampaignEngine';
+import { renderEditorialSharePoster } from '../game/shareCardRenderer';
+import type { EndingDef, JobPack, PersistentMeta, PillarMeta, Stats } from '../types';
+import { EditorialCardPortrait } from './CharacterArt';
+import { IconShare, PillarSvgIcon } from './Icons';
+import { useSheetPullToDismiss } from './useNativeGestures';
+
+// ───────── 1. ИНФО-СПРАВКА ПО МЕТРИКЕ ИЛИ РЕЗЕРВУ (С ЖЕСТОМ СВАЙПА ВНИЗ) ─────────
+
+interface MetricInfoProps {
+  pillar?: PillarMeta;
+  currentValue?: number;
+  pack: JobPack;
+  showLifelineInfo?: boolean;
+  lifelineCharges?: number;
+  onClose: () => void;
+}
+
+export function MetricInfoModal({
+  pillar,
+  currentValue = 50,
+  pack,
+  showLifelineInfo,
+  lifelineCharges = 0,
+  onClose,
+}: MetricInfoProps) {
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
+  const zoneStatus =
+    currentValue <= 20
+      ? { text: 'Опасно низко', cls: 'danger' }
+      : currentValue >= 82
+        ? { text: 'Опасный перегрев', cls: 'danger' }
+        : { text: 'В норме', cls: 'safe' };
+
+  return (
+    <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
+      <div
+        className="info-sheet native-ios-sheet"
+        {...sheetProps}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-grabber-bar" />
+
+        {showLifelineInfo ? (
+          <>
+            <span className="eyebrow-tag">РЕЗЕРВ СМЕНЫ</span>
+            <h3 className="sheet-serif-title">{pack.lifelineName}</h3>
+            <p className="info-lead">{pack.lifelineDesc}</p>
+            <div className="info-danger-card safe">
+              <strong>Зарядов в запасе: {lifelineCharges}</strong>
+              <p>Пополняется каждые 8 смен, на рубеже Блоков и во входящих СМС.</p>
+            </div>
+          </>
+        ) : pillar ? (
+          <>
+            <div className="info-head">
+              <div className="pillar-modal-ico">
+                <PillarSvgIcon packId={pack.id} statKey={pillar.key} size={22} />
+              </div>
+              <div>
+                <h3>
+                  {pillar.label} · {currentValue}%
+                </h3>
+                <span className={`zone-chip ${zoneStatus.cls}`}>{zoneStatus.text}</span>
+              </div>
+            </div>
+
+            <p className="info-lead">{pillar.whatIsIt}</p>
+
+            <div className="info-extremes">
+              <div className="info-danger-card low">
+                <strong>Если упадёт в 0%</strong>
+                <p>{pillar.zeroWarning}</p>
+              </div>
+              <div className="info-danger-card high">
+                <strong>Если дойдёт до 100%</strong>
+                <p>{pillar.hundredWarning}</p>
+              </div>
+            </div>
+          </>
+        ) : null}
+
+        <button type="button" className="cta-btn subtle" onClick={onClose}>
+          Закрыть
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ───────── 2. РУБЕЖ БЛОКА (С ЖЕСТОМ СВАЙПА) ─────────
+
+interface BlockIntermissionProps {
+  pack: JobPack;
+  clearedBlock: BlockMetaInfo;
+  nextBlock: BlockMetaInfo;
+  stats: Stats;
+  iqHits: number;
+  iqTotal: number;
+  isNextBlockUnlocked: boolean;
+  onContinueNextBlock: () => void;
+  onUnlockMoreAndContinue: () => void;
+}
+
+export function BlockIntermissionModal({
+  pack,
+  clearedBlock,
+  nextBlock,
+  stats,
+  iqHits,
+  iqTotal,
+  isNextBlockUnlocked,
+  onContinueNextBlock,
+  onUnlockMoreAndContinue,
+}: BlockIntermissionProps) {
+  const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 80;
+  const primaryAction = isNextBlockUnlocked ? onContinueNextBlock : onUnlockMoreAndContinue;
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(primaryAction);
+
+  return (
+    <div className="overlay-backdrop" style={backdropStyle}>
+      <div className="ending-sheet native-ios-sheet" {...sheetProps}>
+        <div className="sheet-grabber-bar" />
+        <span className="eyebrow-tag">РУБЕЖ ПРОЙДЕН · ЧЕКПОИНТ СОХРАНЁН</span>
+
+        <div className="blocks-stepper">
+          {CAMPAIGN_BLOCKS.map((b) => {
+            const state =
+              b.blockNum <= clearedBlock.blockNum
+                ? 'done'
+                : b.blockNum === nextBlock.blockNum
+                  ? 'current'
+                  : 'upcoming';
+            return (
+              <div key={b.blockNum} className={`bs-item ${state}`}>
+                <span className="bs-num">Блок {b.roman}</span>
+                <small>
+                  {b.startWeek}–{b.endWeek}
+                </small>
+              </div>
+            );
+          })}
+        </div>
+
+        <h2 className="sheet-serif-title">{clearedBlock.title} позади</h2>
+        <p className="ending-desc">
+          Дальше — <b>{nextBlock.title}</b>. {nextBlock.subtitle}
+        </p>
+
+        <div className="elegant-stats-strip">
+          {pack.pillars.map((p) => (
+            <div key={p.key} className="ess-cell">
+              <strong>{stats[p.key]}%</strong>
+              <span>{p.label}</span>
+            </div>
+          ))}
+          <div className="ess-cell accent">
+            <strong>{masteryPct}%</strong>
+            <span>Опыт</span>
+          </div>
+        </div>
+
+        {isNextBlockUnlocked ? (
+          <button type="button" className="cta-btn primary big" onClick={onContinueNextBlock}>
+            Продолжить · Смена {nextBlock.startWeek} →
+          </button>
+        ) : (
+          <button type="button" className="cta-btn primary big" onClick={onUnlockMoreAndContinue}>
+            Открыть ещё ({nextBlock.title}) →
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ───────── 3. ЭЛЕГАНТНЫЙ ЛАКОНИЧНЫЙ ФИНАЛЬНЫЙ ЭКРАН (СМАХИВАЕТСЯ ВНИЗ КАК В iOS) ─────────
+
+interface EndingModalProps {
+  pack: JobPack;
+  ending: EndingDef;
+  finalStats: Stats;
+  weeksSurvived: number;
+  checkpointBlock: 1 | 2 | 3;
+  attemptNumber: number;
+  isNewEnding: boolean;
+  iqHits: number;
+  iqTotal: number;
+  isPackFullyUnlocked: boolean;
+  faceSnapshotUrl?: string | null;
+  hasRecordedReel?: boolean;
+  onOpenRecordedReel?: () => void;
+  onStartReactionRun?: () => void;
+  onTrackShare: () => void;
+  onUnlockMoreFromEnding: () => void;
+  onRestartFromCheckpoint: () => void;
+  onRestartFromZero: () => void;
+  onSwitchPack: () => void;
+  onContinueEndless?: () => void;
+}
+
+export function EndingModal({
+  pack,
+  ending,
+  finalStats,
+  weeksSurvived,
+  checkpointBlock,
+  attemptNumber,
+  isNewEnding,
+  iqHits,
+  iqTotal,
+  isPackFullyUnlocked,
+  faceSnapshotUrl,
+  hasRecordedReel,
+  onOpenRecordedReel,
+  onTrackShare,
+  onUnlockMoreFromEnding,
+  onRestartFromCheckpoint,
+  onRestartFromZero,
+  onSwitchPack,
+  onContinueEndless,
+}: EndingModalProps) {
+  const [shareToast, setShareToast] = useState<string | null>(null);
+  const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
+  const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
+  const [unlockedJustNow, setUnlockedJustNow] = useState(false);
+
+  const primaryRestart =
+    checkpointBlock > 1 && !ending.isVictory ? onRestartFromCheckpoint : onRestartFromZero;
+
+  // Свайп вниз по финальному экрану элегантно сворачивает его и начинает новую попытку!
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(primaryRestart);
+
+  const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 78;
+  const blockReached = getBlockForWeek(weeksSurvived);
+
+  useEffect(() => {
+    let cancelled = false;
+    renderEditorialSharePoster({
+      pack,
+      ending,
+      finalStats,
+      weeksSurvived,
+      attemptNumber,
+      iqHits,
+      iqTotal,
+      faceSnapshotUrl,
+    }).then((res) => {
+      if (!cancelled) {
+        setPosterPreviewUrl(res.previewDataUrl);
+        setPosterBlob(res.blob);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [attemptNumber, ending, faceSnapshotUrl, finalStats, iqHits, iqTotal, pack, weeksSurvived]);
+
+  const handleShareClick = async () => {
+    if (hasRecordedReel && onOpenRecordedReel) {
+      onOpenRecordedReel();
+      return;
+    }
+
+    onTrackShare();
+    sfxVictory();
+
+    let blob = posterBlob;
+    let url = posterPreviewUrl;
+    if (!blob || !url) {
+      const generated = await renderEditorialSharePoster({
+        pack,
+        ending,
+        finalStats,
+        weeksSurvived,
+        attemptNumber,
+        iqHits,
+        iqTotal,
+        faceSnapshotUrl,
+      });
+      blob = generated.blob;
+      url = generated.previewDataUrl;
+      setPosterPreviewUrl(url);
+      setPosterBlob(blob);
+    }
+    if (!blob || !url) return;
+
+    const cleanFileName = `KRESLO-Screen-${weeksSurvived}smen.png`;
+    const file = new File([blob], cleanFileName, { type: 'image/png' });
+
+    if (
+      typeof navigator !== 'undefined' &&
+      navigator.canShare &&
+      navigator.canShare({ files: [file] })
+    ) {
+      try {
+        await navigator.share({ files: [file] });
+        setShareToast('Скрин сохранён / отправлен');
+        window.setTimeout(() => setShareToast(null), 2600);
+        return;
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      if (typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write) {
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      }
+    } catch {
+      // ignore
+    }
+    const a = document.createElement('a');
+    a.download = cleanFileName;
+    a.href = url;
+    a.click();
+    setShareToast('Скрин сохранён и скопирован в буфер');
+    window.setTimeout(() => setShareToast(null), 3000);
+  };
+
+  return (
+    <div className="overlay-backdrop" style={backdropStyle}>
+      <div
+        className={`ending-sheet elegant-ending native-ios-sheet ${
+          ending.isVictory ? 'victory' : 'crash'
+        }`}
+        {...sheetProps}
+      >
+        <div className="sheet-grabber-bar" title="Смахните вниз, чтобы закрыть" />
+
+        <div className="elegant-ending-hero">
+          <div className="ee-medallion">
+            {ending.videoClip ? (
+              <video
+                src={ending.videoClip}
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="ending-video"
+              />
+            ) : ending.image ? (
+              <img src={ending.image} alt={ending.title} draggable={false} />
+            ) : (
+              <EditorialCardPortrait
+                packId={pack.id}
+                cardId={ending.id}
+                speaker={ending.title}
+                blockNum={blockReached.blockNum}
+                hideFaceForCutout={Boolean(faceSnapshotUrl)}
+              />
+            )}
+
+            {faceSnapshotUrl && (
+              <img
+                src={faceSnapshotUrl}
+                alt="Ваше лицо"
+                className="ending-tracked-head"
+              />
+            )}
+          </div>
+
+          <div className="ee-status-line">
+            <span className={`ee-pill ${ending.isVictory ? 'ok' : 'fail'}`}>
+              {ending.isVictory ? 'Аттестован' : 'Срыв смены'}
+            </span>
+            <span className="ee-meta">
+              Смена {weeksSurvived}/36 · Блок {blockReached.roman}
+              {isNewEnding ? ' · Новый исход' : ''}
+            </span>
+          </div>
+
+          <h2 className="ee-title">{ending.title}</h2>
+          <p className="ee-desc">{ending.description}</p>
+        </div>
+
+        {/* Единая лаконичная полоса итогов без лишних коробок */}
+        <div className="elegant-stats-strip">
+          {pack.pillars.map((p) => {
+            const val = finalStats[p.key];
+            const crashed = val <= 0 || val >= 100;
+            return (
+              <div key={p.key} className={`ess-cell ${crashed ? 'crashed' : ''}`}>
+                <strong>{val}%</strong>
+                <span>{p.label}</span>
+              </div>
+            );
+          })}
+          <div className="ess-cell accent">
+            <strong>{masteryPct}%</strong>
+            <span>Опыт</span>
+          </div>
+        </div>
+
+        {!isPackFullyUnlocked && !unlockedJustNow && (
+          <button
+            type="button"
+            className="ee-unlock-inline"
+            onClick={() => {
+              sfxVictory();
+              setUnlockedJustNow(true);
+              onUnlockMoreFromEnding();
+            }}
+          >
+            <span>Доступны Блоки II и III (до 36-й смены)</span>
+            <b>Открыть ещё →</b>
+          </button>
+        )}
+
+        <div className="ee-actions">
+          {ending.isVictory && onContinueEndless ? (
+            <button type="button" className="cta-btn primary big" onClick={onContinueEndless}>
+              Бесконечный режим →
+            </button>
+          ) : checkpointBlock > 1 && !ending.isVictory ? (
+            <button type="button" className="cta-btn primary big" onClick={onRestartFromCheckpoint}>
+              С чекпоинта (Блок {checkpointBlock === 2 ? 'II' : 'III'})
+            </button>
+          ) : (
+            <button type="button" className="cta-btn primary big" onClick={onRestartFromZero}>
+              Попробовать ещё раз
+            </button>
+          )}
+
+          <div className="two-col-btns">
+            <button
+              type="button"
+              className="cta-btn subtle icon-inline-btn"
+              onClick={handleShareClick}
+            >
+              <IconShare size={16} />
+              <span>{hasRecordedReel ? 'Видео 9:16' : 'Скрин'}</span>
+            </button>
+            <button type="button" className="cta-btn subtle" onClick={onSwitchPack}>
+              К курсам
+            </button>
+          </div>
+        </div>
+
+        {shareToast && <div className="saved-toast">{shareToast}</div>}
+
+        <div className="ee-quiet-footer">
+          <a href="https://edu.heuristics.ru" target="_blank" rel="noreferrer">
+            Практикумы Академии Эвристика · edu.heuristics.ru ↗
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ───────── 4. АРХИВ ОТКРЫТЫХ КОНЦОВОК (С ЖЕСТОМ СВАЙПА ВНИЗ) ─────────
+
+interface MuseumModalProps {
+  pack: JobPack;
+  meta: PersistentMeta;
+  onClose: () => void;
+}
+
+export function MuseumModal({ pack, meta, onClose }: MuseumModalProps) {
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
+  const packUnlockedCount = pack.endings.filter((e) => meta.unlockedEndings.includes(e.id)).length;
+  const bestIq = meta.bestIqByPack?.[pack.id] ?? 0;
+
+  return (
+    <div className="overlay-backdrop" style={backdropStyle} onClick={onClose}>
+      <div
+        className="museum-sheet native-ios-sheet"
+        {...sheetProps}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="sheet-grabber-bar" />
+        <div className="museum-header">
+          <div>
+            <span className="eyebrow-tag">АРХИВ ИСХОДОВ · {pack.shortTitle.toUpperCase()}</span>
+            <h3>
+              Открыто {packUnlockedCount}/{pack.endings.length} · Рекорд{' '}
+              {meta.bestWeeksByPack[pack.id] ?? 1}/36
+              {bestIq > 0 ? ` · Опыт ${bestIq}%` : ''}
+            </h3>
+          </div>
+          <button
+            type="button"
+            className="close-round-btn"
+            onClick={() => {
+              sfxCoffeeSave();
+              onClose();
+            }}
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="museum-scroll">
+          <div className="endings-grid">
+            {pack.endings.map((e) => {
+              const open = meta.unlockedEndings.includes(e.id);
+              return (
+                <div key={e.id} className={`museum-item ${open ? 'open' : 'locked'}`}>
+                  <div className="mi-badge">{open ? e.badge : 'НЕ ОТКРЫТО'}</div>
+                  <h4>{open ? e.title : 'Неоткрытый исход смены'}</h4>
+                  <p>
+                    {open
+                      ? e.description
+                      : e.isVictory
+                        ? 'Пройдите все 36 смен для аттестации.'
+                        : 'Доведите один из показателей до 0% или 100%.'}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

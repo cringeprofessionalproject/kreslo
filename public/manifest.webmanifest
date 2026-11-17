@@ -1,0 +1,31 @@
+{
+  "name": "КРЕСЛО · Тренажёр решений · Академия Эвристика",
+  "short_name": "КРЕСЛО",
+  "description": "Прикладной тренажёр рабочих решений по 12 специальностям: Продакт-менеджер, SMM, Хирург, Селлер WB, ИБ, 44-ФЗ, Финдир и НИИ.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1512",
+  "theme_color": "#0d1512",
+  "icons": [
+    {
+      "src": "./icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
