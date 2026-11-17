@@ -5860,3 +5860,84 @@ body {
 .dilemma-card.velvet-card-appear {
   animation: heroDeckRiseContinuous 0.44s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
+
+/* 20.6 Оптический расфокус задней карточки + проявление на резкость (Rack-Focus Unblur) при снятии передней! */
+.dc-focus-plane {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  will-change: filter, transform;
+}
+
+.dc-focus-plane > .dc-portrait-area,
+.dc-focus-plane > .dc-speaker-bar,
+.dc-focus-plane > .dc-inline-choices {
+  flex-shrink: 0;
+}
+
+@keyframes underlaySoftReady {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.dilemma-card.blurred-next-underlay {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 12 !important;
+  pointer-events: none !important;
+  transform: translate3d(0px, 10px, 0px) scale(0.955);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.62) !important;
+  border-color: rgba(24, 22, 20, 0.85) !important;
+  animation: underlaySoftReady 0.32s ease 0.1s both;
+}
+
+.dilemma-card.blurred-next-underlay .dc-focus-plane {
+  filter: blur(11px) brightness(0.84) saturate(0.9);
+  transform: scale(1.04);
+}
+
+.bnu-depth-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(14, 22, 18, 0.2) 0%, rgba(14, 22, 18, 0.14) 100%);
+}
+
+@keyframes rackFocusCardLift {
+  0% {
+    transform: translate3d(0, 7px, 0) scale(0.972);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes rackFocusPlaneUnblur {
+  0% {
+    filter: blur(11px) brightness(0.84) saturate(0.9);
+    transform: scale(1.04);
+  }
+  26% {
+    filter: blur(7px) brightness(0.9) saturate(0.95);
+    transform: scale(1.024);
+  }
+  100% {
+    filter: blur(0px) brightness(1) saturate(1);
+    transform: scale(1);
+  }
+}
+
+.dilemma-card.rack-focus-appear {
+  animation: rackFocusCardLift 0.48s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dilemma-card.rack-focus-appear .dc-focus-plane {
+  animation: rackFocusPlaneUnblur 0.54s cubic-bezier(0.2, 0.9, 0.28, 1) both;
+}

@@ -696,6 +696,9 @@ export function App() {
   const [currentCard, setCurrentCard] = useState<DilemmaCard>(() =>
     prepareBalancedCard(pack.onboardingCards[0])
   );
+  const [nextCard, setNextCard] = useState<DilemmaCard>(() =>
+    prepareBalancedCard(pack.onboardingCards[1] ?? pack.deckCards[0])
+  );
   const [exitingCards, setExitingCards] = useState<ExitingCardSnapshot[]>([]);
 
   const [flags, setFlags] = useState<Set<string>>(() => new Set());
@@ -1149,8 +1152,8 @@ export function App() {
       activeCardElRef.current.style.transform = 'translate3d(0px, 0px, 0px) rotate(0deg)';
     }
     if (back1ElRef.current) {
-      back1ElRef.current.style.transform = 'translate3d(0px, 10px, 0px) scale(0.94)';
-      back1ElRef.current.style.opacity = '0.82';
+      back1ElRef.current.style.transform = 'translate3d(0px, 10px, 0px) scale(0.955)';
+      back1ElRef.current.style.opacity = '1';
     }
     lastPreviewStepRef.current = 'none:0';
     setSwipePreview({ side: null, pullRatio: 0 });
@@ -1203,7 +1206,6 @@ export function App() {
       setIntermission(null);
       setFlags(new Set());
       setUsedOnce(new Set());
-      setScheduled([]);
       setActiveEnding(null);
       setActiveMiniGame(null);
       setEndlessMode(false);
@@ -1211,12 +1213,23 @@ export function App() {
       setExitingCards([]);
       resetCardDomTransformImmediate();
 
+      let firstCard: DilemmaCard;
       if (startBlock === 1 && nextAttempt === 1 && p.onboardingCards[0]) {
-        setCurrentCard(prepareBalancedCard(p.onboardingCards[0]));
+        firstCard = prepareBalancedCard(p.onboardingCards[0]);
       } else {
-        const { card } = drawNextForPack(p, initialWeek, new Set(), [], false);
-        setCurrentCard(card);
+        firstCard = drawNextForPack(p, initialWeek, new Set(), [], false).card;
       }
+      const usedForSecond = new Set<string>([firstCard.id]);
+      const { card: secondCard, remQueue: qAfterSecond } = drawNextForPack(
+        p,
+        initialWeek + 1,
+        usedForSecond,
+        [],
+        false
+      );
+      setScheduled(qAfterSecond);
+      setCurrentCard(firstCard);
+      setNextCard(secondCard);
       setCardSeq((s) => s + 1);
 
       setHasActiveRun(true);
@@ -1445,11 +1458,15 @@ export function App() {
         return;
       }
 
-      // МГНОВЕННО проявляем следующую карточку снизу колоды с бархатной анимацией всплытия!
-      const { card: drawn, remQueue } = drawNextForPack(
+      // Переводим заблюренную нижнюю карточку на передний план (она плавно наведётся на резкость!),
+      // а в фоновый заблюренный слот подкладываем следующую за ней карточку
+      const incomingCard = nextCard;
+      const usedWithIncoming = new Set(nextUsed);
+      usedWithIncoming.add(incomingCard.id);
+      const { card: upcomingBehind, remQueue } = drawNextForPack(
         pack,
-        nextWeek,
-        nextUsed,
+        nextWeek + 1,
+        usedWithIncoming,
         nextQ,
         endlessMode
       );
@@ -1457,7 +1474,8 @@ export function App() {
       setUsedOnce(nextUsed);
       setScheduled(remQueue);
       setWeek(nextWeek);
-      setCurrentCard(drawn);
+      setCurrentCard(incomingCard);
+      setNextCard(upcomingBehind);
       setCardSeq((s) => s + 1);
 
       if (justClearedBlock1) {
@@ -1502,6 +1520,7 @@ export function App() {
       iqTotal,
       isFaceMagnetized,
       meta.unlockedEndings,
+      nextCard,
       pack,
       resetCardDomTransformImmediate,
       scheduled,
@@ -1716,10 +1735,10 @@ export function App() {
 
     const pull = Math.min(1, Math.max(0, (Math.abs(rawDx) - 6) / 64));
     if (back1ElRef.current) {
-      back1ElRef.current.style.transform = `translate3d(0px, ${(11 * (1 - pull)).toFixed(
+      back1ElRef.current.style.transform = `translate3d(0px, ${(10 - pull * 3.5).toFixed(
         1
-      )}px, 0px) scale(${(0.945 + pull * 0.05).toFixed(3)})`;
-      back1ElRef.current.style.opacity = (0.78 + pull * 0.22).toFixed(2);
+      )}px, 0px) scale(${(0.955 + pull * 0.018).toFixed(3)})`;
+      back1ElRef.current.style.opacity = '1';
     }
 
     const z: 'left' | 'none' | 'right' = rawDx < -18 ? 'left' : rawDx > 18 ? 'right' : 'none';
@@ -2108,14 +2127,61 @@ export function App() {
       >
         <div className="deck-stack-wrapper">
           <div className="deck-back back-2" />
-          <div ref={back1ElRef} className="deck-back back-1" />
 
-          {/* Активная входящая карточка: плавно проявляется и всплывает из глубины колоды */}
+          {/* Реальная следующая карточка в мягком расфокусе позади текущей */}
+          <div
+            key={`under_${cardSeq}`}
+            ref={back1ElRef}
+            className="dilemma-card apple-spring-card blurred-next-underlay"
+            aria-hidden="true"
+          >
+            <div className="dc-focus-plane">
+              <div className="dc-portrait-area">
+                {nextCard.photoBanner || nextCard.portrait ? (
+                  <img
+                    src={nextCard.photoBanner ?? nextCard.portrait}
+                    alt=""
+                    className="dc-main-img"
+                    draggable={false}
+                  />
+                ) : (
+                  <EditorialCardPortrait
+                    packId={pack.id}
+                    cardId={nextCard.id}
+                    speaker={nextCard.speaker}
+                    blockNum={getBlockForWeek(week + 1).blockNum}
+                    hideFaceForCutout={false}
+                  />
+                )}
+              </div>
+
+              <div className="dc-speaker-bar">
+                <strong>{nextCard.speaker}</strong>
+                <span>{nextCard.role}</span>
+              </div>
+
+              <div className="dc-question-body">
+                <p>{nextCard.text}</p>
+              </div>
+
+              <div className="dc-inline-choices">
+                <div className="dc-inline-side left">
+                  <span>← {nextCard.left.label}</span>
+                </div>
+                <div className="dc-inline-side right">
+                  <span>{nextCard.right.label} →</span>
+                </div>
+              </div>
+            </div>
+            <div className="bnu-depth-veil" />
+          </div>
+
+          {/* Активная карточка: плавно выходит из расфокуса (unblur) как только убрали переднюю! */}
           <div
             key={cardSeq}
             ref={activeCardElRef}
             className={`dilemma-card apple-spring-card ${
-              cardSeq > 1 ? 'velvet-card-appear' : ''
+              cardSeq > 1 ? 'rack-focus-appear' : ''
             } ${
               activePreviewSide === 'left'
                 ? 'tilted-left'
@@ -2124,95 +2190,97 @@ export function App() {
                   : ''
             }`}
           >
-            <div ref={portraitAreaRef} className="dc-portrait-area">
-              {currentCard.videoClip ? (
-                <video
-                  key={currentCard.videoClip}
-                  src={currentCard.videoClip}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  className="dc-video-loop"
-                />
-              ) : currentCard.photoBanner || currentCard.portrait ? (
-                <img
-                  src={currentCard.photoBanner ?? currentCard.portrait}
-                  alt={currentCard.speaker}
-                  className="dc-main-img"
-                  draggable={false}
-                />
-              ) : (
-                <EditorialCardPortrait
-                  packId={pack.id}
-                  cardId={currentCard.id}
-                  speaker={currentCard.speaker}
-                  blockNum={curBlock.blockNum}
-                  hideFaceForCutout={shareRunActive && isFaceMagnetized}
-                />
-              )}
+            <div className="dc-focus-plane">
+              <div ref={portraitAreaRef} className="dc-portrait-area">
+                {currentCard.videoClip ? (
+                  <video
+                    key={currentCard.videoClip}
+                    src={currentCard.videoClip}
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    className="dc-video-loop"
+                  />
+                ) : currentCard.photoBanner || currentCard.portrait ? (
+                  <img
+                    src={currentCard.photoBanner ?? currentCard.portrait}
+                    alt={currentCard.speaker}
+                    className="dc-main-img"
+                    draggable={false}
+                  />
+                ) : (
+                  <EditorialCardPortrait
+                    packId={pack.id}
+                    cardId={currentCard.id}
+                    speaker={currentCard.speaker}
+                    blockNum={curBlock.blockNum}
+                    hideFaceForCutout={shareRunActive && isFaceMagnetized}
+                  />
+                )}
 
-              {activePreviewSide && (
-                <div
-                  className={`reigns-choice-curtain ${activePreviewSide}`}
-                  style={{ opacity: Math.min(1, 0.38 + pullRatio * 0.62) }}
+                {activePreviewSide && (
+                  <div
+                    className={`reigns-choice-curtain ${activePreviewSide}`}
+                    style={{ opacity: Math.min(1, 0.38 + pullRatio * 0.62) }}
+                  >
+                    <div
+                      className={`rcc-volumetric-bar ${activePreviewSide}`}
+                      style={{ width: `${Math.round(Math.max(18, pullRatio * 100))}%` }}
+                    />
+                    <div className="rcc-copy">
+                      <small>
+                        {activePreviewSide === 'left' ? '← Выбор влево' : 'Выбор вправо →'}
+                      </small>
+                      <strong>
+                        {activePreviewSide === 'left'
+                          ? currentCard.left.label
+                          : currentCard.right.label}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="dc-speaker-bar">
+                <strong>{currentCard.speaker}</strong>
+                <span>{currentCard.role}</span>
+              </div>
+
+              <div className="dc-question-body">
+                <p>{currentCard.text}</p>
+              </div>
+
+              {/* Нижние зоны ответа не блокируют свайп пальцем — и тянутся, и нажимаются! */}
+              <div className="dc-inline-choices">
+                <button
+                  type="button"
+                  data-inline-choice="left"
+                  className={`dc-inline-side left ${activePreviewSide === 'left' ? 'active' : ''}`}
                 >
                   <div
-                    className={`rcc-volumetric-bar ${activePreviewSide}`}
-                    style={{ width: `${Math.round(Math.max(18, pullRatio * 100))}%` }}
+                    className="dc-inline-fill left-dir"
+                    style={{
+                      width: activePreviewSide === 'left' ? `${Math.round(pullRatio * 100)}%` : '0%',
+                    }}
                   />
-                  <div className="rcc-copy">
-                    <small>
-                      {activePreviewSide === 'left' ? '← Выбор влево' : 'Выбор вправо →'}
-                    </small>
-                    <strong>
-                      {activePreviewSide === 'left'
-                        ? currentCard.left.label
-                        : currentCard.right.label}
-                    </strong>
-                  </div>
-                </div>
-              )}
-            </div>
+                  <span>← {currentCard.left.label}</span>
+                </button>
 
-            <div className="dc-speaker-bar">
-              <strong>{currentCard.speaker}</strong>
-              <span>{currentCard.role}</span>
-            </div>
-
-            <div className="dc-question-body">
-              <p>{currentCard.text}</p>
-            </div>
-
-            {/* Нижние зоны ответа не блокируют свайп пальцем — и тянутся, и нажимаются! */}
-            <div className="dc-inline-choices">
-              <button
-                type="button"
-                data-inline-choice="left"
-                className={`dc-inline-side left ${activePreviewSide === 'left' ? 'active' : ''}`}
-              >
-                <div
-                  className="dc-inline-fill left-dir"
-                  style={{
-                    width: activePreviewSide === 'left' ? `${Math.round(pullRatio * 100)}%` : '0%',
-                  }}
-                />
-                <span>← {currentCard.left.label}</span>
-              </button>
-
-              <button
-                type="button"
-                data-inline-choice="right"
-                className={`dc-inline-side right ${activePreviewSide === 'right' ? 'active' : ''}`}
-              >
-                <div
-                  className="dc-inline-fill right-dir"
-                  style={{
-                    width: activePreviewSide === 'right' ? `${Math.round(pullRatio * 100)}%` : '0%',
-                  }}
-                />
-                <span>{currentCard.right.label} →</span>
-              </button>
+                <button
+                  type="button"
+                  data-inline-choice="right"
+                  className={`dc-inline-side right ${activePreviewSide === 'right' ? 'active' : ''}`}
+                >
+                  <div
+                    className="dc-inline-fill right-dir"
+                    style={{
+                      width: activePreviewSide === 'right' ? `${Math.round(pullRatio * 100)}%` : '0%',
+                    }}
+                  />
+                  <span>{currentCard.right.label} →</span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -2696,15 +2764,25 @@ export function App() {
               ? () => {
                   setEndlessMode(true);
                   setActiveEnding(null);
-                  const { card: drawn, remQueue } = drawNextForPack(
+                  const { card: drawn, remQueue: q1 } = drawNextForPack(
                     pack,
                     week,
                     usedOnce,
                     scheduled,
                     true
                   );
-                  setScheduled(remQueue);
+                  const usedForNext = new Set(usedOnce);
+                  usedForNext.add(drawn.id);
+                  const { card: drawnNext, remQueue: q2 } = drawNextForPack(
+                    pack,
+                    week + 1,
+                    usedForNext,
+                    q1,
+                    true
+                  );
+                  setScheduled(q2);
                   setCurrentCard(drawn);
+                  setNextCard(drawnNext);
                   setCardSeq((s) => s + 1);
                 }
               : undefined

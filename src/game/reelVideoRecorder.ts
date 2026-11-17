@@ -437,6 +437,7 @@ export function drawGameScreenToCanvas(
     rotRad: number;
     scaleVal: number;
     alpha: number;
+    blurPx?: number;
     curtainSide: 'left' | 'right' | null;
     drawLiveFace: boolean;
   }) => {
@@ -458,6 +459,13 @@ export function drawGameScreenToCanvas(
     roundRect(c, -cw / 2, -ch / 2, cw, ch, 34);
     c.save();
     c.clip();
+    if (opts.blurPx && opts.blurPx > 0.4 && 'filter' in c) {
+      try {
+        c.filter = `blur(${opts.blurPx.toFixed(1)}px)`;
+      } catch {
+        // ignore
+      }
+    }
 
     c.fillStyle = '#16241E';
     c.fillRect(-cw / 2, -ch / 2, cw, artH);
@@ -589,10 +597,11 @@ export function drawGameScreenToCanvas(
     leftLabel: s.leftLabel,
     rightLabel: s.rightLabel,
     offsetX: liveShiftX,
-    offsetY: (1 - incomingEase) * 24,
+    offsetY: (1 - incomingEase) * 18,
     rotRad: liveAngle,
-    scaleVal: 0.945 + 0.055 * incomingEase,
-    alpha: 0.72 + 0.28 * incomingEase,
+    scaleVal: 0.958 + 0.042 * incomingEase,
+    alpha: 0.88 + 0.12 * incomingEase,
+    blurPx: outAnim ? (1 - incomingEase) * 10 : 0,
     curtainSide: liveCurtain,
     drawLiveFace: true,
   });
