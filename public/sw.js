@@ -1,4 +1,4 @@
-const CACHE_NAME = 'heuristics-kreslo-sim-v25';
+const CACHE_NAME = 'heuristics-kreslo-sim-v26';
 const PRECACHE = [
   './',
   './index.html',

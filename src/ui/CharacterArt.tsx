@@ -495,6 +495,155 @@ export function EditorialCardPortrait({
       {/* Мягкая виньетка по нижнему краю портрета */}
       <rect x="0" y="168" width="360" height="32" fill="rgba(0,0,0,0.18)" />
 
+      {/* ───────── 1.5. ТЕМАТИЧЕСКИЕ ПРОФЕССИОНАЛЬНЫЕ СЦЕНЫ ДЛЯ СПЕЦИАЛЬНОСТЕЙ ───────── */}
+      {packId === 'cctv_installer' && (
+        <g opacity="0.9">
+          {/* Луч обзора уличной IP-камеры слева + экран регистратора NVR 2x2 справа */}
+          <polygon points="62,64 148,48 148,142" fill={pal.accent} opacity="0.1" />
+          <g stroke={pal.accent} strokeWidth="1.4" fill="#101B20">
+            <line x1="20" y1="78" x2="38" y2="78" />
+            <rect x="34" y="54" width="30" height="16" rx="4" transform="rotate(10 49 62)" />
+            <circle cx="62" cy="64" r="3" fill="#FF6B5E" stroke="none" />
+          </g>
+          <g transform="translate(262, 54)" opacity="0.72">
+            <rect x="0" y="0" width="76" height="52" rx="5" fill="rgba(8,14,18,0.78)" stroke={pal.accent} strokeWidth="1.2" />
+            <line x1="38" y1="0" x2="38" y2="52" stroke={pal.accent} strokeWidth="0.8" opacity="0.5" />
+            <line x1="0" y1="26" x2="76" y2="26" stroke={pal.accent} strokeWidth="0.8" opacity="0.5" />
+            <circle cx="68" cy="8" r="2.5" fill="#FF5A4E" />
+          </g>
+        </g>
+      )}
+
+      {packId === 'scs_designer' && (
+        <g opacity="0.88">
+          {/* Миллиметровая сетка чертежа + перфорированный кабельный лоток сверху + шкаф 42U справа */}
+          <g stroke={pal.accent} strokeWidth="0.6" opacity="0.18">
+            <line x1="0" y1="44" x2="360" y2="44" strokeDasharray="4 4" />
+            <line x1="56" y1="0" x2="56" y2="200" />
+            <line x1="304" y1="0" x2="304" y2="200" />
+          </g>
+          <rect x="20" y="36" width="108" height="8" rx="2" fill="rgba(12,22,36,0.7)" stroke={pal.accent} strokeWidth="1.1" opacity="0.65" />
+          <g transform="translate(274, 42)" opacity="0.8">
+            <rect x="0" y="0" width="60" height="128" rx="4" fill="rgba(9,17,27,0.82)" stroke={pal.accent} strokeWidth="1.3" />
+            {[14, 32, 50, 68].map((ry) => (
+              <g key={ry}>
+                <rect x="6" y={ry} width="48" height="10" rx="1.5" fill="rgba(118,181,240,0.12)" stroke={pal.accent} strokeWidth="0.8" />
+                <circle cx="12" cy={ry + 5} r="1.4" fill="#6EE7B7" />
+                <circle cx="19" cy={ry + 5} r="1.4" fill={pal.accent} />
+                <circle cx="26" cy={ry + 5} r="1.4" fill="#6EE7B7" />
+              </g>
+            ))}
+          </g>
+        </g>
+      )}
+
+      {packId === 'car_flipper' && (
+        <g opacity="0.9">
+          {/* Силуэт авто с горящими фарами слева и экран толщиномера ЛКП справа */}
+          <g transform="translate(18, 98)">
+            <path
+              d="M6 38 L18 18 H68 L84 34 H92 V50 H4 V38 Z"
+              fill="rgba(18,13,9,0.78)"
+              stroke={pal.accent}
+              strokeWidth="1.4"
+            />
+            <polygon points="74,36 92,35 92,41 76,41" fill="#FFE09E" />
+            <polygon points="92,36 134,26 134,52 92,42" fill={pal.accent} opacity="0.14" />
+            <circle cx="24" cy="50" r="8" fill="#120E0B" stroke={pal.accent} strokeWidth="1.4" />
+            <circle cx="72" cy="50" r="8" fill="#120E0B" stroke={pal.accent} strokeWidth="1.4" />
+          </g>
+          <g transform="translate(268, 56)" opacity="0.82">
+            <rect x="0" y="0" width="68" height="44" rx="8" fill="rgba(18,13,10,0.82)" stroke={pal.accent} strokeWidth="1.2" />
+            <text x="34" y="21" textAnchor="middle" fill={pal.accent} fontSize="11" fontWeight="700" fontFamily="JetBrains Mono, monospace">
+              {(seed % 2 === 0 ? '118' : '940') + ' µm'}
+            </text>
+            <text x="34" y="34" textAnchor="middle" fill="rgba(255,255,255,0.55)" fontSize="7.5" fontFamily="JetBrains Mono, monospace">
+              ЗАМЕР ЛКП
+            </text>
+          </g>
+        </g>
+      )}
+
+      {packId === 'barista_pro' && (
+        <g opacity="0.92">
+          {/* Подвесные тёплые лампы кофейни + профессиональная эспрессо-машина с холдером и паром */}
+          <g>
+            <line x1="78" y1="0" x2="78" y2="28" stroke={pal.accent} strokeWidth="1.2" opacity="0.6" />
+            <path d="M64 38 C66 26, 90 26, 92 38 Z" fill="#2A1C14" stroke={pal.accent} strokeWidth="1.3" />
+            <polygon points="66,38 90,38 108,110 48,110" fill={pal.accent} opacity="0.08" />
+          </g>
+          <g transform="translate(22, 92)">
+            <rect x="0" y="0" width="76" height="64" rx="6" fill="rgba(22,14,10,0.86)" stroke={pal.accent} strokeWidth="1.4" />
+            <circle cx="24" cy="18" r="7" fill="none" stroke={pal.accent} strokeWidth="1.2" />
+            <line x1="24" y1="18" x2="28" y2="14" stroke="#FFD699" strokeWidth="1.2" />
+            <rect x="44" y="28" width="18" height="8" rx="2" fill={pal.accent} opacity="0.8" />
+            <line x1="62" y1="32" x2="78" y2="35" stroke={pal.accent} strokeWidth="2.6" strokeLinecap="round" />
+            <path d="M52 52 C50 44, 56 44, 54 38" fill="none" stroke="rgba(255,245,232,0.45)" strokeWidth="1.3" strokeLinecap="round" />
+          </g>
+        </g>
+      )}
+
+      {packId === 'sales_manager' && (
+        <g opacity="0.86">
+          {/* Канбан-этапы сделки слева и график личного плана справа */}
+          <g transform="translate(20, 58)">
+            <rect x="0" y="0" width="76" height="58" rx="6" fill="rgba(12,20,25,0.76)" stroke={pal.accent} strokeWidth="1.1" />
+            <rect x="8" y="10" width="24" height="8" rx="2" fill={pal.accent} opacity="0.4" />
+            <rect x="8" y="24" width="42" height="8" rx="2" fill={pal.accent} opacity="0.65" />
+            <rect x="8" y="38" width="60" height="8" rx="2" fill="#6EE7B7" opacity="0.75" />
+          </g>
+          <g transform="translate(264, 62)">
+            <polyline
+              points="4,44 22,32 38,35 64,10"
+              fill="none"
+              stroke={pal.accent}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="64" cy="10" r="3.5" fill="#6EE7B7" />
+          </g>
+        </g>
+      )}
+
+      {packId === 'office_manager' && (
+        <g opacity="0.88">
+          {/* Сплит-система кондиционера с потоками прохлады слева + курьерские коробки и папки справа */}
+          <g transform="translate(20, 46)">
+            <rect x="0" y="0" width="78" height="22" rx="5" fill="rgba(18,26,22,0.84)" stroke={pal.accent} strokeWidth="1.2" />
+            <line x1="8" y1="16" x2="70" y2="16" stroke={pal.accent} strokeWidth="1" opacity="0.6" />
+            <path d="M18 26 Q24 38 14 46 M38 26 Q44 38 34 46 M58 26 Q64 38 54 46" fill="none" stroke="#9EEAD1" strokeWidth="1.2" opacity="0.48" strokeLinecap="round" />
+          </g>
+          <g transform="translate(268, 96)">
+            <rect x="8" y="24" width="56" height="38" rx="3" fill="#2A231B" stroke={pal.accent} strokeWidth="1.2" />
+            <rect x="16" y="4" width="40" height="20" rx="2.5" fill="#342B20" stroke={pal.accent} strokeWidth="1.1" />
+            <line x1="36" y1="4" x2="36" y2="24" stroke={pal.accent} strokeWidth="2" opacity="0.6" />
+          </g>
+        </g>
+      )}
+
+      {packId === 'ai_agent' && (
+        <g opacity="0.9">
+          {/* Терминальные блоки промпта и нейронный граф токенов */}
+          <g transform="translate(18, 52)">
+            <rect x="0" y="0" width="82" height="54" rx="6" fill="rgba(8,18,20,0.82)" stroke={pal.accent} strokeWidth="1.1" />
+            <line x1="10" y1="14" x2="52" y2="14" stroke={pal.accent} strokeWidth="2" strokeLinecap="round" />
+            <line x1="10" y1="25" x2="68" y2="25" stroke="rgba(255,255,255,0.38)" strokeWidth="1.6" strokeLinecap="round" />
+            <line x1="10" y1="36" x2="44" y2="36" stroke="#7AE3CE" strokeWidth="1.6" strokeLinecap="round" opacity="0.7" />
+          </g>
+          <g stroke={pal.accent} strokeWidth="1" opacity="0.55">
+            <line x1="268" y1="62" x2="298" y2="48" />
+            <line x1="268" y1="62" x2="306" y2="82" />
+            <line x1="298" y1="48" x2="328" y2="68" />
+            <line x1="306" y1="82" x2="328" y2="68" />
+            <circle cx="268" cy="62" r="3.5" fill={pal.accent} />
+            <circle cx="298" cy="48" r="3" fill="#0D1F22" />
+            <circle cx="306" cy="82" r="3" fill="#0D1F22" />
+            <circle cx="328" cy="68" r="4" fill={pal.accent} />
+          </g>
+        </g>
+      )}
+
       {/* Деликатный номер кейса слева вверху */}
       <g opacity="0.88">
         <rect
@@ -550,7 +699,54 @@ export function EditorialCardPortrait({
         fill="rgba(0,0,0,0.25)"
       />
 
-      {outfitKind === 0 && (
+      {/* Профессиональная форма новых специальностей (либо базовые 7 костюмов) */}
+      {packId === 'barista_pro' ? (
+        /* Крафтовый фартук бариста с латунными пряжками и темпером/ручником */
+        <g>
+          <polygon points="158,134 180,156 202,134" fill="#1D1612" />
+          <rect x="144" y="152" width="72" height="52" rx="5" fill="#3B271B" stroke={pal.accent} strokeWidth="1.4" />
+          <line x1="154" y1="134" x2="154" y2="154" stroke={pal.accent} strokeWidth="3.2" />
+          <line x1="206" y1="134" x2="206" y2="154" stroke={pal.accent} strokeWidth="3.2" />
+          <circle cx="154" cy="154" r="2.6" fill="#FFE0B2" />
+          <circle cx="206" cy="154" r="2.6" fill="#FFE0B2" />
+          <rect x="164" y="170" width="32" height="16" rx="3" fill="rgba(0,0,0,0.26)" stroke={pal.accent} strokeWidth="0.9" />
+        </g>
+      ) : packId === 'cctv_installer' ? (
+        /* Утеплённый монтажный жилет со светоотражающими полосами и тестером витой пары */
+        <g>
+          <rect x="162" y="128" width="36" height="16" rx="4" fill="#101B20" stroke={pal.accent} strokeWidth="1" />
+          <line x1="116" y1="168" x2="162" y2="168" stroke={pal.accent} strokeWidth="3.2" opacity="0.85" />
+          <line x1="198" y1="168" x2="244" y2="168" stroke={pal.accent} strokeWidth="3.2" opacity="0.85" />
+          <line x1="180" y1="144" x2="180" y2="204" stroke="rgba(255,255,255,0.22)" strokeWidth="1.6" />
+          <rect x="204" y="176" width="18" height="22" rx="3" fill="#0E171C" stroke={pal.accent} strokeWidth="1.1" />
+        </g>
+      ) : packId === 'car_flipper' ? (
+        /* Стёганый бомбер / куртка с воротником-стойкой и толщиномером в нагрудном кармане */
+        <g>
+          <path d="M154 132 L180 162 L206 132" fill="#18120E" stroke={pal.accent} strokeWidth="1.5" />
+          <line x1="180" y1="162" x2="180" y2="204" stroke={pal.accent} strokeWidth="1.8" />
+          <line x1="114" y1="164" x2="164" y2="164" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" />
+          <line x1="196" y1="164" x2="246" y2="164" stroke="rgba(255,255,255,0.1)" strokeWidth="1.2" />
+          <rect x="204" y="156" width="14" height="20" rx="3" fill="#120E0A" stroke={pal.accent} strokeWidth="1.3" />
+          <rect x="207" y="159" width="8" height="6" rx="1" fill={pal.accent} />
+        </g>
+      ) : packId === 'scs_designer' ? (
+        /* Инженерная рубашка с бейджем СКС и масштабной линейкой */
+        <g>
+          <polygon points="156,134 180,168 204,134" fill="#EBF2FA" opacity="0.92" />
+          <path d="M162 140 L177 180 L198 140" fill="none" stroke={pal.accent} strokeWidth="1.6" />
+          <rect x="170" y="178" width="20" height="15" rx="2.5" fill="#0E1B2B" stroke={pal.accent} strokeWidth="1.2" />
+          <rect x="208" y="158" width="6" height="22" rx="1.5" fill={pal.accent} opacity="0.85" />
+        </g>
+      ) : packId === 'ai_agent' ? (
+        /* Минималистичный кибер-воротник с подсвеченными нейронными дорожками */
+        <g>
+          <rect x="160" y="128" width="40" height="15" rx="5" fill="#0B191B" stroke={pal.accent} strokeWidth="1.3" />
+          <path d="M142 152 L168 152 L180 168 L192 152 L218 152" fill="none" stroke={pal.accent} strokeWidth="1.6" opacity="0.85" />
+          <circle cx="180" cy="168" r="3.5" fill={pal.accent} />
+          <line x1="180" y1="172" x2="180" y2="202" stroke={pal.accent} strokeWidth="1.4" strokeDasharray="3 3" opacity="0.7" />
+        </g>
+      ) : outfitKind === 0 ? (
         /* Деловой пиджак с галстуком и нагрудным платком */
         <g>
           <polygon points="158,134 180,178 202,134" fill={pal.skinLight} opacity="0.94" />
@@ -563,18 +759,14 @@ export function EditorialCardPortrait({
           />
           <polygon points="214,168 228,165 225,173" fill={pal.accent} opacity="0.85" />
         </g>
-      )}
-
-      {outfitKind === 1 && (
+      ) : outfitKind === 1 ? (
         /* Водолазка основателя + бейдж на ленте */
         <g>
           <rect x="162" y="127" width="36" height="16" rx="5" fill="#14181B" stroke={pal.accent} strokeWidth="1" />
           <path d="M163 142 L177 182 L197 142" fill="none" stroke={pal.accent} strokeWidth="1.6" opacity="0.8" />
           <rect x="171" y="180" width="18" height="16" rx="3" fill="rgba(255,255,255,0.88)" />
         </g>
-      )}
-
-      {outfitKind === 2 && (
+      ) : outfitKind === 2 ? (
         /* Продуктовое худи со шнурками и студийными наушниками на шее */
         <g>
           <path
@@ -588,9 +780,7 @@ export function EditorialCardPortrait({
           <line x1="168" y1="148" x2="168" y2="178" stroke="rgba(255,255,255,0.5)" strokeWidth="1.6" strokeLinecap="round" />
           <line x1="192" y1="148" x2="192" y2="178" stroke="rgba(255,255,255,0.5)" strokeWidth="1.6" strokeLinecap="round" />
         </g>
-      )}
-
-      {outfitKind === 3 && (
+      ) : outfitKind === 3 ? (
         /* Открытый воротник рубашки + жилет */
         <g>
           <polygon points="156,134 180,168 204,134" fill={pal.skinLight} opacity="0.92" />
@@ -598,9 +788,7 @@ export function EditorialCardPortrait({
           <polygon points="204,134 192,154 200,158 212,140" fill="#EAE4D8" opacity="0.85" />
           <line x1="180" y1="168" x2="180" y2="200" stroke="rgba(255,255,255,0.16)" strokeWidth="1.4" />
         </g>
-      )}
-
-      {outfitKind === 4 && (
+      ) : outfitKind === 4 ? (
         /* V-образный жакет с минималистичным кулоном / платком */
         <g>
           <polygon points="160,134 180,172 200,134" fill={pal.skinShade} />
@@ -608,9 +796,7 @@ export function EditorialCardPortrait({
           <circle cx="180" cy="154" r="3" fill={pal.accent} />
           <path d="M152 135 L178 176 M208 135 L182 176" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" fill="none" />
         </g>
-      )}
-
-      {outfitKind === 5 && (
+      ) : outfitKind === 5 ? (
         /* Халат / аудит-френч со стетоскопом или ручкой в кармане */
         <g>
           <polygon points="158,134 180,170 202,134" fill="#F5F7F6" />
@@ -618,9 +804,7 @@ export function EditorialCardPortrait({
           <circle cx="173" cy="174" r="4" fill={pal.accent} />
           <rect x="206" y="164" width="18" height="4" rx="2" fill={pal.accent} opacity="0.85" />
         </g>
-      )}
-
-      {outfitKind === 6 && (
+      ) : (
         /* Ремесленный фартук / рабочая куртка с ремешком */
         <g>
           <polygon points="160,134 180,160 200,134" fill={pal.skinLight} opacity="0.9" />
@@ -681,6 +865,14 @@ export function EditorialCardPortrait({
             <g>
               <path d="M141 71 C143 37, 217 37, 219 71 L228 75 L132 75 Z" fill={pal.accent} />
               <rect x="174" y="42" width="12" height="22" rx="3" fill="rgba(255,255,255,0.22)" />
+            </g>
+          ) : packId === 'cctv_installer' && seed % 2 === 0 ? (
+            /* Тёплая вязаная шапка монтажника с налобным фонарём */
+            <g>
+              <path d="M145 72 C146 39, 214 39, 215 72 Z" fill="#1F3440" stroke={pal.accent} strokeWidth="1.2" />
+              <rect x="144" y="64" width="72" height="9" rx="4" fill="#16262F" stroke={pal.accent} strokeWidth="1" />
+              <rect x="171" y="57" width="18" height="9" rx="3" fill="#0E161B" stroke={pal.accent} strokeWidth="1.2" />
+              <circle cx="180" cy="61.5" r="2.6" fill="#FFE8A3" />
             </g>
           ) : packId === 'plastic_surgeon' && seed % 2 === 0 ? (
             /* Хирургическая шапочка */
@@ -778,8 +970,24 @@ export function EditorialCardPortrait({
             />
           )}
 
-          {/* Очки / взгляд */}
-          {glassesKind === 0 ? (
+          {/* Очки / взгляд / кибер-визор ИИ-агента */}
+          {packId === 'ai_agent' && seed % 3 !== 0 ? (
+            <g>
+              <rect
+                x="151"
+                y="78"
+                width="58"
+                height="14"
+                rx="7"
+                fill="#0B191B"
+                stroke={pal.accent}
+                strokeWidth="1.8"
+              />
+              <line x1="158" y1="85" x2="202" y2="85" stroke={pal.accent} strokeWidth="2.2" strokeLinecap="round" />
+              <circle cx="167" cy="85" r="2.5" fill="#FFFFFF" />
+              <circle cx="193" cy="85" r="2.5" fill="#FFFFFF" />
+            </g>
+          ) : glassesKind === 0 ? (
             /* Архитектурная прямоугольная оправа */
             <g>
               <rect
@@ -882,10 +1090,25 @@ export function EditorialCardPortrait({
               )}
             </>
           )}
+
+          {/* Телефонная гарнитура сейлза с микрофоном у щеки */}
+          {(packId === 'sales_manager' || (packId === 'sales_rop' && seed % 2 === 0)) && (
+            <g>
+              <rect x="209" y="81" width="7" height="14" rx="3.5" fill="#141C22" stroke={pal.accent} strokeWidth="1.2" />
+              <path
+                d="M212 93 Q208 108 191 108"
+                fill="none"
+                stroke={pal.accent}
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
+              <circle cx="190" cy="108" r="2.4" fill={pal.accent} />
+            </g>
+          )}
         </g>
       )}
 
-      {/* ───────── 4. УНИКАЛЬНАЯ ПРОФЕССИОНАЛЬНАЯ ЭМБЛЕМА ДЛЯ КАЖДОЙ ИЗ 12 ПРОФЕССИЙ ───────── */}
+      {/* ───────── 4. УНИКАЛЬНАЯ ПРОФЕССИОНАЛЬНАЯ ЭМБЛЕМА ДЛЯ КАЖДОЙ ИЗ 19 ПРОФЕССИЙ ───────── */}
       <g transform="translate(292, 134)" stroke={pal.accent} strokeWidth="1.6" fill="none">
         <rect
           x="0"

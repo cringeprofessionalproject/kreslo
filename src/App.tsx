@@ -26,6 +26,7 @@ import {
   getProgressivePreview,
   prepareBalancedCard,
 } from './game/balanceMath';
+import { getChoiceShortGist } from './game/choiceErgonomics';
 import {
   buildBlock2BossCard,
   buildEscalationDeckForPack,
@@ -384,10 +385,16 @@ function OutgoingCardGhost({
 
       <div className="dc-inline-choices">
         <div className={`dc-inline-side left ${snapshot.side === 'left' ? 'active' : ''}`}>
-          <span>← {snapshot.card.left.label}</span>
+          <div className="dc-inline-copy">
+            <small className="dc-dir-kicker">← Влево</small>
+            <strong>{getChoiceShortGist(snapshot.card.left.label)}</strong>
+          </div>
         </div>
         <div className={`dc-inline-side right ${snapshot.side === 'right' ? 'active' : ''}`}>
-          <span>{snapshot.card.right.label} →</span>
+          <div className="dc-inline-copy">
+            <small className="dc-dir-kicker">Вправо →</small>
+            <strong>{getChoiceShortGist(snapshot.card.right.label)}</strong>
+          </div>
         </div>
       </div>
     </div>
@@ -735,9 +742,11 @@ export function App() {
     rot: number;
     inlineBtnSide: 'left' | 'right' | null;
     movedMax: number;
+    captured: boolean;
     grabPlayed: boolean;
     lockedSide: 'left' | 'right' | null;
   } | null>(null);
+  const lastInlineCommitMsRef = useRef(0);
   const tiltZoneRef = useRef<'left' | 'none' | 'right'>('none');
   const outgoingReelAnimRef = useRef<OutgoingReelCardAnim | null>(null);
 
@@ -1662,13 +1671,8 @@ export function App() {
     const inlineSide =
       (inlineSideEl?.getAttribute('data-inline-choice') as 'left' | 'right' | null) ?? null;
 
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // ignore
-    }
-
-    // Останавливаем текущую анимацию возврата на карточке, если она была
+    // НЕ вызываем setPointerCapture на pointerdown до начала реального движения (> 6px),
+    // чтобы при коротком тапе по кнопке выбора на iOS сработал доверенный click на <label><input switch> (Taptic Engine)!
     activeCardElRef.current?.getAnimations().forEach((a) => a.cancel());
 
     const now = performance.now();
@@ -1684,6 +1688,7 @@ export function App() {
       rot: 0,
       inlineBtnSide: inlineSide,
       movedMax: 0,
+      captured: false,
       grabPlayed: false,
       lockedSide: null,
     };
@@ -1706,6 +1711,15 @@ export function App() {
     const rawDy = e.clientY - drag.startY;
     const totalMove = Math.hypot(rawDx, rawDy);
     if (totalMove > drag.movedMax) drag.movedMax = totalMove;
+
+    if (!drag.captured && totalMove > 6) {
+      drag.captured = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // ignore
+      }
+    }
 
     if (!drag.grabPlayed && totalMove > 4) {
       drag.grabPlayed = true;
@@ -1777,9 +1791,15 @@ export function App() {
 
     const { dx, dy, rot, vx, inlineBtnSide, movedMax } = drag;
 
-    // Если пользователь просто коротко тапнул по нижней левой/правой подписи на карточке (< 7px)
+    // Если пользователь коротко тапнул по нижней кнопке (< 7px) — даём отработать штатному onClick кнопки
+    // (чтобы на iPhone сработал нативный Taptic Engine от <label><input switch>), а на десктопе страхуем здесь:
     if (movedMax < 7 && inlineBtnSide) {
-      commitChoice(inlineBtnSide, { fromX: 0, fromY: 0, fromRot: 0 });
+      window.setTimeout(() => {
+        if (performance.now() - lastInlineCommitMsRef.current > 180) {
+          lastInlineCommitMsRef.current = performance.now();
+          commitChoice(inlineBtnSide, { fromX: 0, fromY: 0, fromRot: 0 });
+        }
+      }, 24);
       return;
     }
 
@@ -2166,10 +2186,16 @@ export function App() {
 
               <div className="dc-inline-choices">
                 <div className="dc-inline-side left">
-                  <span>← {nextCard.left.label}</span>
+                  <div className="dc-inline-copy">
+                    <small className="dc-dir-kicker">← Влево</small>
+                    <strong>{getChoiceShortGist(nextCard.left.label)}</strong>
+                  </div>
                 </div>
                 <div className="dc-inline-side right">
-                  <span>{nextCard.right.label} →</span>
+                  <div className="dc-inline-copy">
+                    <small className="dc-dir-kicker">Вправо →</small>
+                    <strong>{getChoiceShortGist(nextCard.right.label)}</strong>
+                  </div>
                 </div>
               </div>
             </div>
@@ -2221,16 +2247,18 @@ export function App() {
 
                 {activePreviewSide && (
                   <div
-                    className={`reigns-choice-curtain ${activePreviewSide}`}
-                    style={{ opacity: Math.min(1, 0.38 + pullRatio * 0.62) }}
+                    className={`reigns-choice-curtain top-ergonomic-curtain ${activePreviewSide}`}
+                    style={{ opacity: Math.min(1, 0.9 + pullRatio * 0.1) }}
                   >
                     <div
                       className={`rcc-volumetric-bar ${activePreviewSide}`}
-                      style={{ width: `${Math.round(Math.max(18, pullRatio * 100))}%` }}
+                      style={{ width: `${Math.round(Math.max(22, pullRatio * 100))}%` }}
                     />
                     <div className="rcc-copy">
                       <small>
-                        {activePreviewSide === 'left' ? '← Выбор влево' : 'Выбор вправо →'}
+                        {activePreviewSide === 'left'
+                          ? '← Полная формулировка решения'
+                          : 'Полная формулировка решения →'}
                       </small>
                       <strong>
                         {activePreviewSide === 'left'
@@ -2251,12 +2279,18 @@ export function App() {
                 <p>{currentCard.text}</p>
               </div>
 
-              {/* Нижние зоны ответа не блокируют свайп пальцем — и тянутся, и нажимаются! */}
+              {/* Эргономичные углы выбора: в покое — яркая короткая суть, а при свайпе сверху раскрывается полный текст! */}
               <div className="dc-inline-choices">
                 <button
                   type="button"
                   data-inline-choice="left"
                   className={`dc-inline-side left ${activePreviewSide === 'left' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (performance.now() - lastInlineCommitMsRef.current > 180) {
+                      lastInlineCommitMsRef.current = performance.now();
+                      commitChoice('left', { fromX: 0, fromY: 0, fromRot: 0 });
+                    }
+                  }}
                 >
                   <div
                     className="dc-inline-fill left-dir"
@@ -2264,13 +2298,22 @@ export function App() {
                       width: activePreviewSide === 'left' ? `${Math.round(pullRatio * 100)}%` : '0%',
                     }}
                   />
-                  <span>← {currentCard.left.label}</span>
+                  <div className="dc-inline-copy">
+                    <small className="dc-dir-kicker">← Влево</small>
+                    <strong>{getChoiceShortGist(currentCard.left.label)}</strong>
+                  </div>
                 </button>
 
                 <button
                   type="button"
                   data-inline-choice="right"
                   className={`dc-inline-side right ${activePreviewSide === 'right' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (performance.now() - lastInlineCommitMsRef.current > 180) {
+                      lastInlineCommitMsRef.current = performance.now();
+                      commitChoice('right', { fromX: 0, fromY: 0, fromRot: 0 });
+                    }
+                  }}
                 >
                   <div
                     className="dc-inline-fill right-dir"
@@ -2278,7 +2321,10 @@ export function App() {
                       width: activePreviewSide === 'right' ? `${Math.round(pullRatio * 100)}%` : '0%',
                     }}
                   />
-                  <span>{currentCard.right.label} →</span>
+                  <div className="dc-inline-copy">
+                    <small className="dc-dir-kicker">Вправо →</small>
+                    <strong>{getChoiceShortGist(currentCard.right.label)}</strong>
+                  </div>
                 </button>
               </div>
             </div>

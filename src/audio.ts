@@ -67,33 +67,105 @@ function outNode(ac: AudioContext): AudioNode {
   return masterGain ?? ac.destination;
 }
 
-// Аппаратный триггер Taptic Engine для iPhone (Safari iOS 17.4+ / iOS 18+ <input switch>) + Telegram + Android
-let iosSwitchLabelEl: HTMLLabelElement | null = null;
-let lastIosSwitchMs = 0;
+// ───────── НАТИВНАЯ ВИБРАЦИЯ TAPTIC ENGINE НА IPHONE (TRUSTED <label><input switch>) + TELEGRAM + ANDROID ─────────
 
-function ensureIosTapticSwitchLabel(): HTMLLabelElement | null {
-  if (typeof document === 'undefined' || !document.body) return null;
-  if (iosSwitchLabelEl && document.body.contains(iosSwitchLabelEl)) {
-    return iosSwitchLabelEl;
+function isIosTouchDevice(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+/**
+ * В новых версиях iOS Safari программный `label.click()` из JS заблокирован от вызова Taptic Engine:
+ * вибрация срабатывает ТОЛЬКО при прямом физическом касании пальцем (`e.isTrusted === true`) прозрачного `<label>`,
+ * связанного с `<input type="checkbox" switch>` (механизм ios-haptics v3.3).
+ */
+export function wireIosHapticLabelToButton(btn: HTMLElement) {
+  if (!btn || typeof document === 'undefined' || !isIosTouchDevice()) return;
+  if (btn.hasAttribute('data-no-haptic')) return;
+  if (btn.querySelector(':scope > label[data-haptic-trigger]')) return;
+
+  const isInlineCardChoice = btn.hasAttribute('data-inline-choice');
+  const computedPos = window.getComputedStyle(btn).position;
+  if (computedPos === 'static') {
+    btn.style.position = 'relative';
   }
-  const id = 'kreslo-ios-taptic-switch';
+
   const label = document.createElement('label');
-  label.htmlFor = id;
+  label.setAttribute('data-haptic-trigger', '');
   label.setAttribute('aria-hidden', 'true');
-  // Важно: не display:none, иначе WebKit отключает Taptic-отклик тумблера
-  label.style.cssText =
-    'position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0.001;pointer-events:none;overflow:hidden;z-index:-1;';
+  Object.assign(label.style, {
+    position: 'absolute',
+    inset: '0',
+    zIndex: '4',
+    cursor: 'inherit',
+    touchAction: isInlineCardChoice ? 'none' : 'manipulation',
+  });
+  label.style.setProperty('-webkit-tap-highlight-color', 'transparent');
 
   const input = document.createElement('input');
   input.type = 'checkbox';
-  input.id = id;
   input.tabIndex = -1;
   input.setAttribute('switch', '');
+  Object.assign(input.style, {
+    position: 'absolute',
+    width: '1px',
+    height: '1px',
+    margin: '0',
+    padding: '0',
+    opacity: '0',
+    visibility: 'hidden',
+    pointerEvents: 'none',
+  });
+  // Останавливаем второй синтетический click от <input>, чтобы родительский <button> сработал ровно 1 раз!
+  input.addEventListener('click', (e) => e.stopPropagation());
 
   label.appendChild(input);
-  document.body.appendChild(label);
-  iosSwitchLabelEl = label;
-  return label;
+  btn.insertAdjacentElement('beforeend', label);
+}
+
+function scanAndWireIosHaptics() {
+  if (typeof document === 'undefined' || !isIosTouchDevice()) return;
+  const buttons = document.querySelectorAll<HTMLElement>('button:not([data-no-haptic])');
+  buttons.forEach(wireIosHapticLabelToButton);
+}
+
+let pendingGestureSwitchPulse = false;
+let fallbackSwitchLabel: HTMLLabelElement | null = null;
+
+function pulseFallbackSwitchInViewport() {
+  if (typeof document === 'undefined' || !document.body || !isIosTouchDevice()) return;
+  if (!fallbackSwitchLabel || !document.body.contains(fallbackSwitchLabel)) {
+    const lbl = document.createElement('label');
+    lbl.setAttribute('aria-hidden', 'true');
+    Object.assign(lbl.style, {
+      position: 'fixed',
+      bottom: '2px',
+      left: '2px',
+      width: '1px',
+      height: '1px',
+      opacity: '0',
+      pointerEvents: 'none',
+      zIndex: '-1',
+    });
+    const inp = document.createElement('input');
+    inp.type = 'checkbox';
+    inp.tabIndex = -1;
+    inp.setAttribute('switch', '');
+    Object.assign(inp.style, {
+      width: '1px',
+      height: '1px',
+      margin: '0',
+      visibility: 'hidden',
+    });
+    inp.addEventListener('click', (ev) => ev.stopPropagation());
+    lbl.appendChild(inp);
+    document.body.appendChild(lbl);
+    fallbackSwitchLabel = lbl;
+  }
+  fallbackSwitchLabel.click();
 }
 
 export function triggerHaptic(
@@ -101,7 +173,7 @@ export function triggerHaptic(
   allowIosSwitchClick = false
 ) {
   try {
-    // 1. Нативный Taptic Engine внутри Telegram WebApp (работает и на iPhone, и на Android)
+    // 1. Нативный Taptic Engine внутри Telegram WebApp (iPhone + Android)
     const tgHaptic = (
       window as unknown as {
         Telegram?: {
@@ -119,32 +191,28 @@ export function triggerHaptic(
     if (tgHaptic) {
       if (style === 'selection') tgHaptic.selectionChanged?.();
       else if (style === 'success' || style === 'error') tgHaptic.notificationOccurred?.(style);
-      else tgHaptic.impactOccurred?.(style === 'medium' ? 'medium' : 'soft');
+      else tgHaptic.impactOccurred?.(style === 'medium' ? 'medium' : 'light');
     }
 
-    // 2. Виброотклик Android (Vibration API)
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+    // 2. Вибромотор Android (Web Vibration API)
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
       const pattern =
         style === 'selection'
-          ? 4
+          ? 6
           : style === 'light'
-            ? 6
+            ? 10
             : style === 'medium'
-              ? 10
+              ? 16
               : style === 'success'
-                ? [7, 24, 10]
-                : [12, 28, 16];
+                ? [10, 26, 14]
+                : [18, 30, 22];
       navigator.vibrate(pattern);
     }
 
-    // 3. Настоящий iPhone Taptic Engine в Safari iOS 17.4+ / iOS 18+ через системный switch
-    // Вызывается только на завершённых кликах/отпусканиях (не во время pointermove), чтобы не сбивать захват свайпа!
-    if (allowIosSwitchClick && typeof navigator !== 'undefined') {
-      const now = performance.now();
-      if (now - lastIosSwitchMs > 45) {
-        lastIosSwitchMs = now;
-        ensureIosTapticSwitchLabel()?.click();
-      }
+    // 3. Очередь импульса для touchend/click на iOS 18.0–18.1 при свайпе
+    if (allowIosSwitchClick && isIosTouchDevice()) {
+      pendingGestureSwitchPulse = true;
+      pulseFallbackSwitchInViewport();
     }
   } catch {
     // ignore
@@ -360,11 +428,41 @@ export function initSound(initialMutedOrProfile: boolean | SoundProfile = false)
     ensureCtx();
     syncBackgroundMusic();
   };
+
+  const onTouchEndFlush = () => {
+    if (pendingGestureSwitchPulse) {
+      pendingGestureSwitchPulse = false;
+      pulseFallbackSwitchInViewport();
+    }
+  };
+
+  let rafWire = 0;
+  const scheduleWire = () => {
+    if (rafWire) return;
+    rafWire = window.requestAnimationFrame(() => {
+      rafWire = 0;
+      scanAndWireIosHaptics();
+    });
+  };
+
+  scanAndWireIosHaptics();
+  const observer =
+    typeof MutationObserver !== 'undefined' && isIosTouchDevice()
+      ? new MutationObserver(scheduleWire)
+      : null;
+  if (observer && document.body) {
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   window.addEventListener('pointerdown', unlock, { passive: true });
+  window.addEventListener('touchend', onTouchEndFlush, { passive: true });
   window.addEventListener('keydown', unlock, { passive: true });
   return () => {
     window.removeEventListener('pointerdown', unlock);
+    window.removeEventListener('touchend', onTouchEndFlush);
     window.removeEventListener('keydown', unlock);
+    observer?.disconnect();
+    if (rafWire) window.cancelAnimationFrame(rafWire);
     classicAudioEl?.pause();
     if (grooveTimer !== null) {
       window.clearInterval(grooveTimer);
@@ -490,7 +588,8 @@ export function sfxCardGrab() {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, 118, 56, 0.01, 0.022);
+  // Резонансная полоса микро-динамика телефона (230 -> 115 Гц, 11 мс): мягкий физический толчок мембраны под пальцем
+  playMicroTapticPulse(ac, 230, 115, 0.011, 0.11);
 }
 
 export function sfxUiTap(firm = false) {
@@ -498,7 +597,7 @@ export function sfxUiTap(firm = false) {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, firm ? 164 : 146, 66, 0.009, firm ? 0.038 : 0.026);
+  playMicroTapticPulse(ac, firm ? 275 : 245, 122, 0.01, firm ? 0.14 : 0.105);
 }
 
 export function sfxTiltTick(dir: 'left' | 'right' = 'right') {
@@ -506,7 +605,14 @@ export function sfxTiltTick(dir: 'left' | 'right' = 'right') {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, dir === 'right' ? 178 : 162, 76, 0.007, 0.024, dir === 'left' ? -0.18 : 0.18);
+  playMicroTapticPulse(
+    ac,
+    dir === 'right' ? 285 : 255,
+    128,
+    0.009,
+    0.115,
+    dir === 'left' ? -0.2 : 0.2
+  );
 }
 
 export function sfxThresholdLock(dir: 'left' | 'right', armed = true) {
@@ -514,12 +620,14 @@ export function sfxThresholdLock(dir: 'left' | 'right', armed = true) {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  const pan = dir === 'left' ? -0.25 : 0.25;
+  const pan = dir === 'left' ? -0.26 : 0.26;
   if (!armed) {
-    playMicroTapticPulse(ac, 114, 62, 0.008, 0.018, pan * 0.5);
+    playMicroTapticPulse(ac, 210, 110, 0.01, 0.085, pan * 0.5);
     return;
   }
-  playMicroTapticPulse(ac, dir === 'right' ? 158 : 144, 62, 0.012, 0.04, pan);
+  // Двойной тактильный микро-щелчок фиксации порога (как системный пикер iOS)
+  playMicroTapticPulse(ac, dir === 'right' ? 295 : 265, 118, 0.013, 0.16, pan);
+  playMicroTapticPulse(ac, 185, 96, 0.01, 0.09, pan, 0.016);
 }
 
 export function sfxCardSnapBack() {
@@ -527,7 +635,7 @@ export function sfxCardSnapBack() {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, 102, 52, 0.015, 0.032);
+  playMicroTapticPulse(ac, 215, 104, 0.015, 0.125);
 }
 
 export function sfxSwipeCommit(dir: 'left' | 'right') {
@@ -537,17 +645,17 @@ export function sfxSwipeCommit(dir: 'left' | 'right') {
   if (!ac) return;
   const pan = dir === 'left' ? -0.32 : 0.32;
 
-  playMicroTapticPulse(ac, dir === 'right' ? 134 : 124, 52, 0.02, 0.058, pan * 0.5);
-  playSoftSilkWhisper(ac, 0.032, 0.018, pan);
-  playMicroTapticPulse(ac, 100, 56, 0.013, 0.022, 0, 0.095);
+  playMicroTapticPulse(ac, dir === 'right' ? 260 : 235, 98, 0.019, 0.175, pan * 0.5);
+  playSoftSilkWhisper(ac, 0.036, 0.042, pan);
+  playMicroTapticPulse(ac, 210, 108, 0.013, 0.095, 0, 0.095);
 }
 
 export function sfxCardFlip() {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, 114, 56, 0.015, 0.034);
-  playSoftSilkWhisper(ac, 0.026, 0.015);
+  playMicroTapticPulse(ac, 225, 108, 0.015, 0.12);
+  playSoftSilkWhisper(ac, 0.028, 0.032);
 }
 
 export function sfxPopCombo(combo: number) {
