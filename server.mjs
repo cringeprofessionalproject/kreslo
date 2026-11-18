@@ -15,6 +15,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST_DIR = path.join(__dirname, 'dist');
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const STATS_FILE = path.join(DATA_DIR, 'aggregate-stats.json');
+const CHECKS_FILE = path.join(DATA_DIR, 'anonymous-checks.json');
 const PORT = Number(process.env.PORT || 8080);
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -89,15 +90,45 @@ try {
 }
 
 let dirty = false;
+let checksDirty = false;
+let checksStore = {};
+try {
+  if (fs.existsSync(CHECKS_FILE)) {
+    const parsedChecks = JSON.parse(fs.readFileSync(CHECKS_FILE, 'utf8'));
+    if (parsedChecks && typeof parsedChecks === 'object') {
+      checksStore = parsedChecks;
+    }
+  }
+} catch {
+  checksStore = {};
+}
+
 function flushStatsSync() {
-  if (!dirty) return;
-  dirty = false;
-  try {
-    const tmp = `${STATS_FILE}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(stats, null, 2), 'utf8');
-    fs.renameSync(tmp, STATS_FILE);
-  } catch {
-    // ignore disk errors
+  if (dirty) {
+    dirty = false;
+    try {
+      const tmp = `${STATS_FILE}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(stats, null, 2), 'utf8');
+      fs.renameSync(tmp, STATS_FILE);
+    } catch {
+      // ignore disk errors
+    }
+  }
+  if (checksDirty) {
+    checksDirty = false;
+    try {
+      const keys = Object.keys(checksStore);
+      if (keys.length > 600) {
+        for (const k of keys.slice(0, keys.length - 500)) {
+          delete checksStore[k];
+        }
+      }
+      const tmp = `${CHECKS_FILE}.tmp`;
+      fs.writeFileSync(tmp, JSON.stringify(checksStore), 'utf8');
+      fs.renameSync(tmp, CHECKS_FILE);
+    } catch {
+      // ignore disk errors
+    }
   }
 }
 
@@ -308,6 +339,67 @@ const server = http.createServer((req, res) => {
       'Cache-Control': 'no-store',
     });
     res.end(JSON.stringify(stats, null, 2));
+    return;
+  }
+
+  if (pathname.endsWith('/api/check-sync') && req.method === 'GET') {
+    const urlObj = new URL(rawUrl, 'http://localhost');
+    const ch = String(urlObj.searchParams.get('ch') || '').trim();
+    if (!/^[a-f0-9]{16,40}$/i.test(ch)) {
+      res.writeHead(400);
+      res.end('{}');
+      return;
+    }
+    const item = checksStore[ch] || { openedAtMs: null, progressDone: 0, receipts: [] };
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(JSON.stringify(item));
+    return;
+  }
+
+  if (pathname.endsWith('/api/check-sync') && req.method === 'POST') {
+    if (pulsesThisSecond > 800) {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
+    pulsesThisSecond += 1;
+    let body = '';
+    req.on('data', (chunk) => {
+      if (body.length < 1024) body += chunk;
+    });
+    req.on('end', () => {
+      try {
+        const parsed = JSON.parse(body);
+        const ch = typeof parsed?.ch === 'string' ? parsed.ch.trim() : '';
+        if (/^[a-f0-9]{16,40}$/i.test(ch)) {
+          if (!checksStore[ch]) {
+            checksStore[ch] = { openedAtMs: null, progressDone: 0, receipts: [] };
+          }
+          const rec = checksStore[ch];
+          if (!rec.openedAtMs) rec.openedAtMs = Date.now();
+          if (parsed.event === 'half' && typeof parsed.doneCount === 'number') {
+            rec.progressDone = Math.max(rec.progressDone || 0, Math.min(10, parsed.doneCount));
+          } else if (
+            parsed.event === 'done' &&
+            typeof parsed.receipt === 'string' &&
+            /^[A-Za-z0-9_-]{28,64}$/.test(parsed.receipt)
+          ) {
+            rec.progressDone = 10;
+            if (!rec.receipts.includes(parsed.receipt) && rec.receipts.length < 6) {
+              rec.receipts.push(parsed.receipt);
+            }
+          }
+          checksDirty = true;
+        }
+      } catch {
+        // ignore malformed payload
+      }
+      res.writeHead(204);
+      res.end();
+    });
     return;
   }
 

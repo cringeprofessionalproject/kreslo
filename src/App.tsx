@@ -89,6 +89,21 @@ import {
 } from './ui/Modals';
 import { ProInsightModal } from './ui/PaywallAndSponsorModal';
 import { CameraLocalNoticeModal, PrivacyZeroPiiModal } from './ui/PrivacyAndCameraNoticeModal';
+import {
+  ActiveSkillCheckRunner,
+  HubSkillChecksTab,
+  OwnerCheckTrackerModal,
+} from './ui/SkillCheckExperience';
+import {
+  type CheckVisibilityMode,
+  clearUrlCheckParams,
+  createNewCheckLinkRecord,
+  type DecodedCheckReceipt,
+  generateCheckToken,
+  parseUrlCheckRoute,
+  buildCheckShareUrl,
+} from './game/skillCheckSync';
+import type { SkillCheckDef } from './game/skillChecksData';
 import { useSheetPullToDismiss } from './ui/useNativeGestures';
 
 const STORAGE_KEY = 'heuristics_kreslo_sim_v7';
@@ -621,9 +636,44 @@ export function App() {
   const [meta, setMeta] = useState<PersistentMeta>(loadMeta);
   const pack: JobPack = useMemo(() => getJobPack(meta.selectedPackId), [meta.selectedPackId]);
 
+  const initialUrlRoute = useMemo(() => parseUrlCheckRoute(), []);
+
   const [inHub, setInHub] = useState(true);
   const [hasActiveRun, setHasActiveRun] = useState(false);
-  const [hubTab, setHubTab] = useState<'jobs' | 'minigames'>('jobs');
+  const [hubTab, setHubTab] = useState<'jobs' | 'checks' | 'minigames'>(() =>
+    initialUrlRoute && (initialUrlRoute.isOwner || initialUrlRoute.directReceipt) ? 'checks' : 'jobs'
+  );
+  const [checksRefreshSeq, setChecksRefreshSeq] = useState(0);
+  const [activeCheckRun, setActiveCheckRun] = useState<{
+    check: SkillCheckDef;
+    token: string;
+    mode: CheckVisibilityMode;
+    isSelfPractice: boolean;
+  } | null>(() => {
+    if (initialUrlRoute && !initialUrlRoute.isOwner && !initialUrlRoute.directReceipt) {
+      return {
+        check: initialUrlRoute.check,
+        token: initialUrlRoute.token,
+        mode: initialUrlRoute.mode,
+        isSelfPractice: false,
+      };
+    }
+    return null;
+  });
+  const [ownerTrackerModal, setOwnerTrackerModal] = useState<{
+    check: SkillCheckDef;
+    token: string;
+    directReceipt?: DecodedCheckReceipt;
+  } | null>(() => {
+    if (initialUrlRoute && (initialUrlRoute.isOwner || initialUrlRoute.directReceipt)) {
+      return {
+        check: initialUrlRoute.check,
+        token: initialUrlRoute.token,
+        directReceipt: initialUrlRoute.directReceipt,
+      };
+    }
+    return null;
+  });
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
 
   const [week, setWeek] = useState(1);
@@ -1902,6 +1952,48 @@ export function App() {
   const mm = String(Math.floor(recSeconds / 60)).padStart(2, '0');
   const ss = String(recSeconds % 60).padStart(2, '0');
 
+  if (activeCheckRun) {
+    return (
+      <ActiveSkillCheckRunner
+        check={activeCheckRun.check}
+        token={activeCheckRun.token}
+        mode={activeCheckRun.mode}
+        isSelfPractice={activeCheckRun.isSelfPractice}
+        muted={Boolean(meta.muted || meta.soundProfile === 'off')}
+        onToggleMute={() =>
+          setMeta((m) => {
+            const nextMuted = !(m.muted || m.soundProfile === 'off');
+            return {
+              ...m,
+              muted: nextMuted,
+              soundProfile: nextMuted ? 'off' : m.soundProfile === 'off' ? 'groove' : m.soundProfile,
+            };
+          })
+        }
+        onExitToHub={() => {
+          clearUrlCheckParams();
+          setActiveCheckRun(null);
+          setInHub(true);
+          setHubTab('checks');
+          setChecksRefreshSeq((s) => s + 1);
+        }}
+        onCreateOwnChallengeLink={(chk) => {
+          clearUrlCheckParams();
+          const rec = createNewCheckLinkRecord(chk, 'challenge', '');
+          const shareUrl = buildCheckShareUrl(rec.slug, rec.token);
+          if (navigator.clipboard?.writeText) {
+            void navigator.clipboard.writeText(shareUrl).catch(() => {});
+          }
+          setActiveCheckRun(null);
+          setInHub(true);
+          setHubTab('checks');
+          setChecksRefreshSeq((s) => s + 1);
+          setOwnerTrackerModal({ check: chk, token: rec.token });
+        }}
+      />
+    );
+  }
+
   return (
     <div
       className="reigns-shell"
@@ -2475,11 +2567,23 @@ export function App() {
               <button
                 type="button"
                 role="tab"
+                aria-selected={hubTab === 'checks'}
+                className={hubTab === 'checks' ? 'active' : ''}
+                onClick={() => {
+                  setHubTab('checks');
+                  setChecksRefreshSeq((s) => s + 1);
+                }}
+              >
+                Проверки
+              </button>
+              <button
+                type="button"
+                role="tab"
                 aria-selected={hubTab === 'minigames'}
                 className={hubTab === 'minigames' ? 'active' : ''}
                 onClick={() => setHubTab('minigames')}
               >
-                Блиц-ситуации
+                Блиц
               </button>
             </div>
 
@@ -2546,6 +2650,22 @@ export function App() {
                   );
                 })}
               </div>
+            ) : hubTab === 'checks' ? (
+              <HubSkillChecksTab
+                refreshTrigger={checksRefreshSeq}
+                onPlaySelfCheck={(chk) => {
+                  const practiceToken = generateCheckToken(chk.slug, 'challenge');
+                  setActiveCheckRun({
+                    check: chk,
+                    token: practiceToken,
+                    mode: 'challenge',
+                    isSelfPractice: true,
+                  });
+                }}
+                onOpenOwnerTracker={(chk, tok) => {
+                  setOwnerTrackerModal({ check: chk, token: tok });
+                }}
+              />
             ) : (
               <div className="apple-cards-scroll">
                 <div className="ios-context-chips">
@@ -2651,6 +2771,31 @@ export function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {ownerTrackerModal && (
+        <OwnerCheckTrackerModal
+          check={ownerTrackerModal.check}
+          token={ownerTrackerModal.token}
+          directReceipt={ownerTrackerModal.directReceipt}
+          onClose={() => {
+            clearUrlCheckParams();
+            setOwnerTrackerModal(null);
+            setChecksRefreshSeq((s) => s + 1);
+          }}
+          onRecordsChanged={() => setChecksRefreshSeq((s) => s + 1)}
+          onTestPlaySelf={() => {
+            const target = ownerTrackerModal.check;
+            setOwnerTrackerModal(null);
+            const practiceToken = generateCheckToken(target.slug, 'challenge');
+            setActiveCheckRun({
+              check: target,
+              token: practiceToken,
+              mode: 'challenge',
+              isSelfPractice: true,
+            });
+          }}
+        />
       )}
 
       {camNoticeOpen && (
