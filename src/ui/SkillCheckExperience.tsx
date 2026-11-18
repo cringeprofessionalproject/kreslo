@@ -877,7 +877,7 @@ export const HubSkillChecksTab: React.FC<{
         {(
           [
             ['all', 'Все'],
-            ['standards', 'Корпоративные стандарты'],
+            ['standards', 'Общая база'],
             ['roles', 'По специальностям'],
           ] as ['all' | 'standards' | 'roles', string][]
         ).map(([key, label]) => (
