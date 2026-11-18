@@ -4,17 +4,19 @@ import { useSheetPullToDismiss } from './useNativeGestures';
 // ───────── 1. ЧИСТОЕ APPLE iOS ОКНО ПЕРЕД ВКЛЮЧЕНИЕМ КАМЕРЫ (БЕЗ НЕЙРОСЛОПНЫХ РАМОК) ─────────
 
 interface CameraLocalNoticeModalProps {
+  defaultIncludeMic?: boolean;
   onConfirmLiveCamera: (withMic: boolean) => void;
   onPickStaticSelfie: () => void;
   onClose: () => void;
 }
 
 export function CameraLocalNoticeModal({
+  defaultIncludeMic = true,
   onConfirmLiveCamera,
   onPickStaticSelfie,
   onClose,
 }: CameraLocalNoticeModalProps) {
-  const [includeMic, setIncludeMic] = useState(false);
+  const [includeMic, setIncludeMic] = useState(defaultIncludeMic);
   const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
 
   return (
@@ -51,7 +53,7 @@ export function CameraLocalNoticeModal({
         >
           <div className="igr-labels">
             <strong>Записывать голос с микрофона</strong>
-            <span>Добавит живые реакции в видеоролик</span>
+            <span>Ваши комментарии и реакции попадут в ролик. Можно выключить в настройках</span>
           </div>
           <span className={`ios-toggle-pill ${includeMic ? 'on' : ''}`} aria-hidden="true">
             <span className="ios-toggle-knob" />

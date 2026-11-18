@@ -690,13 +690,10 @@ export function ReelReadyShareModal({
           onClick={shareOrDownloadVideo}
         >
           <IconShare size={18} />
-          <span>В Галерею / Поделиться ({reel.durationSec} сек)</span>
+          <span>Сохранить видео в галерею · {reel.durationSec} сек</span>
         </button>
 
-        <div className="two-col-btns">
-          <button type="button" className="cta-btn subtle" onClick={downloadVideoDirect}>
-            Скачать файл
-          </button>
+        <div className="two-col-btns single">
           <button
             type="button"
             className="cta-btn subtle"
@@ -706,7 +703,7 @@ export function ReelReadyShareModal({
               setStatusMsg('Ссылка скопирована');
             }}
           >
-            Ссылка
+            Скопировать ссылку на игру
           </button>
         </div>
 

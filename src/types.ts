@@ -153,6 +153,8 @@ export interface PersistentMeta {
   sponsorViewsCount: number;
   muted: boolean;
   soundProfile?: 'groove' | 'asmr' | 'classic' | 'off';
+  /** Записывать голос с микрофона в видео прохождения (по умолчанию — да) */
+  recordVoice?: boolean;
   tiktokMode: boolean;
   tiktokBannerIndex: number;
   telemetry: TelemetryStats;

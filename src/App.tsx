@@ -426,6 +426,8 @@ function DrawerSheet({
   pack,
   packEndingsOpen,
   activeSoundProfile,
+  recordVoice,
+  onToggleRecordVoice,
   shareRunActive,
   unlockClicks,
   masteryPct,
@@ -444,6 +446,8 @@ function DrawerSheet({
   pack: JobPack;
   packEndingsOpen: number;
   activeSoundProfile: SoundProfile;
+  recordVoice: boolean;
+  onToggleRecordVoice: () => void;
   shareRunActive: boolean;
   unlockClicks: number;
   masteryPct: number | null;
@@ -496,6 +500,28 @@ function DrawerSheet({
               </button>
             ))}
           </div>
+        </div>
+
+        <div
+          className="ios-grouped-row clickable drawer-voice-row"
+          role="switch"
+          aria-checked={recordVoice}
+          tabIndex={0}
+          onClick={onToggleRecordVoice}
+          onKeyDown={(e) => {
+            if (e.key === ' ' || e.key === 'Enter') {
+              e.preventDefault();
+              onToggleRecordVoice();
+            }
+          }}
+        >
+          <div className="igr-labels">
+            <strong>Записывать голос в видео</strong>
+            <span>Ваши комментарии попадут в ролик прохождения</span>
+          </div>
+          <span className={`ios-toggle-pill ${recordVoice ? 'on' : ''}`} aria-hidden="true">
+            <span className="ios-toggle-knob" />
+          </span>
         </div>
 
         <div className="drawer-actions-list">
@@ -1162,8 +1188,8 @@ export function App() {
       setCamNoticeOpen(true);
       return;
     }
-    await launchCameraSessionAfterConsent(false);
-  }, [launchCameraSessionAfterConsent, webcamStream]);
+    await launchCameraSessionAfterConsent(meta.recordVoice ?? true);
+  }, [launchCameraSessionAfterConsent, meta.recordVoice, webcamStream]);
 
   const exitSharePlaythroughMode = useCallback(() => {
     setPendingRecordOnFaceLock(false);
@@ -1777,7 +1803,7 @@ export function App() {
       setPoppingDeltas((p) => ({ seq: p.seq + 1, deltas }));
       setLifelineCharges((c) => Math.min(3, c + 1));
       setReactionMood({ tone: 'good', label: 'ЧЁТКО!' });
-      setToastMsg('Показатели выровнены · +1 к резерву');
+      setToastMsg('Показатели выровнены');
     } else {
       setReactionMood({ tone: 'warn', label: 'С ПОТЕРЯМИ' });
       setToastMsg('Этап пройден с потерями');
@@ -2416,7 +2442,6 @@ export function App() {
                   <button type="button" className="osb-main" onClick={handleOpenIncomingSms}>
                     <div className="osb-top-line">
                       <strong>{incomingSms.sender}</strong>
-                      <span className="osb-reward">+Резерв</span>
                     </div>
                     <p>{incomingSms.preview}</p>
                   </button>
@@ -2517,7 +2542,7 @@ export function App() {
           <div
             key={cardSeq}
             ref={activeCardElRef}
-            className={`dilemma-card apple-spring-card ${
+            className={`dilemma-card apple-spring-card fresh-card ${
               cardSeq > 1 ? 'rack-focus-appear' : ''
             } ${
               activePreviewSide === 'left'
@@ -2708,37 +2733,19 @@ export function App() {
         )}
       </main>
 
-      {/* СПОКОЙНЫЙ МИНИМАЛИСТИЧНЫЙ ПОДВАЛ */}
-      <footer className="minimal-bottom-dock">
-        <button
-          type="button"
-          disabled={lifelineCharges <= 0}
-          className={`slim-lifeline-pill ${lifelineCharges > 0 ? 'ready' : ''}`}
-          onClick={useLifeline}
-        >
-          <div className="slp-dots">
-            {[0, 1, 2].map((idx) => (
-              <span key={idx} className={idx < lifelineCharges ? 'on' : ''} />
-            ))}
-          </div>
-          <span className="slp-title">{pack.lifelineName}</span>
-        </button>
-
-        <button
-          type="button"
-          className="slim-lifeline-help"
-          onClick={() => setLifelineInfoOpen(true)}
-          aria-label="Справка о резерве"
-        >
-          ?
-        </button>
-      </footer>
+      {/* Нижний отступ под Home Indicator / панель Safari (бустер-«резерв» убран — он только занимал место) */}
+      <div className="shell-bottom-safe" aria-hidden="true" />
 
       {menuDrawerOpen && (
         <DrawerSheet
           pack={pack}
           packEndingsOpen={packEndingsOpen}
           activeSoundProfile={activeSoundProfile}
+          recordVoice={meta.recordVoice ?? true}
+          onToggleRecordVoice={() => {
+            sfxUiTap();
+            setMeta((m) => ({ ...m, recordVoice: !(m.recordVoice ?? true) }));
+          }}
           shareRunActive={shareRunActive}
           unlockClicks={meta.telemetry.unlockMoreClicks ?? 0}
           masteryPct={liveMasteryPct}
@@ -2771,7 +2778,6 @@ export function App() {
           <div className="hub-sheet apple-hub-sheet">
             <div className="apple-hub-header">
               <div className="ahh-titles">
-                <span className="ahh-eyebrow">Симулятор решений</span>
                 <h1 className="ahh-large-title">Кресло</h1>
               </div>
 
@@ -2809,8 +2815,17 @@ export function App() {
               </div>
             </div>
 
-            {/* Лаконичный переключатель iOS Segmented Control */}
-            <div className="ios-segmented-control" role="tablist">
+            {/* Компактные вкладки с бегущим индикатором (одна строка, ~34px) */}
+            <div className="hub-tabs" role="tablist">
+              <span
+                className="hub-tabs-ink"
+                aria-hidden="true"
+                style={{
+                  transform: `translateX(${
+                    hubTab === 'jobs' ? 0 : hubTab === 'checks' ? 100 : 200
+                  }%)`,
+                }}
+              />
               <button
                 type="button"
                 role="tab"
@@ -3116,12 +3131,14 @@ export function App() {
 
       {camNoticeOpen && (
         <CameraLocalNoticeModal
+          defaultIncludeMic={meta.recordVoice ?? true}
           onConfirmLiveCamera={(withMic) => {
             try {
               localStorage.setItem(CAM_NOTICE_ACK_KEY, '1');
             } catch {
               // ignore
             }
+            setMeta((m) => ({ ...m, recordVoice: withMic }));
             setCamNoticeOpen(false);
             void launchCameraSessionAfterConsent(withMic);
           }}

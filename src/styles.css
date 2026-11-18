@@ -7911,3 +7911,176 @@ body {
     transition-duration: 0.01s !important;
   }
 }
+
+
+/* ═════════ 24. v32: БЕЗ БУСТЕР-ДОКА · ОТСТУП ПОД SAFARI · ВАРИАНТЫ С ЗАДЕРЖКОЙ · КОМПАКТНЫЙ КАТАЛОГ ═════════ */
+
+/* ───── 24.1 Нижний отступ вместо бустер-дока ───── */
+.shell-bottom-safe {
+  flex-shrink: 0;
+  height: calc(env(safe-area-inset-bottom, 0px) + 8px);
+}
+/* В обычном браузере iPhone нижняя панель Safari может наезжать на контент — даём запас */
+@media (max-width: 520px) and (hover: none) {
+  .shell-bottom-safe {
+    height: calc(env(safe-area-inset-bottom, 0px) + 14px);
+  }
+}
+/* На рабочем столе (standalone) панели браузера нет — достаточно Home Indicator */
+@media all and (display-mode: standalone) {
+  .shell-bottom-safe {
+    height: calc(env(safe-area-inset-bottom, 0px) + 4px) !important;
+  }
+}
+.minimal-bottom-dock {
+  display: none !important;
+}
+
+/* ───── 24.2 Варианты ответа появляются через ~0.5 с — сначала читаешь ситуацию ───── */
+.dilemma-card.fresh-card .dc-inline-choices {
+  animation: choicesArrive 0.5s var(--ease-out-expo) 0.55s backwards;
+}
+.dilemma-card.fresh-card .dc-inline-choices .dc-inline-side {
+  animation: choiceBtnArrive 0.55s var(--ease-spring) backwards;
+}
+.dilemma-card.fresh-card .dc-inline-choices .dc-inline-side.left {
+  animation-delay: 0.58s;
+}
+.dilemma-card.fresh-card .dc-inline-choices .dc-inline-side.right {
+  animation-delay: 0.66s;
+}
+@keyframes choicesArrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes choiceBtnArrive {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ───── 24.3 Переключатель «Записывать голос» в настройках ───── */
+.drawer-voice-row {
+  margin: 4px 0 10px;
+}
+
+/* ───── 24.4 Компактный каталог ───── */
+.hub-sheet.apple-hub-sheet {
+  gap: 10px !important;
+  padding-top: calc(env(safe-area-inset-top, 0px) + 10px) !important;
+}
+.apple-hub-header {
+  min-height: 44px;
+}
+.ahh-large-title {
+  font-size: 26px !important;
+}
+.apple-cam-pill {
+  height: 36px !important;
+  font-size: 13px !important;
+}
+
+.hub-tabs {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hub-tabs button {
+  appearance: none;
+  position: relative;
+  z-index: 1;
+  border: none;
+  background: transparent;
+  height: 36px;
+  padding: 0 4px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: rgba(244, 239, 228, 0.5);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.25s ease;
+}
+.hub-tabs button.active {
+  color: #f7f4ec;
+}
+.hub-tabs-ink {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: calc(100% / 3);
+  height: 2px;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform 0.42s var(--ease-smooth);
+}
+.hub-tabs-ink::before {
+  content: '';
+  width: 44%;
+  height: 100%;
+  border-radius: 2px;
+  background: #e3bf7a;
+  box-shadow: 0 0 10px rgba(227, 191, 122, 0.5);
+}
+
+.apple-cards-scroll {
+  gap: 8px !important;
+}
+.ios-context-chips {
+  padding: 0 0 2px !important;
+}
+.ios-context-chips button {
+  padding: 5px 11px !important;
+  font-size: 12px !important;
+}
+.hub-group-divider {
+  padding-top: 4px !important;
+}
+.hub-pack-item-wrap {
+  gap: 4px !important;
+}
+
+.apr-main-tap {
+  padding: 9px 12px !important;
+  gap: 12px !important;
+}
+.apr-thumb-squircle {
+  width: 52px !important;
+  height: 52px !important;
+  min-width: 52px !important;
+  border-radius: 13px !important;
+}
+.apr-copy {
+  gap: 2px !important;
+}
+.apr-copy h3 {
+  font-size: 15px !important;
+}
+.apr-copy p {
+  font-size: 12.5px !important;
+  -webkit-line-clamp: 1 !important;
+  line-clamp: 1;
+}
+.apr-meta {
+  margin-top: 1px !important;
+  font-size: 11px !important;
+}
+.apple-pack-row {
+  border-radius: 16px !important;
+}
+.apr-ckpt-pill {
+  top: 8px !important;
+}

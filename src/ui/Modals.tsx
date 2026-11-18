@@ -286,9 +286,21 @@ export function EndingModal({
     if (outcome === 'aborted') {
       return;
     }
-    // Если браузер (например ПК или ограниченный WebView) не поддерживает прямую отправку файла —
-    // открываем предпросмотр видео поверх окна итогов!
-    onOpenRecordedReel?.();
+    // Нет системного меню «Поделиться» с файлами (ПК или встроенный браузер мессенджера)
+    const isIosDevice =
+      typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isIosDevice) {
+      setShareToast('Откройте игру в Safari — там видео сохраняется прямо в Фото');
+      window.setTimeout(() => setShareToast(null), 3600);
+      return;
+    }
+    const a = document.createElement('a');
+    a.href = recordedReel.url;
+    a.download = recordedReel.file.name;
+    a.click();
+    onTrackShare();
+    setShareToast('Видео скачано');
+    window.setTimeout(() => setShareToast(null), 2600);
   };
 
   const handlePosterShareClick = async () => {
@@ -476,8 +488,8 @@ export function EndingModal({
               <IconShare size={18} />
               <span>
                 {!recordedReel
-                  ? 'Готовим видео для Галереи…'
-                  : `Сохранить видео (${recordedReel.durationSec} сек)`}
+                  ? 'Готовим видео…'
+                  : `Сохранить видео в галерею · ${recordedReel.durationSec} сек`}
               </span>
             </button>
           )}
@@ -509,25 +521,14 @@ export function EndingModal({
           )}
 
           <div className="two-col-btns">
-            {showVideoControls ? (
-              <button
-                type="button"
-                className="cta-btn subtle"
-                disabled={!recordedReel}
-                onClick={() => onOpenRecordedReel?.()}
-              >
-                Смотреть видео
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="cta-btn subtle icon-inline-btn"
-                onClick={handlePosterShareClick}
-              >
-                <IconShare size={16} />
-                <span>Скрин</span>
-              </button>
-            )}
+            <button
+              type="button"
+              className="cta-btn subtle icon-inline-btn"
+              onClick={handlePosterShareClick}
+            >
+              <IconShare size={16} />
+              <span>Скрин</span>
+            </button>
             <button type="button" className="cta-btn subtle" onClick={onSwitchPack}>
               К курсам
             </button>

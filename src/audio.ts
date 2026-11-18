@@ -583,13 +583,93 @@ function playSoftSilkWhisper(
   src.start(t);
 }
 
+// ───────── ЗВУКИ КАРТОЧКИ v31: «БУМАЖНЫЕ», А НЕ ЭЛЕКТРОННЫЕ ─────────
+// Раньше каждое движение пальца давало серию синус-«бульков» 200–300 Гц (грэб, тик наклона,
+// двойной щелчок порога, тройной коммит) — на динамике телефона это звучало странно и навязчиво.
+// Теперь: пока тянешь — только тактильная отдача; звук есть лишь у трёх событий —
+// тихий щелчок порога, мягкий «шурх» улетающей карточки и короткий шелест возврата.
+
+let paperNoiseBuf: AudioBuffer | null = null;
+
+function getPaperNoise(ac: AudioContext): AudioBuffer {
+  if (paperNoiseBuf && paperNoiseBuf.sampleRate === ac.sampleRate) return paperNoiseBuf;
+  const len = Math.floor(ac.sampleRate * 0.6);
+  const buf = ac.createBuffer(1, len, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  // Розоватый шум (мягче белого) — основа «бумажной» фактуры
+  let b0 = 0;
+  let b1 = 0;
+  let b2 = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99765 * b0 + w * 0.099046;
+    b1 = 0.963 * b1 + w * 0.2965164;
+    b2 = 0.57 * b2 + w * 1.0526913;
+    d[i] = (b0 + b1 + b2 + w * 0.1848) * 0.2;
+  }
+  paperNoiseBuf = buf;
+  return buf;
+}
+
+/** Шумовой «свуш» с полосовым фильтром, который скользит по частоте — звук движения бумаги */
+function playPaperSwish(
+  ac: AudioContext,
+  opts: {
+    dur: number;
+    fromHz: number;
+    toHz: number;
+    q?: number;
+    gain: number;
+    pan?: number;
+    delay?: number;
+    attack?: number;
+  }
+) {
+  const t = ac.currentTime + (opts.delay ?? 0);
+  const src = ac.createBufferSource();
+  src.buffer = getPaperNoise(ac);
+  const bp = ac.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.setValueAtTime(opts.q ?? 0.9, t);
+  bp.frequency.setValueAtTime(opts.fromHz, t);
+  bp.frequency.exponentialRampToValueAtTime(Math.max(60, opts.toHz), t + opts.dur);
+  const hp = ac.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.setValueAtTime(240, t);
+  const g = ac.createGain();
+  const atk = opts.attack ?? Math.min(0.03, opts.dur * 0.3);
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(opts.gain, t + atk);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + opts.dur);
+  src.connect(bp).connect(hp).connect(g);
+  connectWithPan(ac, g, opts.pan ?? 0);
+  const offset = Math.random() * 0.3;
+  src.start(t, offset, opts.dur + 0.02);
+}
+
+/** Сухой короткий щелчок (как ноготь по картону) — без тона, только фактура */
+function playDryClick(ac: AudioContext, gain: number, hpHz = 2200, dur = 0.012, pan = 0, delay = 0) {
+  const t = ac.currentTime + delay;
+  const src = ac.createBufferSource();
+  src.buffer = getPaperNoise(ac);
+  const hp = ac.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.setValueAtTime(hpHz, t);
+  const lp = ac.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.setValueAtTime(7000, t);
+  const g = ac.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.linearRampToValueAtTime(gain, t + 0.0015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(hp).connect(lp).connect(g);
+  connectWithPan(ac, g, pan);
+  src.start(t, Math.random() * 0.4, dur + 0.01);
+}
+
 export function sfxCardGrab() {
+  // Только тактильная отдача — без звука
   triggerHaptic('selection', false);
-  if (profile === 'off') return;
-  const ac = ensureCtx();
-  if (!ac) return;
-  // Резонансная полоса микро-динамика телефона (230 -> 115 Гц, 11 мс): мягкий физический толчок мембраны под пальцем
-  playMicroTapticPulse(ac, 230, 115, 0.011, 0.11);
 }
 
 export function sfxUiTap(firm = false) {
@@ -597,45 +677,30 @@ export function sfxUiTap(firm = false) {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, firm ? 275 : 245, 122, 0.01, firm ? 0.14 : 0.105);
+  playDryClick(ac, firm ? 0.1 : 0.07, firm ? 1800 : 2400, 0.01);
 }
 
-export function sfxTiltTick(dir: 'left' | 'right' = 'right') {
+export function sfxTiltTick(_dir: 'left' | 'right' = 'right') {
+  // Наклон карточки ощущается пальцем, но не озвучивается (раньше давал лишний «бульк»)
   triggerHaptic('selection', false);
-  if (profile === 'off') return;
-  const ac = ensureCtx();
-  if (!ac) return;
-  playMicroTapticPulse(
-    ac,
-    dir === 'right' ? 285 : 255,
-    128,
-    0.009,
-    0.115,
-    dir === 'left' ? -0.2 : 0.2
-  );
 }
 
 export function sfxThresholdLock(dir: 'left' | 'right', armed = true) {
   triggerHaptic(armed ? 'light' : 'selection', false);
-  if (profile === 'off') return;
+  if (profile === 'off' || !armed) return;
   const ac = ensureCtx();
   if (!ac) return;
-  const pan = dir === 'left' ? -0.26 : 0.26;
-  if (!armed) {
-    playMicroTapticPulse(ac, 210, 110, 0.01, 0.085, pan * 0.5);
-    return;
-  }
-  // Двойной тактильный микро-щелчок фиксации порога (как системный пикер iOS)
-  playMicroTapticPulse(ac, dir === 'right' ? 295 : 265, 118, 0.013, 0.16, pan);
-  playMicroTapticPulse(ac, 185, 96, 0.01, 0.09, pan, 0.016);
+  // Едва слышная «защёлка» порога
+  playDryClick(ac, 0.08, 2600, 0.009, dir === 'left' ? -0.25 : 0.25);
 }
 
 export function sfxCardSnapBack() {
-  triggerHaptic('light', true);
+  triggerHaptic('selection', true);
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, 215, 104, 0.015, 0.125);
+  // Короткий тихий шелест — карточка мягко легла обратно
+  playPaperSwish(ac, { dur: 0.11, fromHz: 900, toHz: 520, q: 0.8, gain: 0.09 });
 }
 
 export function sfxSwipeCommit(dir: 'left' | 'right') {
@@ -643,19 +708,16 @@ export function sfxSwipeCommit(dir: 'left' | 'right') {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  const pan = dir === 'left' ? -0.32 : 0.32;
-
-  playMicroTapticPulse(ac, dir === 'right' ? 260 : 235, 98, 0.019, 0.175, pan * 0.5);
-  playSoftSilkWhisper(ac, 0.036, 0.042, pan);
-  playMicroTapticPulse(ac, 210, 108, 0.013, 0.095, 0, 0.095);
+  const pan = dir === 'left' ? -0.35 : 0.35;
+  // Один чистый «шурх» улетающей карточки: частота плавно уходит вверх и затухает в сторону вылета
+  playPaperSwish(ac, { dur: 0.24, fromHz: 700, toHz: 2600, q: 0.7, gain: 0.2, pan, attack: 0.025 });
 }
 
 export function sfxCardFlip() {
   if (profile === 'off') return;
   const ac = ensureCtx();
   if (!ac) return;
-  playMicroTapticPulse(ac, 225, 108, 0.015, 0.12);
-  playSoftSilkWhisper(ac, 0.028, 0.032);
+  playPaperSwish(ac, { dur: 0.16, fromHz: 1400, toHz: 800, q: 0.8, gain: 0.11 });
 }
 
 export function sfxPopCombo(combo: number) {
