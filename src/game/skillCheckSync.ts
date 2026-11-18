@@ -37,8 +37,32 @@ export interface RemoteCheckStatusSnapshot {
 const CREATED_CHECKS_STORAGE_KEY = 'heuristics_kreslo_created_checks_v1';
 const ATTEMPT_COUNTER_PREFIX = 'heuristics_kreslo_chk_att_';
 const CANDIDATE_DONE_PREFIX = 'heuristics_kreslo_chk_done_';
+const BROADCAST_CHANNEL_NAME = 'heuristics_kreslo_chk_bc_v1';
 const EPOCH_2026_MS = Date.UTC(2026, 0, 1, 0, 0, 0);
 const ALPHANUM = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+
+function fetchWithTimeout(
+  url: string,
+  init: RequestInit,
+  timeoutMs = 3500
+): Promise<Response> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...init, signal: ctrl.signal }).finally(() => {
+    clearTimeout(timer);
+  });
+}
+
+function notifyLocalBroadcast(ch: string): void {
+  if (typeof window === 'undefined' || typeof BroadcastChannel === 'undefined') return;
+  try {
+    const bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+    bc.postMessage({ ch, ts: Date.now() });
+    bc.close();
+  } catch {
+    // ignore
+  }
+}
 
 function xmur3(str: string): () => number {
   let h = 1779033703 ^ str.length;
@@ -91,10 +115,7 @@ function computeTokenTag(slug: string, core8: string, modeChar: string): string 
   const gen = xmur3(`kreslo-tok-v1:${slug}:${core8}:${modeChar}`);
   const h1 = gen();
   const h2 = gen();
-  return (
-    ALPHANUM[h1 % ALPHANUM.length] +
-    ALPHANUM[h2 % ALPHANUM.length]
-  );
+  return ALPHANUM[h1 % ALPHANUM.length] + ALPHANUM[h2 % ALPHANUM.length];
 }
 
 export function deriveOwnerKey(slug: string, token: string): string {
@@ -190,9 +211,8 @@ export function packCheckReceipt(
   }
 ): string {
   const count = Math.min(10, input.choices.length);
-  // 21 байт полезных данных + 4 байта крипто-подписи целостности = 25 байт (~34 символа Base64URL)
   const plain = new Uint8Array(21);
-  plain[0] = 1; // Версия протокола слепка
+  plain[0] = 1;
 
   const completedMin = Math.max(
     0,
@@ -292,7 +312,7 @@ export function unpackCheckReceipt(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ЛОКАЛЬНЫЙ РЕЕСТР ССЫЛОК АВТОРА + СЧЁТЧИК ПОПЫТОК ТЕСТИРУЕМОГО
+// ЛОКАЛЬНЫЙ РЕЕСТР ССЫЛОК АВТОРА + СЧЁТЧИК ПОПЫТОК УЧАСТНИКА
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function loadCreatedChecks(): CreatedCheckRecord[] {
@@ -468,7 +488,9 @@ export function parseUrlCheckRoute(): ParsedUrlCheckRoute | null {
   }
 
   const rawReceipt = params.get('r') || '';
-  const directReceipt = rawReceipt ? unpackCheckReceipt(check.slug, token, rawReceipt) ?? undefined : undefined;
+  const directReceipt = rawReceipt
+    ? (unpackCheckReceipt(check.slug, token, rawReceipt) ?? undefined)
+    : undefined;
   const isOwner = Boolean(findCreatedCheckRecord(check.slug, token));
 
   return {
@@ -492,12 +514,46 @@ export function clearUrlCheckParams(): void {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// БЕССЕРВЕРНАЯ АВТО-СИНХРОНИЗАЦИЯ ПО ТОЙ ЖЕ ССЫЛКЕ (0 МИКРОСЕРВИСОВ, 0 ПДн)
-// Тройное резервирование:
-// 1. Локальный ./api/check-sync (для dev / контейнера)
-// 2. Live-шина ntfy.sh (мгновенный SSE-пуш за 0.1 сек + неизменяемый лог событий)
-// 3. Долгосрочная ячейка textdb.dev (хранит подписанный 34-символьный слепок неделями)
+// БЫСТРАЯ АВТО-СИНХРОНИЗАЦИЯ ПО ТОЙ ЖЕ ССЫЛКЕ (~0.5 СЕК В РФ БЕЗ VPN, С ТАЙМАУТАМИ)
+// Формат ячейки textdb.dev: V1|<openedSec>|<progressDone>|<receipt1>.<receipt2>
+// (обратно совместим и с чистой строкой <receipt1>.<receipt2>)
 // ─────────────────────────────────────────────────────────────────────────────
+
+function parseCloudCellText(rawText: string): {
+  openedAtMs?: number;
+  progressDone: number;
+  receipts: string[];
+} {
+  const text = rawText.trim();
+  if (!text) return { progressDone: 0, receipts: [] };
+  if (text.startsWith('V1|')) {
+    const parts = text.split('|');
+    const openedSec = Number(parts[1] || '0');
+    const prog = Number(parts[2] || '0');
+    const recPart = parts[3] || '';
+    const receipts = recPart ? recPart.split('.').filter(Boolean) : [];
+    return {
+      openedAtMs: openedSec > 0 ? openedSec * 1000 : undefined,
+      progressDone: Number.isFinite(prog) ? prog : 0,
+      receipts,
+    };
+  }
+  const legacyReceipts = text.split('.').filter(Boolean);
+  return {
+    progressDone: legacyReceipts.length > 0 ? 10 : 0,
+    receipts: legacyReceipts,
+  };
+}
+
+function serializeCloudCellText(
+  openedAtMs: number | undefined,
+  progressDone: number,
+  receipts: string[]
+): string {
+  const openedSec = Math.floor((openedAtMs ?? Date.now()) / 1000);
+  const prog = receipts.length > 0 ? 10 : Math.max(0, Math.min(10, Math.round(progressDone)));
+  return `V1|${openedSec}|${prog}|${receipts.slice(0, 5).join('.')}`;
+}
 
 function mergeVerifiedReceipts(
   slug: string,
@@ -526,27 +582,64 @@ export async function publishCandidateProgress(
   slug: string,
   token: string,
   stage: 'open' | 'half',
-  doneCount = 0
+  doneCount = 1
 ): Promise<void> {
   if (typeof fetch === 'undefined') return;
   const ch = deriveChannelKey(slug, token);
-  const nowSec = Math.floor(Date.now() / 1000);
-  const msg = stage === 'open' ? `O|${nowSec}` : `P|${doneCount}|${nowSec}`;
+  const stepCount = stage === 'open' ? 1 : Math.max(5, doneCount);
 
-  void fetch('./api/check-sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ch, event: stage, doneCount }),
-    credentials: 'omit',
-    keepalive: true,
-  }).catch(() => {});
+  void fetchWithTimeout(
+    './api/check-sync',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ch, event: 'half', doneCount: stepCount }),
+      credentials: 'omit',
+      keepalive: true,
+    },
+    2500
+  ).catch(() => {});
 
-  void fetch(`https://ntfy.sh/kreslo_c1_${ch}`, {
-    method: 'POST',
-    body: msg,
-    credentials: 'omit',
-    keepalive: true,
-  }).catch(() => {});
+  void (async () => {
+    try {
+      let existing: ReturnType<typeof parseCloudCellText> = { progressDone: 0, receipts: [] };
+      try {
+        const g = await fetchWithTimeout(
+          `https://textdb.dev/api/data/kreslo_c1_${ch}`,
+          { method: 'GET', credentials: 'omit', cache: 'no-store' },
+          3000
+        );
+        if (g.ok) existing = parseCloudCellText(await g.text());
+      } catch {
+        // ignore
+      }
+      // Никогда не затираем уже завершённые попытки прогрессом!
+      const verified = mergeVerifiedReceipts(slug, token, existing.receipts);
+      if (verified.receipts.length > 0) return;
+
+      const bodyStr = serializeCloudCellText(
+        existing.openedAtMs ?? Date.now(),
+        Math.max(existing.progressDone, stepCount),
+        []
+      );
+      await fetchWithTimeout(
+        `https://textdb.dev/api/data/kreslo_c1_${ch}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: bodyStr,
+          credentials: 'omit',
+          keepalive: true,
+        },
+        3500
+      );
+      notifyLocalBroadcast(ch);
+    } catch {
+      // ignore
+    }
+  })();
+
+  notifyLocalBroadcast(ch);
 }
 
 export async function publishCandidateCompletion(
@@ -556,59 +649,61 @@ export async function publishCandidateCompletion(
 ): Promise<boolean> {
   if (typeof fetch === 'undefined') return false;
   const ch = deriveChannelKey(slug, token);
-  const nowSec = Math.floor(Date.now() / 1000);
 
-  const localTask = fetch('./api/check-sync', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ch, event: 'done', receipt }),
-    credentials: 'omit',
-    keepalive: true,
-  })
-    .then((r) => r.ok)
-    .catch(() => false);
-
-  const liveTask = fetch(`https://ntfy.sh/kreslo_c1_${ch}`, {
-    method: 'POST',
-    body: `D|${receipt}|${nowSec}`,
-    credentials: 'omit',
-    keepalive: true,
-  })
+  const localTask = fetchWithTimeout(
+    './api/check-sync',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ch, event: 'done', receipt }),
+      credentials: 'omit',
+      keepalive: true,
+    },
+    2500
+  )
     .then((r) => r.ok)
     .catch(() => false);
 
   const kvTask = (async () => {
     try {
-      let existingRaw = '';
+      let existing: ReturnType<typeof parseCloudCellText> = { progressDone: 0, receipts: [] };
       try {
-        const getRes = await fetch(`https://textdb.dev/api/data/kreslo_c1_${ch}`, {
-          method: 'GET',
-          credentials: 'omit',
-          cache: 'no-store',
-        });
+        const getRes = await fetchWithTimeout(
+          `https://textdb.dev/api/data/kreslo_c1_${ch}`,
+          { method: 'GET', credentials: 'omit', cache: 'no-store' },
+          3200
+        );
         if (getRes.ok) {
-          existingRaw = (await getRes.text()).trim();
+          existing = parseCloudCellText(await getRes.text());
         }
       } catch {
         // ignore pre-read failure
       }
-      const prevParts = existingRaw ? existingRaw.split('.').filter(Boolean) : [];
-      const merged = mergeVerifiedReceipts(slug, token, [...prevParts, receipt]);
-      const bodyStr = merged.receipts.slice(0, 5).join('.');
-      const postRes = await fetch(`https://textdb.dev/api/data/kreslo_c1_${ch}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: bodyStr,
-        credentials: 'omit',
-        keepalive: true,
-      });
+      const merged = mergeVerifiedReceipts(slug, token, [...existing.receipts, receipt]);
+      const bodyStr = serializeCloudCellText(
+        existing.openedAtMs ?? Date.now(),
+        10,
+        merged.receipts
+      );
+      const postRes = await fetchWithTimeout(
+        `https://textdb.dev/api/data/kreslo_c1_${ch}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: bodyStr,
+          credentials: 'omit',
+          keepalive: true,
+        },
+        4000
+      );
       return postRes.ok;
     } catch {
       return false;
     }
   })();
 
-  const results = await Promise.all([localTask, liveTask, kvTask]);
+  const results = await Promise.all([localTask, kvTask]);
+  notifyLocalBroadcast(ch);
   return results.some(Boolean);
 }
 
@@ -654,95 +749,57 @@ export async function fetchRemoteCheckState(
   let openedAtMs = ownerRec?.openedAtMs;
   let progressDone = ownerRec?.progressDone ?? 0;
 
-  const tasks: Promise<void>[] = [];
-
   if (typeof fetch !== 'undefined') {
-    tasks.push(
-      fetch(`./api/check-sync?ch=${encodeURIComponent(ch)}`, {
-        method: 'GET',
-        credentials: 'omit',
-        cache: 'no-store',
+    const localPromise = fetchWithTimeout(
+      `./api/check-sync?ch=${encodeURIComponent(ch)}&_t=${Date.now()}`,
+      { method: 'GET', credentials: 'omit', cache: 'no-store' },
+      2200
+    )
+      .then(async (res) => {
+        if (!res.ok) return;
+        const data = (await res.json()) as {
+          openedAtMs?: number;
+          progressDone?: number;
+          receipts?: string[];
+        };
+        if (data.openedAtMs && (!openedAtMs || data.openedAtMs < openedAtMs)) {
+          openedAtMs = data.openedAtMs;
+        }
+        if (typeof data.progressDone === 'number') {
+          progressDone = Math.max(progressDone, data.progressDone);
+        }
+        if (Array.isArray(data.receipts)) {
+          collectedReceipts.push(...data.receipts);
+        }
       })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const data = (await res.json()) as {
-            openedAtMs?: number;
-            progressDone?: number;
-            receipts?: string[];
-          };
-          if (data.openedAtMs && (!openedAtMs || data.openedAtMs < openedAtMs)) {
-            openedAtMs = data.openedAtMs;
-          }
-          if (typeof data.progressDone === 'number') {
-            progressDone = Math.max(progressDone, data.progressDone);
-          }
-          if (Array.isArray(data.receipts)) {
-            collectedReceipts.push(...data.receipts);
-          }
-        })
-        .catch(() => {})
-    );
+      .catch(() => {});
 
-    tasks.push(
-      fetch(`https://textdb.dev/api/data/kreslo_c1_${ch}`, {
-        method: 'GET',
-        credentials: 'omit',
-        cache: 'no-store',
+    const kvPromise = fetchWithTimeout(
+      `https://textdb.dev/api/data/kreslo_c1_${ch}`,
+      { method: 'GET', credentials: 'omit', cache: 'no-store' },
+      3500
+    )
+      .then(async (res) => {
+        if (!res.ok) return;
+        const parsed = parseCloudCellText(await res.text());
+        if (parsed.openedAtMs && (!openedAtMs || parsed.openedAtMs < openedAtMs)) {
+          openedAtMs = parsed.openedAtMs;
+        }
+        progressDone = Math.max(progressDone, parsed.progressDone);
+        collectedReceipts.push(...parsed.receipts);
       })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const text = (await res.text()).trim();
-          if (text) {
-            collectedReceipts.push(...text.split('.').filter(Boolean));
-          }
-        })
-        .catch(() => {})
-    );
+      .catch(() => {});
 
-    tasks.push(
-      fetch(`https://ntfy.sh/kreslo_c1_${ch}/json?poll=1&since=12h`, {
-        method: 'GET',
-        credentials: 'omit',
-        cache: 'no-store',
-      })
-        .then(async (res) => {
-          if (!res.ok) return;
-          const rawLines = (await res.text()).split('\n').filter(Boolean);
-          for (const line of rawLines) {
-            try {
-              const ev = JSON.parse(line) as { event?: string; message?: string; time?: number };
-              if (ev.event !== 'message' || typeof ev.message !== 'string') continue;
-              const parts = ev.message.split('|');
-              const evTimeMs = typeof ev.time === 'number' ? ev.time * 1000 : Date.now();
-              if (parts[0] === 'O') {
-                if (!openedAtMs || evTimeMs < openedAtMs) openedAtMs = evTimeMs;
-              } else if (parts[0] === 'P') {
-                const cnt = Number(parts[1] || '5');
-                if (!openedAtMs) openedAtMs = evTimeMs;
-                if (Number.isFinite(cnt)) progressDone = Math.max(progressDone, cnt);
-              } else if (parts[0] === 'D' && parts[1]) {
-                if (!openedAtMs) openedAtMs = evTimeMs;
-                progressDone = 10;
-                collectedReceipts.push(parts[1]);
-              }
-            } catch {
-              // ignore line parse error
-            }
-          }
-        })
-        .catch(() => {})
-    );
+    await Promise.all([localPromise, kvPromise]);
   }
-
-  await Promise.all(tasks);
 
   const merged = mergeVerifiedReceipts(slug, token, collectedReceipts);
   const status: RemoteCheckStatusSnapshot['status'] =
     merged.receipts.length > 0
       ? 'completed'
-      : progressDone > 0
+      : progressDone >= 5
         ? 'halfway'
-        : openedAtMs
+        : openedAtMs || progressDone > 0
           ? 'opened'
           : 'waiting';
 
@@ -763,36 +820,43 @@ export function subscribeLiveCheckStream(
   token: string,
   onEvent: () => void
 ): () => void {
-  if (typeof window === 'undefined' || typeof EventSource === 'undefined') {
+  if (typeof window === 'undefined') {
     return () => {};
   }
   const ch = deriveChannelKey(slug, token);
-  let es: EventSource | null = null;
-  try {
-    es = new EventSource(`https://ntfy.sh/kreslo_c1_${ch}/sse`);
-    es.onmessage = (e) => {
-      try {
-        const parsed = JSON.parse(e.data) as { event?: string };
-        if (parsed.event === 'message') {
-          onEvent();
-        }
-      } catch {
-        onEvent();
-      }
-    };
-  } catch {
-    // ignore SSE block
+  let bc: BroadcastChannel | null = null;
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      bc = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      bc.onmessage = (e) => {
+        if (e.data?.ch === ch) onEvent();
+      };
+    } catch {
+      // ignore
+    }
   }
 
+  const onFocusOrVis = () => {
+    if (document.visibilityState === 'visible') {
+      onEvent();
+    }
+  };
+  window.addEventListener('focus', onFocusOrVis);
+  document.addEventListener('visibilitychange', onFocusOrVis);
+
   const pollTimer = window.setInterval(() => {
-    onEvent();
-  }, 9000);
+    if (document.visibilityState === 'visible') {
+      onEvent();
+    }
+  }, 3500);
 
   return () => {
     window.clearInterval(pollTimer);
-    if (es) {
+    window.removeEventListener('focus', onFocusOrVis);
+    document.removeEventListener('visibilitychange', onFocusOrVis);
+    if (bc) {
       try {
-        es.close();
+        bc.close();
       } catch {
         // ignore
       }

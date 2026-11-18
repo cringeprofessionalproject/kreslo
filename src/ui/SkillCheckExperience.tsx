@@ -194,7 +194,8 @@ function formatDurationShort(sec: number): string {
 export const SkillCheckScorecardView: React.FC<{
   check: SkillCheckDef;
   decodedReceipts: DecodedCheckReceipt[];
-}> = ({ check, decodedReceipts }) => {
+  audience?: 'owner' | 'self';
+}> = ({ check, decodedReceipts, audience = 'owner' }) => {
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [filterMode, setFilterMode] = useState<'mistakes' | 'all'>('mistakes');
 
@@ -250,29 +251,43 @@ export const SkillCheckScorecardView: React.FC<{
           <small>{report.pct}%</small>
         </div>
         <div className="sc-verdict-copy">
-          <span className={`sc-verdict-pill tone-${report.tone}`}>{report.verdictTitle}</span>
-          <p>{report.verdictSub}</p>
+          <span className={`sc-verdict-pill tone-${report.tone}`}>
+            {audience === 'self'
+              ? report.score >= check.passScore && report.criticalFails === 0
+                ? 'Отличный результат'
+                : report.score >= 6
+                  ? 'Неплохо, но есть ловушки'
+                  : 'Стоит разобрать ситуации'
+              : report.verdictTitle}
+          </span>
+          <p>
+            {audience === 'self'
+              ? `Точных решений: ${report.score} из ${report.total} за ${formatDurationShort(report.durationSec)}.`
+              : report.verdictSub}
+          </p>
         </div>
       </div>
 
-      {/* Панель достоверности (античит без серверов) */}
-      <div className="sc-trust-grid">
-        <div className="sc-trust-cell">
-          <small>Темп ответа</small>
-          <strong>~{report.avgSec} с/кейс</strong>
-          <span>Всего {formatDurationShort(report.durationSec)}</span>
+      {/* Панель достоверности (показывается только заказчику проверки / HR) */}
+      {audience === 'owner' && (
+        <div className="sc-trust-grid">
+          <div className="sc-trust-cell">
+            <small>Темп ответа</small>
+            <strong>~{report.avgSec} с/кейс</strong>
+            <span>Всего {formatDurationShort(report.durationSec)}</span>
+          </div>
+          <div className={`sc-trust-cell ${report.tabLeaves > 1 ? 'warn' : ''}`}>
+            <small>Фокус вкладки</small>
+            <strong>{report.tabLeaves === 0 ? 'Без выходов' : `${report.tabLeaves} вых.`}</strong>
+            <span>{report.tabLeaves === 0 ? 'Не переключался' : 'Сворачивал экран'}</span>
+          </div>
+          <div className={`sc-trust-cell ${report.attemptNum > 1 ? 'warn' : ''}`}>
+            <small>Попытка</small>
+            <strong>#{report.attemptNum}</strong>
+            <span>{report.attemptNum === 1 ? 'С первого раза' : 'Перезапускал тест'}</span>
+          </div>
         </div>
-        <div className={`sc-trust-cell ${report.tabLeaves > 1 ? 'warn' : ''}`}>
-          <small>Фокус вкладки</small>
-          <strong>{report.tabLeaves === 0 ? 'Без выходов' : `${report.tabLeaves} вых.`}</strong>
-          <span>{report.tabLeaves === 0 ? 'Не переключался' : 'Сворачивал экран'}</span>
-        </div>
-        <div className={`sc-trust-cell ${report.attemptNum > 1 ? 'warn' : ''}`}>
-          <small>Попытка</small>
-          <strong>#{report.attemptNum}</strong>
-          <span>{report.attemptNum === 1 ? 'С первого раза' : 'Перезапускал тест'}</span>
-        </div>
-      </div>
+      )}
 
       {/* Срез по осям компетенций */}
       <div className="sc-axes-card">
@@ -419,11 +434,14 @@ export const OwnerCheckTrackerModal: React.FC<{
   const [copiedKind, setCopiedKind] = useState<'main' | 'owner' | 'snap' | null>(null);
   const [memoDraft, setMemoDraft] = useState(record?.memo ?? '');
   const prevDoneCountRef = useRef(snapshot.decodedReceipts.length);
+  const refreshInFlightRef = useRef(false);
 
   const shareUrl = useMemo(() => buildCheckShareUrl(check.slug, token), [check.slug, token]);
 
-  const refreshState = useCallback(async () => {
-    setRefreshing(true);
+  const refreshState = useCallback(async (manual = false) => {
+    if (refreshInFlightRef.current) return;
+    refreshInFlightRef.current = true;
+    if (manual) setRefreshing(true);
     try {
       const next = await fetchRemoteCheckState(check.slug, token, directReceipt?.raw);
       setSnapshot(next);
@@ -435,14 +453,15 @@ export const OwnerCheckTrackerModal: React.FC<{
         vibrate([18, 40, 26]);
       }
     } finally {
-      setRefreshing(false);
+      refreshInFlightRef.current = false;
+      if (manual) setRefreshing(false);
     }
   }, [check.slug, directReceipt?.raw, onRecordsChanged, token]);
 
   useEffect(() => {
-    void refreshState();
+    void refreshState(true);
     const unsub = subscribeLiveCheckStream(check.slug, token, () => {
-      void refreshState();
+      void refreshState(false);
     });
     return unsub;
   }, [check.slug, refreshState, token]);
@@ -591,7 +610,7 @@ export const OwnerCheckTrackerModal: React.FC<{
                   disabled={refreshing}
                   onClick={() => {
                     sfxUiTap();
-                    void refreshState();
+                    void refreshState(true);
                   }}
                 >
                   {refreshing ? 'Проверяем…' : 'Обновить статус'}
@@ -637,9 +656,8 @@ export const CreateSkillCheckModal: React.FC<{
   onCreatedLink: (record: CreatedCheckRecord) => void;
   onPlaySelfNow: (check: SkillCheckDef) => void;
 }> = ({ check, onClose, onCreatedLink, onPlaySelfNow }) => {
-  const [mode, setMode] = useState<CheckVisibilityMode>(
-    check.id === 'genz_work_fit' ? 'challenge' : 'screening'
-  );
+  // По умолчанию ВСЕГДА «Рабочая оценка» — ответы скрыты от участника, а полный отчёт виден только создателю ссылки
+  const [mode, setMode] = useState<CheckVisibilityMode>('screening');
   const [memo, setMemo] = useState('');
 
   const handleGenerate = async () => {
@@ -1392,20 +1410,22 @@ export const ActiveSkillCheckRunner: React.FC<{
               </div>
 
               <div className="sc-done-actions">
-                <button
-                  type="button"
-                  className="sc-btn-secondary full"
-                  onClick={async () => {
-                    sfxUiTap(true);
-                    await copyTextSafe(backupSnapshotUrl);
-                    setCopiedBackup(true);
-                    setTimeout(() => setCopiedBackup(false), 2400);
-                  }}
-                >
-                  {copiedBackup
-                    ? '✓ Резервная ссылка скопирована'
-                    : 'Скопировать резервную ссылку-подтверждение'}
-                </button>
+                {syncState === 'offline' && (
+                  <button
+                    type="button"
+                    className="sc-btn-secondary full"
+                    onClick={async () => {
+                      sfxUiTap(true);
+                      await copyTextSafe(backupSnapshotUrl);
+                      setCopiedBackup(true);
+                      setTimeout(() => setCopiedBackup(false), 2400);
+                    }}
+                  >
+                    {copiedBackup
+                      ? '✓ Резервный код скопирован'
+                      : 'Скопировать резервную ссылку для отправителя'}
+                  </button>
+                )}
 
                 <button
                   type="button"
@@ -1444,7 +1464,11 @@ export const ActiveSkillCheckRunner: React.FC<{
                 )}
               </div>
 
-              <SkillCheckScorecardView check={check} decodedReceipts={[completedData]} />
+              <SkillCheckScorecardView
+                check={check}
+                decodedReceipts={[completedData]}
+                audience="self"
+              />
 
               <div className="sc-done-actions">
                 <button
