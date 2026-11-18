@@ -585,14 +585,14 @@ export function EditorialCardPortrait({
 
       {packId === 'sales_manager' && (
         <g opacity="0.86">
-          {/* Канбан-этапы сделки слева и график личного плана справа */}
-          <g transform="translate(20, 58)">
+          {/* Канбан-этапы сделки слева и график личного плана справа (внутри безопасной зоны кадрирования) */}
+          <g transform="translate(80, 34) scale(0.62)">
             <rect x="0" y="0" width="76" height="58" rx="6" fill="rgba(12,20,25,0.76)" stroke={pal.accent} strokeWidth="1.1" />
             <rect x="8" y="10" width="24" height="8" rx="2" fill={pal.accent} opacity="0.4" />
             <rect x="8" y="24" width="42" height="8" rx="2" fill={pal.accent} opacity="0.65" />
             <rect x="8" y="38" width="60" height="8" rx="2" fill="#6EE7B7" opacity="0.75" />
           </g>
-          <g transform="translate(264, 62)">
+          <g transform="translate(236, 40) scale(0.7)">
             <polyline
               points="4,44 22,32 38,35 64,10"
               fill="none"
@@ -643,32 +643,6 @@ export function EditorialCardPortrait({
           </g>
         </g>
       )}
-
-      {/* Деликатный номер кейса слева вверху */}
-      <g opacity="0.88">
-        <rect
-          x="14"
-          y="13"
-          width="74"
-          height="20"
-          rx="10"
-          fill="rgba(0,0,0,0.34)"
-          stroke="rgba(255,255,255,0.1)"
-          strokeWidth="1"
-        />
-        <text
-          x="51"
-          y="26"
-          textAnchor="middle"
-          fill={pal.accent}
-          fontSize="9"
-          fontWeight="700"
-          fontFamily="JetBrains Mono, ui-monospace, monospace"
-          letterSpacing="0.5"
-        >
-          БЛОК {blockNum === 1 ? 'I' : blockNum === 2 ? 'II' : 'III'} · #{(seed % 89) + 10}
-        </text>
-      </g>
 
       {/* Для длинных женских волос — задний слой локонов за плечами */}
       {!hideFaceForCutout && isFemale && (hairKind === 1 || hairKind === 3) && (

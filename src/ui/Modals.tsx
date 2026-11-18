@@ -193,6 +193,7 @@ interface EndingModalProps {
   iqHits: number;
   iqTotal: number;
   isPackFullyUnlocked: boolean;
+  decisionLog?: { id: string; title: string; fact: string; wasSmart: boolean }[];
   faceSnapshotUrl?: string | null;
   recordedReel?: RecordedReelResult | null;
   isFinalizingReel?: boolean;
@@ -217,6 +218,7 @@ export function EndingModal({
   iqHits,
   iqTotal,
   isPackFullyUnlocked,
+  decisionLog,
   faceSnapshotUrl,
   recordedReel,
   isFinalizingReel,
@@ -422,6 +424,31 @@ export function EndingModal({
             <span>Опыт</span>
           </div>
         </div>
+
+        {decisionLog && decisionLog.length > 0 && (() => {
+          const traps = decisionLog.filter((d) => !d.wasSmart);
+          const shown = (traps.length > 0 ? traps : decisionLog).slice(-8);
+          return (
+            <details className="ee-review">
+              <summary>
+                <span>Разбор решений</span>
+                <b className={traps.length === 0 ? 'clean' : ''}>
+                  {traps.length === 0
+                    ? 'Ни одной ловушки'
+                    : `Ловушек: ${traps.length} из ${decisionLog.length}`}
+                </b>
+              </summary>
+              <ul>
+                {shown.map((d) => (
+                  <li key={d.id} className={d.wasSmart ? 'ok' : 'trap'}>
+                    <strong>{d.title}</strong>
+                    <span>{d.fact}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })()}
 
         {!isPackFullyUnlocked && !unlockedJustNow && (
           <button

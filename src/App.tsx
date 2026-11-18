@@ -27,6 +27,7 @@ import {
   prepareBalancedCard,
 } from './game/balanceMath';
 import { getChoiceShortGist } from './game/choiceErgonomics';
+import { buildOutcomeQuip, type OutcomeQuip } from './game/outcomeQuips';
 import {
   buildBlock2BossCard,
   buildEscalationDeckForPack,
@@ -379,14 +380,6 @@ function OutgoingCardGhost({
             hideFaceForCutout={snapshot.hideFace}
           />
         )}
-
-        <div className={`reigns-choice-curtain ${snapshot.side}`}>
-          <div className={`rcc-volumetric-bar ${snapshot.side}`} style={{ width: '100%' }} />
-          <div className="rcc-copy">
-            <small>{snapshot.side === 'left' ? '← Выбор влево' : 'Выбор вправо →'}</small>
-            <strong>{chosenText}</strong>
-          </div>
-        </div>
       </div>
 
       <div className="dc-speaker-bar">
@@ -409,6 +402,19 @@ function OutgoingCardGhost({
           <div className="dc-inline-copy">
             <small className="dc-dir-kicker">Вправо →</small>
             <strong>{getChoiceShortGist(snapshot.card.right.label)}</strong>
+          </div>
+        </div>
+      </div>
+
+      {/* Раскрытое решение улетает вместе с карточкой — визуальная непрерывность жеста */}
+      <div className={`choice-reveal ${snapshot.side} open armed`} aria-hidden="true">
+        <div className="cr-inner">
+          <small className="cr-kicker">
+            {snapshot.side === 'left' ? '← Выбрано' : 'Выбрано →'}
+          </small>
+          <strong className="cr-text">{chosenText}</strong>
+          <div className="cr-progress">
+            <i style={{ transform: 'scaleX(1)' }} />
           </div>
         </div>
       </div>
@@ -783,6 +789,28 @@ export function App() {
   }>({ side: null, pullRatio: 0 });
   const lastPreviewStepRef = useRef<string>('none:0');
 
+  // Раскрытие полного текста решения: зажатием (peek) или тапом (pin → второй тап выбирает)
+  const [heldSide, setHeldSide] = useState<'left' | 'right' | null>(null);
+  const [pinnedSide, setPinnedSide] = useState<'left' | 'right' | null>(null);
+  const longPressTimerRef = useRef<number | null>(null);
+  const longPressFiredRef = useRef(false);
+  const lastRevealSideRef = useRef<'left' | 'right'>('left');
+
+  // Компактная полоска показателей: раскрывается только по тапу
+  const [statsExpanded, setStatsExpanded] = useState(false);
+
+  // Фраза-итог между карточками
+  const [quip, setQuip] = useState<(OutcomeQuip & { seq: number }) | null>(null);
+  const [quipLeaving, setQuipLeaving] = useState(false);
+  const quipTimersRef = useRef<number[]>([]);
+  const recentQuipIdsRef = useRef<string[]>([]);
+  const quipShownLastTurnRef = useRef(false);
+
+  // Журнал решений для разбора на экране итогов (вместо «НОРМА / ЛОВУШКА» посреди игры)
+  const [decisionLog, setDecisionLog] = useState<
+    { id: string; title: string; fact: string; wasSmart: boolean }[]
+  >([]);
+
   const stageDragRef = useRef<{
     pointerId: number;
     startX: number;
@@ -794,6 +822,7 @@ export function App() {
     dy: number;
     rot: number;
     inlineBtnSide: 'left' | 'right' | null;
+    onReveal: boolean;
     movedMax: number;
     captured: boolean;
     grabPlayed: boolean;
@@ -1264,6 +1293,15 @@ export function App() {
       setIqHits(0);
       setIqTotal(0);
       setLastInsight(null);
+      setDecisionLog([]);
+      setPinnedSide(null);
+      setHeldSide(null);
+      setStatsExpanded(false);
+      quipTimersRef.current.forEach((t) => window.clearTimeout(t));
+      quipTimersRef.current = [];
+      setQuip(null);
+      setQuipLeaving(false);
+      quipShownLastTurnRef.current = false;
       setInsightModalOpen(false);
       setIntermission(null);
       setFlags(new Set());
@@ -1356,9 +1394,16 @@ export function App() {
         setIqHits(nextIqHits);
         setIqTotal(nextIqTotal);
         setLastInsight({ entry: cardInsight, wasSmart });
-        setReactionMood(
-          wasSmart ? { tone: 'good', label: 'НОРМА ✓' } : { tone: 'warn', label: 'ЛОВУШКА!' }
-        );
+        // Разбор «норма / ловушка» больше не всплывает посреди игры — копим его для экрана итогов
+        setDecisionLog((prev) => [
+          ...prev,
+          {
+            id: `${currentCard.id}_${week}`,
+            title: currentCard.speaker,
+            fact: cardInsight.shortFact,
+            wasSmart,
+          },
+        ]);
       }
 
       const scaledEffects = computeBalancedEffects(opt.effects, stats, mult);
@@ -1372,8 +1417,63 @@ export function App() {
       const enteredRedZone = (['s1', 's2', 's3', 's4'] as StatKey[]).some(
         (k) => nextStats[k] <= 18 || nextStats[k] >= 85
       );
-      if (enteredRedZone && !cardInsight) {
-        setReactionMood({ tone: 'warn', label: 'ОПАСНОСТЬ' });
+
+      // Сбрасываем раскрытия выбора и сворачиваем статы
+      setPinnedSide(null);
+      setHeldSide(null);
+      setStatsExpanded(false);
+
+      // ───── Фраза-итог между карточками ─────
+      quipTimersRef.current.forEach((t) => window.clearTimeout(t));
+      quipTimersRef.current = [];
+      const isGameEnding = (['s1', 's2', 's3', 's4'] as StatKey[]).some(
+        (k) => nextStats[k] <= 0 || nextStats[k] >= 100
+      );
+      const labels = Object.fromEntries(pack.pillars.map((p) => [p.key, p.label])) as Record<
+        StatKey,
+        string
+      >;
+      const builtQuip = isGameEnding
+        ? null
+        : buildOutcomeQuip({
+            packId: pack.id,
+            prev: stats,
+            next: nextStats,
+            deltas: scaledEffects,
+            labels,
+            recent: recentQuipIdsRef.current,
+            shownLastTurn: quipShownLastTurnRef.current,
+            authored: opt.outcome,
+          });
+      quipShownLastTurnRef.current = Boolean(builtQuip);
+      if (builtQuip) {
+        recentQuipIdsRef.current = [...recentQuipIdsRef.current.slice(-14), builtQuip.id];
+        const qSeq = cardSeq;
+        setQuipLeaving(false);
+        setQuip(null);
+        quipTimersRef.current.push(
+          window.setTimeout(() => setQuip({ ...builtQuip, seq: qSeq }), 110),
+          window.setTimeout(() => setQuipLeaving(true), 110 + 1650),
+          window.setTimeout(() => {
+            setQuip(null);
+            setQuipLeaving(false);
+          }, 110 + 1650 + 380)
+        );
+        setReactionMood(
+          builtQuip.tone === 'danger'
+            ? { tone: 'warn', label: 'ОПАСНОСТЬ' }
+            : builtQuip.tone === 'up'
+              ? { tone: 'good', label: 'В УДАРЕ' }
+              : builtQuip.tone === 'down'
+                ? { tone: 'warn', label: 'ПРОСАДКА' }
+                : { tone: 'idle', label: 'НА СМЕНЕ' }
+        );
+      } else {
+        setQuip(null);
+        setQuipLeaving(false);
+        setReactionMood(
+          enteredRedZone ? { tone: 'warn', label: 'ОПАСНОСТЬ' } : { tone: 'idle', label: 'НА СМЕНЕ' }
+        );
       }
 
       setStats(nextStats);
@@ -1616,6 +1716,10 @@ export function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'ArrowLeft') commitChoice('left');
       if (e.key === 'ArrowRight') commitChoice('right');
+      if (e.key === 'Escape') {
+        setPinnedSide(null);
+        setStatsExpanded(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -1720,12 +1824,29 @@ export function App() {
     // Зона у самого левого края (<= 22px) отдана системному жесту возврата в каталог
     if (e.clientX <= 22) return;
 
+    // Касание карточки сворачивает раскрытую панель показателей
+    if (statsExpanded) setStatsExpanded(false);
+
     const inlineSideEl = targetEl?.closest('[data-inline-choice]') as HTMLElement | null;
     const inlineSide =
       (inlineSideEl?.getAttribute('data-inline-choice') as 'left' | 'right' | null) ?? null;
+    const onRevealPanel = Boolean(targetEl?.closest('[data-reveal-commit="true"]'));
 
-    // НЕ вызываем setPointerCapture на pointerdown до начала реального движения (> 6px),
-    // чтобы при коротком тапе по кнопке выбора на iOS сработал доверенный click на <label><input switch> (Taptic Engine)!
+    // Зажатие варианта (~280 мс без движения) раскрывает полную формулировку решения
+    if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+    longPressFiredRef.current = false;
+    if (inlineSide && !pinnedSide) {
+      longPressTimerRef.current = window.setTimeout(() => {
+        longPressTimerRef.current = null;
+        const d = stageDragRef.current;
+        if (!d || d.movedMax >= 7) return;
+        longPressFiredRef.current = true;
+        setHeldSide(inlineSide);
+        sfxTiltTick(inlineSide);
+        vibrate(6);
+      }, 280);
+    }
+
     activeCardElRef.current?.getAnimations().forEach((a) => a.cancel());
 
     const now = performance.now();
@@ -1740,6 +1861,7 @@ export function App() {
       dy: 0,
       rot: 0,
       inlineBtnSide: inlineSide,
+      onReveal: onRevealPanel,
       movedMax: 0,
       captured: false,
       grabPlayed: false,
@@ -1772,6 +1894,13 @@ export function App() {
       } catch {
         // ignore
       }
+      // Начался настоящий свайп: зажатие/пин больше не нужны — раскрытием теперь управляет палец
+      if (longPressTimerRef.current) {
+        window.clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+      setStatsExpanded(false);
+      if (quip && !quipLeaving) setQuipLeaving(true);
     }
 
     if (!drag.grabPlayed && totalMove > 4) {
@@ -1842,19 +1971,50 @@ export function App() {
     if (!drag || drag.pointerId !== e.pointerId) return;
     stageDragRef.current = null;
 
-    const { dx, dy, rot, vx, inlineBtnSide, movedMax } = drag;
+    const { dx, dy, rot, vx, inlineBtnSide, onReveal, movedMax } = drag;
 
-    // Если пользователь коротко тапнул по нижней кнопке (< 7px) — даём отработать штатному onClick кнопки
-    // (чтобы на iPhone сработал нативный Taptic Engine от <label><input switch>), а на десктопе страхуем здесь:
-    if (movedMax < 7 && inlineBtnSide) {
-      window.setTimeout(() => {
+    if (longPressTimerRef.current) {
+      window.clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+
+    // ───── Короткие касания без движения (< 7px) ─────
+    if (movedMax < 7) {
+      if (movedMax > 0.5) resetCardDomTransformImmediate();
+      if (e.type === 'pointercancel') {
+        longPressFiredRef.current = false;
+        setHeldSide(null);
+        return;
+      }
+      // Зажатие закончилось — просто сворачиваем раскрытие, решение НЕ принимается
+      if (longPressFiredRef.current) {
+        longPressFiredRef.current = false;
+        setHeldSide(null);
+        return;
+      }
+      // Второй тап по раскрытому решению — подтверждаем выбор
+      if (onReveal && pinnedSide) {
+        const sideToCommit = pinnedSide;
         if (performance.now() - lastInlineCommitMsRef.current > 180) {
           lastInlineCommitMsRef.current = performance.now();
-          commitChoice(inlineBtnSide, { fromX: 0, fromY: 0, fromRot: 0 });
+          commitChoice(sideToCommit, { fromX: 0, fromY: 0, fromRot: 0 });
         }
-      }, 24);
+        return;
+      }
+      // Первый тап по варианту — раскрываем полную формулировку (пин)
+      if (inlineBtnSide) {
+        sfxUiTap();
+        setPinnedSide((prev) => (prev === inlineBtnSide ? null : inlineBtnSide));
+        return;
+      }
+      // Тап мимо — закрываем раскрытие
+      if (pinnedSide) setPinnedSide(null);
       return;
     }
+
+    setHeldSide(null);
+    setPinnedSide(null);
+    longPressFiredRef.current = false;
 
     // Порог принятия решения: полный увод (>= 68px) ИЛИ быстрый инерционный взмах пальцем (iOS Flick)
     if (dx <= -68 || (dx <= -26 && vx < -0.48)) {
@@ -1926,11 +2086,34 @@ export function App() {
   const activePreviewSide = swipePreview.side;
   const pullRatio = swipePreview.pullRatio;
 
+  // Какое решение сейчас раскрыто: палец тянет > зажатие > пин тапом
+  const revealSide: 'left' | 'right' | null = activePreviewSide ?? heldSide ?? pinnedSide;
+  if (revealSide) lastRevealSideRef.current = revealSide;
+  const revealShownSide = revealSide ?? lastRevealSideRef.current;
+  const revealMode: 'drag' | 'held' | 'pinned' | null = activePreviewSide
+    ? 'drag'
+    : heldSide
+      ? 'held'
+      : pinnedSide
+        ? 'pinned'
+        : null;
+  const revealArmed = revealMode === 'drag' && pullRatio >= 1;
+
   const fullBalancedDeltas: StatDelta = useMemo(() => {
-    if (!activePreviewSide) return {};
-    const opt = activePreviewSide === 'left' ? currentCard.left : currentCard.right;
+    if (!revealSide) return {};
+    const opt = revealSide === 'left' ? currentCard.left : currentCard.right;
     return computeBalancedEffects(opt.effects, stats, mult);
-  }, [activePreviewSide, currentCard.left, currentCard.right, mult, stats]);
+  }, [revealSide, currentCard.left, currentCard.right, mult, stats]);
+
+  useEffect(
+    () => () => {
+      quipTimersRef.current.forEach((t) => window.clearTimeout(t));
+      if (longPressTimerRef.current) window.clearTimeout(longPressTimerRef.current);
+    },
+    []
+  );
+
+  const showSwipeHint = week <= 2 && (meta.telemetry.swipesTotal ?? 0) < 8;
 
   const currentAttempt = meta.attemptsByPack[pack.id] ?? 1;
   const packEndingsOpen = pack.endings.filter((e) => meta.unlockedEndings.includes(e.id)).length;
@@ -2123,113 +2306,146 @@ export function App() {
         })}
       </div>
 
-      {/* КОМПАКТНАЯ ЮВЕЛИРНАЯ ПАНЕЛЬ 4 ПОКАЗАТЕЛЕЙ (ОСВОБОЖДАЕТ ПРОСТРАНСТВО ПОД ГЛАВНУЮ КАРТОЧКУ!) */}
-      <section className="pillars-bar compact-jewel-pillars">
-        {pack.pillars.map((pil) => {
-          const val = stats[pil.key];
-          const fullDelta = fullBalancedDeltas[pil.key] ?? 0;
-          const prog = getProgressivePreview(val, fullDelta, pullRatio);
-          const justChanged = poppingDeltas.deltas[pil.key] ?? 0;
-          const danger = val <= 20 || val >= 84;
-          const willCrash = prog.active && (prog.finalValue <= 0 || prog.finalValue >= 100);
+      {/* КОМПАКТНАЯ ПОЛОСКА 4 ПОКАЗАТЕЛЕЙ: схематично в покое, подробно — по тапу (раскрывается вниз) */}
+      <section
+        className={`stat-strip ${statsExpanded ? 'expanded' : ''} ${revealSide ? 'previewing' : ''}`}
+      >
+        <button
+          type="button"
+          className="ss-row"
+          aria-expanded={statsExpanded}
+          aria-label={statsExpanded ? 'Свернуть показатели' : 'Показать показатели подробно'}
+          onClick={() => {
+            sfxUiTap();
+            setStatsExpanded((v) => !v);
+          }}
+        >
+          {pack.pillars.map((pil) => {
+            const val = stats[pil.key];
+            const fullDelta = fullBalancedDeltas[pil.key] ?? 0;
+            const justChanged = poppingDeltas.deltas[pil.key] ?? 0;
+            const danger = val <= 20 || val >= 84;
+            const impact = revealSide && fullDelta !== 0 ? (Math.abs(fullDelta) >= 10 ? 'big' : 'small') : null;
+            const projected = Math.max(0, Math.min(100, val + fullDelta));
+            const willCrash = Boolean(impact) && (projected <= 0 || projected >= 100);
 
-          return (
-            <button
-              key={pil.key}
-              type="button"
-              className={`pillar-col clickable-pillar compact-pillar-pill ${
-                danger ? 'danger-pulse' : ''
-              } ${prog.active ? (prog.displayDelta > 0 ? 'preview-up' : 'preview-down') : ''} ${
-                willCrash ? 'preview-crash-warn' : ''
-              }`}
-              onClick={() => {
-                sfxUiTap();
-                setInspectedPillar(pil);
-              }}
-            >
-              <div className="pillar-vessel">
-                <div
-                  className={`pillar-fill ${danger ? 'critical' : ''}`}
-                  style={{ height: `${val}%` }}
-                />
-                <span className="pillar-svg-wrap">
-                  <PillarSvgIcon packId={pack.id} statKey={pil.key} size={15} />
+            return (
+              <span
+                key={pil.key}
+                className={`ss-item ${danger ? 'danger' : ''} ${willCrash ? 'crash-warn' : ''}`}
+              >
+                <span
+                  key={justChanged !== 0 ? `chg_${poppingDeltas.seq}` : 'still'}
+                  className={`ss-ico ${justChanged > 0 ? 'bump-up' : justChanged < 0 ? 'bump-down' : ''}`}
+                >
+                  <PillarSvgIcon packId={pack.id} statKey={pil.key} size={14} />
+                  <i className={`ss-dot ${impact ?? ''}`} />
                 </span>
-              </div>
+                <span className="ss-meter">
+                  <i className="ss-fill" style={{ width: `${val}%` }} />
+                </span>
+              </span>
+            );
+          })}
+          <span className="ss-chevron" aria-hidden="true">
+            <svg width="12" height="12" viewBox="0 0 12 12">
+              <path
+                d="M3 4.5 L6 7.5 L9 4.5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </button>
 
-              <div className="pillar-meta-stack">
-                <div className="delta-badge-slot">
-                  {prog.active ? (
-                    <span
-                      className={`preview-num clean-delta ${
-                        prog.displayDelta > 0 ? 'plus' : 'minus'
-                      }`}
-                    >
-                      {prog.displayDelta > 0 ? `+${prog.displayDelta}` : prog.displayDelta}
+        <div className="ss-details" aria-hidden={!statsExpanded}>
+          <div className="ss-details-clip">
+            <div className="ss-details-grid">
+              {pack.pillars.map((pil, idx) => {
+                const val = stats[pil.key];
+                const danger = val <= 20 || val >= 84;
+                return (
+                  <button
+                    key={pil.key}
+                    type="button"
+                    tabIndex={statsExpanded ? 0 : -1}
+                    className={`ss-detail ${danger ? 'danger' : ''}`}
+                    style={{ transitionDelay: statsExpanded ? `${60 + idx * 35}ms` : '0ms' }}
+                    onClick={() => {
+                      sfxUiTap();
+                      setInspectedPillar(pil);
+                    }}
+                  >
+                    <span className="ssd-ico">
+                      <PillarSvgIcon packId={pack.id} statKey={pil.key} size={16} />
                     </span>
-                  ) : justChanged !== 0 ? (
-                    <span
-                      key={`${poppingDeltas.seq}_${pil.key}`}
-                      className={`floating-delta ${justChanged > 0 ? 'plus' : 'minus'}`}
-                    >
-                      {justChanged > 0 ? `+${justChanged}` : justChanged}
+                    <span className="ssd-copy">
+                      <span className="ssd-top">
+                        <b>{pil.label}</b>
+                        <em>{val}%</em>
+                      </span>
+                      <span className="ssd-bar">
+                        <i style={{ width: `${val}%` }} />
+                        <s className="ssd-zone low" />
+                        <s className="ssd-zone high" />
+                      </span>
                     </span>
-                  ) : (
-                    <span className="pillar-val-top">{val}%</span>
-                  )}
-                </div>
-
-                <div className="pillar-caption">
-                  <span>{pil.label}</span>
-                </div>
-              </div>
-            </button>
-          );
-        })}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="ss-details-note">
+              Держите все четыре в балансе: и ноль, и сотня одинаково заканчивают смену.
+            </p>
+          </div>
+        </div>
       </section>
 
-      {/* СТАБИЛЬНЫЙ СЛОТ КОНТЕКСТА (36px): ИСКЛЮЧАЕТ ЛЮБЫЕ ВЕРТИКАЛЬНЫЕ ПРЫЖКИ КАРТОЧКИ! */}
-      <div className="context-ticker-slot">
-        {incomingSms ? (
-          <div className="organic-sms-banner">
-            <div className="osb-dot" />
-            <button type="button" className="osb-main" onClick={handleOpenIncomingSms}>
-              <div className="osb-top-line">
-                <strong>{incomingSms.sender}</strong>
-                <span className="osb-reward">+Резерв</span>
-              </div>
-              <p>{incomingSms.preview}</p>
-            </button>
-            <button type="button" className="osb-open-btn" onClick={handleOpenIncomingSms}>
-              Открыть
-            </button>
-            <button
-              type="button"
-              className="osb-dismiss-btn"
-              onClick={() => setIncomingSms(null)}
-              aria-label="Скрыть"
-            >
-              ×
-            </button>
+      {/* КОНТЕКСТНЫЙ СЛОТ: появляется только когда есть что сказать (SMS, тост, подсказка новичку) */}
+      {(() => {
+        const ctxKind = incomingSms ? 'sms' : toastMsg ? 'toast' : showSwipeHint ? 'hint' : null;
+        return (
+          <div className={`ctx-slot ${ctxKind ? 'has' : ''}`}>
+            <div className="ctx-slot-inner">
+              {ctxKind === 'sms' && incomingSms ? (
+                <div className="organic-sms-banner">
+                  <div className="osb-dot" />
+                  <button type="button" className="osb-main" onClick={handleOpenIncomingSms}>
+                    <div className="osb-top-line">
+                      <strong>{incomingSms.sender}</strong>
+                      <span className="osb-reward">+Резерв</span>
+                    </div>
+                    <p>{incomingSms.preview}</p>
+                  </button>
+                  <button type="button" className="osb-open-btn" onClick={handleOpenIncomingSms}>
+                    Открыть
+                  </button>
+                  <button
+                    type="button"
+                    className="osb-dismiss-btn"
+                    onClick={() => setIncomingSms(null)}
+                    aria-label="Скрыть"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : ctxKind === 'toast' ? (
+                <div className="mission-ribbon coffee-lit">{toastMsg}</div>
+              ) : ctxKind === 'hint' ? (
+                <div className="ctx-hint">
+                  <span className="ctx-hint-hand" aria-hidden="true">
+                    ↔
+                  </span>
+                  Смахните карточку или зажмите вариант
+                </div>
+              ) : null}
+            </div>
           </div>
-        ) : toastMsg ? (
-          <div className="mission-ribbon coffee-lit">{toastMsg}</div>
-        ) : lastInsight ? (
-          <button
-            type="button"
-            className={`pro-insight-bar ${lastInsight.wasSmart ? 'smart' : 'trap'}`}
-            onClick={() => setInsightModalOpen(true)}
-          >
-            <span className="pib-tag">{lastInsight.wasSmart ? 'НОРМА' : 'ЛОВУШКА'}</span>
-            <span className="pib-text">{lastInsight.entry.shortFact}</span>
-            <span className="pib-more">↗</span>
-          </button>
-        ) : (
-          <div className="quiet-shift-subtitle">
-            <span>{curBlock.title} · Смахните карточку влево или вправо</span>
-          </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* СЦЕНА КАРТОЧКИ: ВСЯ ОБЛАСТЬ РАБОТАЕТ КАК ЧУВСТВИТЕЛЬНАЯ ЗОНА СВАЙПА, А ЛИЦО ЖИВЁТ ОТДЕЛЬНО СВЕРХУ! */}
       <main
@@ -2340,29 +2556,6 @@ export function App() {
                   />
                 )}
 
-                {activePreviewSide && (
-                  <div
-                    className={`reigns-choice-curtain top-ergonomic-curtain ${activePreviewSide}`}
-                    style={{ opacity: Math.min(1, 0.9 + pullRatio * 0.1) }}
-                  >
-                    <div
-                      className={`rcc-volumetric-bar ${activePreviewSide}`}
-                      style={{ width: `${Math.round(Math.max(22, pullRatio * 100))}%` }}
-                    />
-                    <div className="rcc-copy">
-                      <small>
-                        {activePreviewSide === 'left'
-                          ? '← Полная формулировка решения'
-                          : 'Полная формулировка решения →'}
-                      </small>
-                      <strong>
-                        {activePreviewSide === 'left'
-                          ? currentCard.left.label
-                          : currentCard.right.label}
-                      </strong>
-                    </div>
-                  </div>
-                )}
               </div>
 
               <div className="dc-speaker-bar">
@@ -2374,53 +2567,80 @@ export function App() {
                 <p>{currentCard.text}</p>
               </div>
 
-              {/* Эргономичные углы выбора: в покое — яркая короткая суть, а при свайпе сверху раскрывается полный текст! */}
-              <div className="dc-inline-choices">
-                <button
-                  type="button"
-                  data-inline-choice="left"
-                  className={`dc-inline-side left ${activePreviewSide === 'left' ? 'active' : ''}`}
-                  onClick={() => {
-                    if (performance.now() - lastInlineCommitMsRef.current > 180) {
-                      lastInlineCommitMsRef.current = performance.now();
-                      commitChoice('left', { fromX: 0, fromY: 0, fromRot: 0 });
-                    }
-                  }}
-                >
-                  <div
-                    className="dc-inline-fill left-dir"
-                    style={{
-                      width: activePreviewSide === 'left' ? `${Math.round(pullRatio * 100)}%` : '0%',
-                    }}
-                  />
-                  <div className="dc-inline-copy">
-                    <small className="dc-dir-kicker">← Влево</small>
-                    <strong>{getChoiceShortGist(currentCard.left.label)}</strong>
-                  </div>
-                </button>
+              {/* Варианты: в покое — короткая суть; тап/зажатие/свайп раскрывают полный текст поверх */}
+              <div className={`dc-inline-choices ${revealSide ? `revealing-${revealSide}` : ''}`}>
+                {(['left', 'right'] as const).map((sideKey) => {
+                  const opt = sideKey === 'left' ? currentCard.left : currentCard.right;
+                  return (
+                    <button
+                      key={sideKey}
+                      type="button"
+                      data-inline-choice={sideKey}
+                      aria-label={opt.label}
+                      className={`dc-inline-side ${sideKey} ${revealSide === sideKey ? 'active' : ''}`}
+                      onClick={(e) => {
+                        // Мышь/палец обрабатываются жестами сцены; здесь — только клавиатура (Enter/Space)
+                        if (e.detail !== 0) return;
+                        if (pinnedSide === sideKey) {
+                          commitChoice(sideKey, { fromX: 0, fromY: 0, fromRot: 0 });
+                        } else {
+                          setPinnedSide(sideKey);
+                        }
+                      }}
+                    >
+                      <div className="dc-inline-copy">
+                        <small className="dc-dir-kicker">
+                          {sideKey === 'left' ? '← Влево' : 'Вправо →'}
+                        </small>
+                        <strong>{getChoiceShortGist(opt.label)}</strong>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-                <button
-                  type="button"
-                  data-inline-choice="right"
-                  className={`dc-inline-side right ${activePreviewSide === 'right' ? 'active' : ''}`}
-                  onClick={() => {
-                    if (performance.now() - lastInlineCommitMsRef.current > 180) {
-                      lastInlineCommitMsRef.current = performance.now();
-                      commitChoice('right', { fromX: 0, fromY: 0, fromRot: 0 });
-                    }
-                  }}
-                >
-                  <div
-                    className="dc-inline-fill right-dir"
+            {/* Раскрытое решение: «вырастает» из своей кнопки на всю ширину, пока палец тянет/держит */}
+            <div
+              className={`choice-reveal ${revealShownSide} ${revealSide ? 'open' : ''} ${
+                revealArmed ? 'armed' : ''
+              } ${revealMode === 'pinned' ? 'tappable' : ''}`}
+              data-reveal-commit={revealMode === 'pinned' ? 'true' : undefined}
+              aria-hidden={!revealSide}
+              style={
+                {
+                  // Пока карточка уезжает за край, текст смещается внутрь видимой части экрана
+                  '--cr-shift': `${revealMode === 'drag' ? Math.round(pullRatio * 64) : 0}px`,
+                } as React.CSSProperties
+              }
+            >
+              <div className="cr-inner" key={`${cardSeq}_${revealShownSide}`}>
+                <small className="cr-kicker">
+                  {revealShownSide === 'left' ? '← Влево' : 'Вправо →'}
+                </small>
+                <strong className="cr-text">
+                  {revealShownSide === 'left' ? currentCard.left.label : currentCard.right.label}
+                </strong>
+                <div className="cr-progress">
+                  <i
                     style={{
-                      width: activePreviewSide === 'right' ? `${Math.round(pullRatio * 100)}%` : '0%',
+                      transform: `scaleX(${
+                        revealMode === 'drag' ? Math.max(0.04, pullRatio) : revealMode ? 1 : 0
+                      })`,
                     }}
                   />
-                  <div className="dc-inline-copy">
-                    <small className="dc-dir-kicker">Вправо →</small>
-                    <strong>{getChoiceShortGist(currentCard.right.label)}</strong>
-                  </div>
-                </button>
+                </div>
+                <span className="cr-hint">
+                  {revealMode === 'pinned'
+                    ? 'Нажмите ещё раз — или смахните'
+                    : revealMode === 'held'
+                      ? 'Смахните в эту сторону, чтобы выбрать'
+                      : revealArmed
+                        ? 'Отпустите — решение принято'
+                        : revealShownSide === 'left'
+                          ? '← Тяните дальше'
+                          : 'Тяните дальше →'}
+                </span>
               </div>
             </div>
           </div>
@@ -2429,6 +2649,39 @@ export function App() {
           {exitingCards.map((snap) => (
             <OutgoingCardGhost key={snap.seq} snapshot={snap} onDone={removeExitingGhost} />
           ))}
+
+          {/* Фраза-итог: всплывает, пока новая карточка проявляется из расфокуса */}
+          {quip && (
+            <div
+              key={`quip_${quip.seq}`}
+              className={`outcome-quip tone-${quip.tone} ${quipLeaving ? 'leaving' : ''}`}
+              aria-live="polite"
+            >
+              <p className="oq-text">
+                {quip.text.split(' ').map((w, i) => (
+                  <span key={i} className="oq-word" style={{ animationDelay: `${70 + i * 38}ms` }}>
+                    {w}
+                  </span>
+                ))}
+              </p>
+              {quip.moves.length > 0 && (
+                <div className="oq-moves">
+                  {quip.moves.slice(0, 3).map((m, i) => (
+                    <span
+                      key={m.key}
+                      className={`oq-move ${m.dir > 0 ? 'up' : 'down'} ${m.big ? 'big' : ''}`}
+                      style={{ animationDelay: `${260 + i * 60}ms` }}
+                    >
+                      <PillarSvgIcon packId={pack.id} statKey={m.key} size={12} />
+                      <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
+                        <path d={m.dir > 0 ? 'M4 1 L7 6 L1 6 Z' : 'M4 7 L7 2 L1 2 Z'} fill="currentColor" />
+                      </svg>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* НЕЗАВИСИМЫЙ СЛОЙ ЖИВОГО ЛИЦА И НАСТРОЙКИ ВИДЕО: 0% ВЛИЯНИЯ НА ДВИЖЕНИЕ КАРТОЧКИ */}
@@ -2987,6 +3240,7 @@ export function App() {
           iqHits={iqHits}
           iqTotal={iqTotal}
           isPackFullyUnlocked={packFullyOpen}
+          decisionLog={decisionLog}
           faceSnapshotUrl={faceSnapshotUrl}
           recordedReel={recordedReel}
           isFinalizingReel={isFinalizingReel}

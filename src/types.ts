@@ -20,6 +20,8 @@ export interface ChoiceOption {
   followUpId?: string;
   followUpDelay?: number;
   voiceClip?: string;
+  /** Необязательная авторская фраза-итог (показывается между карточками вместо шаблонной) */
+  outcome?: string;
 }
 
 export interface ProKnowledgeEntry {
