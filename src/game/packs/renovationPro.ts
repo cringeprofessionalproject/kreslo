@@ -3,9 +3,9 @@ import type { JobPack } from '../../types';
 export const RENOVATION_PRO_PACK: JobPack = {
   id: 'renovation_pro',
   category: 'real_sector',
-  title: 'Дизайнер и Прораб · «Авторский надзор»',
-  shortTitle: 'Дизайн и Ремонт',
-  badge: 'АРХИТЕКТУРА И СТРОЙКА',
+  title: 'Авторский надзор и ремонт',
+  shortTitle: 'Надзор и ремонт',
+  badge: 'Архитектура, смета и стройка',
   emoji: '📐',
   tiktokHook: 'Тест прораба и дизайнера: доведёшь ремонт до новоселья без суда и потопа у соседей?',
   subtitle: 'Теневой профиль по кривым стенам, мокрая зона над спальней, скрытые работы и плитка без запаса.',

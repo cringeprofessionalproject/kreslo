@@ -83,6 +83,8 @@ export type PackId =
 
 export type PackCategory = 'all' | 'tech_b2b' | 'market_media' | 'real_sector';
 
+export type HubPackTrack = 'practice' | 'story';
+
 export type MiniGameKind = 'night_chat' | 'xray_scanner' | 'red_green_flag';
 
 export type PaywallTriggerReason =
@@ -95,6 +97,7 @@ export type PaywallTriggerReason =
 export interface JobPack {
   id: PackId;
   category?: PackCategory;
+  hubTrack?: HubPackTrack;
   title: string;
   shortTitle: string;
   badge: string;

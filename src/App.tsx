@@ -643,6 +643,9 @@ export function App() {
   const [hubTab, setHubTab] = useState<'jobs' | 'checks' | 'minigames'>(() =>
     initialUrlRoute && (initialUrlRoute.isOwner || initialUrlRoute.directReceipt) ? 'checks' : 'jobs'
   );
+  const [jobFilter, setJobFilter] = useState<
+    'all' | 'practice' | 'story' | 'tech' | 'commerce'
+  >('all');
   const [checksRefreshSeq, setChecksRefreshSeq] = useState(0);
   const [activeCheckRun, setActiveCheckRun] = useState<{
     check: SkillCheckDef;
@@ -2562,7 +2565,7 @@ export function App() {
                 className={hubTab === 'jobs' ? 'active' : ''}
                 onClick={() => setHubTab('jobs')}
               >
-                Специальности
+                Симуляторы
               </button>
               <button
                 type="button"
@@ -2574,7 +2577,7 @@ export function App() {
                   setChecksRefreshSeq((s) => s + 1);
                 }}
               >
-                Проверки
+                Оценка
               </button>
               <button
                 type="button"
@@ -2583,24 +2586,83 @@ export function App() {
                 className={hubTab === 'minigames' ? 'active' : ''}
                 onClick={() => setHubTab('minigames')}
               >
-                Блиц
+                Разминка
               </button>
             </div>
 
             {hubTab === 'jobs' ? (
               <div className="apple-cards-scroll">
-                {JOB_PACKS.map((jp) => {
+                <div className="ios-context-chips">
+                  {(
+                    [
+                      ['all', 'Все'],
+                      ['practice', 'Рабочая практика'],
+                      ['story', 'Сюжетные истории'],
+                      ['tech', 'Инженерия и ИТ'],
+                      ['commerce', 'Продажи и сервис'],
+                    ] as ['all' | 'practice' | 'story' | 'tech' | 'commerce', string][]
+                  ).map(([fkey, flabel]) => (
+                    <button
+                      key={fkey}
+                      type="button"
+                      className={jobFilter === fkey ? 'on' : ''}
+                      onClick={() => {
+                        sfxUiTap();
+                        setJobFilter(fkey);
+                      }}
+                    >
+                      {flabel}
+                    </button>
+                  ))}
+                </div>
+
+                {JOB_PACKS.filter((jp) => {
+                  if (jobFilter === 'practice') return jp.hubTrack === 'practice';
+                  if (jobFilter === 'story') return jp.hubTrack === 'story';
+                  if (jobFilter === 'tech') {
+                    return [
+                      'scs_designer',
+                      'cctv_installer',
+                      'sec_sysadmin',
+                      'it_product',
+                      'ux_designer',
+                      'ai_agent',
+                    ].includes(jp.id);
+                  }
+                  if (jobFilter === 'commerce') {
+                    return [
+                      'sales_manager',
+                      'sales_rop',
+                      'barista_pro',
+                      'office_manager',
+                      'tender_44fz',
+                      'it_cfo',
+                      'wb_seller',
+                    ].includes(jp.id);
+                  }
+                  return true;
+                }).map((jp, idx, arr) => {
                   const best = meta.bestWeeksByPack[jp.id] ?? 0;
                   const bestMastery = meta.bestIqByPack[jp.id] ?? 0;
                   const ckpt = meta.checkpointBlockByPack[jp.id] ?? 1;
                   const fullyUnlocked = isPackFullyUnlocked(meta, jp.id);
                   const isCurrent = meta.selectedPackId === jp.id;
+                  const showGroupHeader =
+                    jobFilter === 'all' &&
+                    (idx === 0 || arr[idx - 1]?.hubTrack !== jp.hubTrack);
 
                   return (
-                    <div
-                      key={jp.id}
-                      className={`apple-pack-row ${isCurrent ? 'is-selected' : ''}`}
-                    >
+                    <div key={jp.id} className="hub-pack-item-wrap">
+                      {showGroupHeader && (
+                        <div className="sc-sec-header hub-group-divider">
+                          <span>
+                            {jp.hubTrack === 'story'
+                              ? 'Сюжетные истории'
+                              : 'Рабочая практика и специальности'}
+                          </span>
+                        </div>
+                      )}
+                      <div className={`apple-pack-row ${isCurrent ? 'is-selected' : ''}`}>
                       <button
                         type="button"
                         className="apr-main-tap"
@@ -2646,6 +2708,7 @@ export function App() {
                           Блок {ckpt === 2 ? 'II' : 'III'} →
                         </button>
                       )}
+                      </div>
                     </div>
                   );
                 })}

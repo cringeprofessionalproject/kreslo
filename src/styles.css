@@ -6986,3 +6986,13 @@ body {
 .sc-bottom-share-bar {
   margin-top: 4px;
 }
+
+.hub-pack-item-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.hub-group-divider {
+  padding-top: 8px;
+}

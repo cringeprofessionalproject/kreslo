@@ -1,4 +1,4 @@
-import type { DilemmaCard, JobPack, PackCategory, PackId } from '../../types';
+import type { DilemmaCard, HubPackTrack, JobPack, PackCategory, PackId } from '../../types';
 import { AI_AGENT_PACK } from './aiAgent';
 import { BARISTA_PRO_PACK } from './baristaPro';
 import { CAR_FLIPPER_PACK } from './carFlipper';
@@ -34,7 +34,13 @@ function stripLegacyMedia(card: DilemmaCard): DilemmaCard {
   };
 }
 
-function withCategory(pack: JobPack, category: PackCategory): JobPack {
+function withMeta(
+  pack: JobPack,
+  category: PackCategory,
+  hubTrack: HubPackTrack,
+  badgeOverride?: string,
+  titleOverride?: string
+): JobPack {
   const cleanSpecials: Record<string, DilemmaCard> = {};
   for (const [k, v] of Object.entries(pack.specialCards)) {
     cleanSpecials[k] = stripLegacyMedia(v);
@@ -42,12 +48,14 @@ function withCategory(pack: JobPack, category: PackCategory): JobPack {
 
   return {
     ...pack,
+    title: titleOverride ?? pack.title,
     category,
+    hubTrack,
     coverImage: undefined,
     coverVideo: undefined,
     lifelineImg: undefined,
     academyCta: '',
-    badge: cleanEditorialTag(pack.badge),
+    badge: badgeOverride ?? cleanEditorialTag(pack.badge),
     targetWeeks: 36,
     onboardingCards: pack.onboardingCards.map(stripLegacyMedia),
     deckCards: pack.deckCards.map(stripLegacyMedia),
@@ -61,27 +69,36 @@ function withCategory(pack: JobPack, category: PackCategory): JobPack {
   };
 }
 
-// 19 массовых специальностей (Продакт-менеджер первым по умолчанию)
+// 19 симуляторов: 12 прикладных специальностей («Рабочая практика») + 7 сюжетных историй («Сюжетные истории»)
 export const JOB_PACKS: JobPack[] = [
-  withCategory(PRODUCT_MANAGER_PACK, 'tech_b2b'),
-  withCategory(AI_AGENT_PACK, 'tech_b2b'),
-  withCategory(SALES_MANAGER_PACK, 'market_media'),
-  withCategory(SALES_ROP_PACK, 'market_media'),
-  withCategory(BARISTA_PRO_PACK, 'real_sector'),
-  withCategory(CAR_FLIPPER_PACK, 'real_sector'),
-  withCategory(OFFICE_MANAGER_PACK, 'market_media'),
-  withCategory(CCTV_INSTALLER_PACK, 'real_sector'),
-  withCategory(SCS_DESIGNER_PACK, 'tech_b2b'),
-  withCategory(SMM_PRODUCER_PACK, 'market_media'),
-  withCategory(UX_DESIGNER_PACK, 'tech_b2b'),
-  withCategory(WB_SELLER_PACK, 'market_media'),
-  withCategory(PLASTIC_SURGEON_PACK, 'real_sector'),
-  withCategory(RENOVATION_PRO_PACK, 'real_sector'),
-  withCategory(PVZ_MANAGER_PACK, 'market_media'),
-  withCategory(HR_RECRUITER_PACK, 'market_media'),
-  withCategory(SEC_SYSADMIN_PACK, 'tech_b2b'),
-  withCategory(TENDER_SPEC_PACK, 'tech_b2b'),
-  withCategory(IT_FIN_DIRECTOR_PACK, 'tech_b2b'),
+  // ── I. РАБОЧАЯ ПРАКТИКА И СПЕЦИАЛЬНОСТИ (12) ──
+  withMeta(PRODUCT_MANAGER_PACK, 'tech_b2b', 'practice', 'Продукт, метрики и релизы'),
+  withMeta(SALES_MANAGER_PACK, 'market_media', 'practice', 'Продажи, сделки и клиенты'),
+  withMeta(SALES_ROP_PACK, 'market_media', 'practice', 'Управление отделом продаж и B2B'),
+  withMeta(OFFICE_MANAGER_PACK, 'market_media', 'practice', 'Операционка и документооборот'),
+  withMeta(SCS_DESIGNER_PACK, 'tech_b2b', 'practice', 'Инженерия и кабельные системы'),
+  withMeta(CCTV_INSTALLER_PACK, 'real_sector', 'practice', 'Слаботочные системы и объекты'),
+  withMeta(SEC_SYSADMIN_PACK, 'tech_b2b', 'practice', 'Инфраструктура и защита данных'),
+  withMeta(IT_FIN_DIRECTOR_PACK, 'tech_b2b', 'practice', 'Финансы, налоги и учёт'),
+  withMeta(TENDER_SPEC_PACK, 'tech_b2b', 'practice', 'Госзакупки и контракты'),
+  withMeta(UX_DESIGNER_PACK, 'tech_b2b', 'practice', 'Интерфейсы и дизайн-системы'),
+  withMeta(BARISTA_PRO_PACK, 'real_sector', 'practice', 'Кофе, касса и сервис'),
+  withMeta(RENOVATION_PRO_PACK, 'real_sector', 'practice', 'Архитектура, смета и стройка'),
+
+  // ── II. СЮЖЕТНЫЕ ИСТОРИИ (7) ──
+  withMeta(AI_AGENT_PACK, 'tech_b2b', 'story', 'Сюжет · Взгляд изнутри нейросети'),
+  withMeta(
+    CAR_FLIPPER_PACK,
+    'real_sector',
+    'story',
+    'Сюжет · Вторичный авторынок',
+    'Автоподбор и перепродажа'
+  ),
+  withMeta(PVZ_MANAGER_PACK, 'market_media', 'story', 'Сюжет · Пиковый сезон'),
+  withMeta(PLASTIC_SURGEON_PACK, 'real_sector', 'story', 'Сюжет · Частная клиника'),
+  withMeta(WB_SELLER_PACK, 'market_media', 'story', 'Сюжет · Поставки и маркетплейсы'),
+  withMeta(SMM_PRODUCER_PACK, 'market_media', 'story', 'Сюжет · Медиа и дедлайны'),
+  withMeta(HR_RECRUITER_PACK, 'market_media', 'story', 'Сюжет · Подбор и команда'),
 ];
 
 export function getJobPack(id: PackId): JobPack {

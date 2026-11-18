@@ -545,10 +545,10 @@ export const OwnerCheckTrackerModal: React.FC<{
 
             <div className="sc-mode-subline">
               <span>
-                Режим:{' '}
+                Формат:{' '}
                 {record?.mode === 'challenge'
-                  ? 'Открытый челлендж (итог виден обоим)'
-                  : 'Скрининг (правильные ответы скрыты от тестируемого)'}
+                  ? 'Открытый (итог сразу виден обоим)'
+                  : 'Рабочая оценка (ответы скрыты от участника)'}
               </span>
               {record && (
                 <button type="button" className="sc-text-link" onClick={handleCopyCrossDeviceOwnerUrl}>
@@ -690,11 +690,11 @@ export const CreateSkillCheckModal: React.FC<{
               }}
             >
               <div className="sc-mo-head">
-                <strong>Проверка кандидата / сотрудника</strong>
+                <strong>Рабочая оценка</strong>
                 <span className="sc-mo-radio" />
               </div>
               <p>
-                Правильные ответы в конце скрыты от проходящего, а полный разбор с таймингами
+                Правильные ответы в конце скрыты от участника, а подробный отчёт с таймингами
                 откроется только вам по этой же ссылке.
               </p>
             </button>
@@ -708,12 +708,12 @@ export const CreateSkillCheckModal: React.FC<{
               }}
             >
               <div className="sc-mo-head">
-                <strong>Дружеский челлендж / Коллегам</strong>
+                <strong>Открытый формат</strong>
                 <span className="sc-mo-radio" />
               </div>
               <p>
-                Человек сразу увидит свой балл после 10 карточек, а у вас по выданной ссылке также
-                сохранится его подробный результат.
+                Участник сразу увидит свой балл и разбор после 10 карточек, а у вас по ссылке также
+                сохранится его результат.
               </p>
             </button>
           </div>
@@ -762,6 +762,7 @@ export const HubSkillChecksTab: React.FC<{
 }> = ({ onPlaySelfCheck, onOpenOwnerTracker, refreshTrigger = 0 }) => {
   const [selectedForCreate, setSelectedForCreate] = useState<SkillCheckDef | null>(null);
   const [createdList, setCreatedList] = useState<CreatedCheckRecord[]>(() => loadCreatedChecks());
+  const [checkFilter, setCheckFilter] = useState<'all' | 'standards' | 'roles'>('all');
 
   useEffect(() => {
     setCreatedList(loadCreatedChecks());
@@ -853,12 +854,30 @@ export const HubSkillChecksTab: React.FC<{
         </div>
       )}
 
-      {/* Каталог готовых блиц-проверок */}
-      <div className="sc-sec-header">
-        <span>Готовые стандарты и специальности</span>
+      {/* Фильтр каталога проверок */}
+      <div className="ios-context-chips">
+        {(
+          [
+            ['all', 'Все'],
+            ['standards', 'Корпоративные стандарты'],
+            ['roles', 'По специальностям'],
+          ] as ['all' | 'standards' | 'roles', string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={checkFilter === key ? 'on' : ''}
+            onClick={() => {
+              sfxUiTap();
+              setCheckFilter(key);
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      {SKILL_CHECKS.map((chk) => (
+      {SKILL_CHECKS.filter((chk) => checkFilter === 'all' || chk.group === checkFilter).map((chk) => (
         <div key={chk.id} className="apple-pack-row">
           <button
             type="button"

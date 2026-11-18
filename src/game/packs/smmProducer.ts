@@ -2,9 +2,9 @@ import type { JobPack } from '../../types';
 
 export const SMM_PRODUCER_PACK: JobPack = {
   id: 'smm_insta',
-  title: 'SMM & Рилсмейкер · «Залетит на лям!»',
-  shortTitle: 'SMM & Reels',
-  badge: '📸 ХИТ ИНСТЫ & МАРКЕТОЛОГОВ',
+  title: 'Контент-продюсер и SMM',
+  shortTitle: 'Контент и SMM',
+  badge: 'Сюжет · Медиа и дедлайны',
   emoji: '📸',
   tiktokHook: 'POV: Клиент просит «гарантию 1 млн просмотров без бюджета», а блогер забыл токен ERID! 📸😭',
   subtitle: 'Правки логотипа в 23:55, штрафы за забытый ERID, трек из чартов в рекламе и извинения в водолазке.',

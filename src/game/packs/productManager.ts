@@ -2,9 +2,9 @@ import type { JobPack } from '../../types';
 
 export const PRODUCT_MANAGER_PACK: JobPack = {
   id: 'it_product',
-  title: 'Продакт в ИТ-стартапе',
+  title: 'Продакт-менеджер',
   shortTitle: 'ИТ-Продакт',
-  badge: '🚀 СТАРТАП-САТИРА',
+  badge: 'Продукт, метрики и релизы',
   emoji: '🚀',
   coverImage: './assets/portraits/nikolaev_skeptic.jpg',
   tiktokHook: 'Челлендж: Продержись 20 спринтов продактом в безумном ИТ-стартапе! 💻🔥',

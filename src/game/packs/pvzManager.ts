@@ -2,9 +2,9 @@ import type { JobPack } from '../../types';
 
 export const PVZ_MANAGER_PACK: JobPack = {
   id: 'pvz_december',
-  title: 'Менеджер ПВЗ · 29 Декабря',
+  title: 'Пункт выдачи · Декабрь',
   shortTitle: 'Смена в ПВЗ',
-  badge: '📦 ХИТ TIKTOK / REELS',
+  badge: 'Сюжет · Пиковый сезон',
   emoji: '📦',
   tiktokHook: 'Челлендж: Выживи 20 смен на ПВЗ перед Новым годом и не сойди с ума! 😭📦',
   subtitle: 'Очередь до остановки, 400 мешков наполнителя, возврат надкусанной гирлянды и пакет за 9 ₽.',

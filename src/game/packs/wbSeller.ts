@@ -3,9 +3,9 @@ import type { JobPack } from '../../types';
 export const WB_SELLER_PACK: JobPack = {
   id: 'wb_seller',
   category: 'market_media',
-  title: 'Селлер WB и Ozon · «Юнит-экономика»',
-  shortTitle: 'Селлер WB/Ozon',
-  badge: 'МАРКЕТПЛЕЙСЫ И ТОВАРКА',
+  title: 'Селлер маркетплейсов',
+  shortTitle: 'Маркетплейсы',
+  badge: 'Сюжет · Поставки и юнит-экономика',
   emoji: '📦',
   tiktokHook: 'Выживешь 3 сезона селлером на маркетплейсе без кассового разрыва и штрафа за Честный ЗНАК?',
   subtitle: 'Принудительные автоакции, процент выкупа 32%, коды Честного ЗНАКа, логистика и патентные тролли.',

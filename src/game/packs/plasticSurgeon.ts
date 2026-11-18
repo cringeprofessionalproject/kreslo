@@ -2,9 +2,9 @@ import type { JobPack } from '../../types';
 
 export const PLASTIC_SURGEON_PACK: JobPack = {
   id: 'plastic_surgeon',
-  title: 'Пластический хирург · VIP-клиника',
-  shortTitle: 'Пластич. хирург',
-  badge: '💉 ПОП-КУЛЬТУРА & ПИКАБУ',
+  title: 'Хирург эстетической клиники',
+  shortTitle: 'Эстет. хирург',
+  badge: 'Сюжет · Частная клиника',
   emoji: '💉',
   tiktokHook: 'POV: К тебе пришли с бьюти-маской из рилсов и жёлтым флаконом «Субстанции»! 💉😱',
   subtitle: '«Углы Джоли», паника отёка на 3-й день, сломанный Face ID, СММщица в операционной и «Тихая роскошь».',

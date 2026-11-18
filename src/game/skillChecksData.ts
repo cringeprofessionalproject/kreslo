@@ -28,9 +28,12 @@ export interface SkillCheckCard {
   why: string;
 }
 
+export type SkillCheckGroup = 'standards' | 'roles';
+
 export interface SkillCheckDef {
   id: SkillCheckId;
   slug: string;
+  group: SkillCheckGroup;
   title: string;
   shortTitle: string;
   badge: string;
@@ -49,6 +52,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'mts_compliance',
     slug: 'mts',
+    group: 'standards',
     title: 'Комплаенс и деловая этика',
     shortTitle: 'Комплаенс',
     badge: 'Enterprise · 10 кейсов',
@@ -223,13 +227,14 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'genz_work_fit',
     slug: 'genz',
-    title: 'Рабочая база 2026 (Зумер-чек)',
-    shortTitle: 'База 2026',
-    badge: 'Софт-база · 10 кейсов',
-    categoryLabel: 'Проверка базовой рабочей зрелости, дедлайнов, фидбека и фактчека за ИИ',
+    group: 'standards',
+    title: 'Командная этика и рабочая база',
+    shortTitle: 'Рабочая база',
+    badge: 'Командный стандарт · 10 кейсов',
+    categoryLabel: 'Сроки, конструктивная работа с обратной связью, границы и проверка фактов за ИИ',
     subtitle:
-      'Горящие сроки без молчаливого пропадания, здоровая реакция на правки, границы и работа с нейросетями.',
-    audienceHint: 'Для стажёров, джунов, линейных спецов — и проверить друзей в чате',
+      'Горящие сроки без молчаливого пропадания, здоровая реакция на правки, границы и сверка цифр за нейросетями.',
+    audienceHint: 'Для стажёров, младших специалистов и самопроверки команды',
     coverPackId: 'ux_designer',
     passScore: 8,
     cards: [
@@ -396,6 +401,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'infosec_ai_hygiene',
     slug: 'infosec',
+    group: 'standards',
     title: 'ИБ-гигиена, 152-ФЗ и нейросети',
     shortTitle: 'ИБ и 152-ФЗ',
     badge: 'Кибербаза · 10 кейсов',
@@ -571,6 +577,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'sales_pro_check',
     slug: 'sales',
+    group: 'roles',
     title: 'Менеджер отдела продаж',
     shortTitle: 'Продажи',
     badge: 'B2B / Сделки · 10 кейсов',
@@ -744,6 +751,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'service_horeca_check',
     slug: 'service',
+    group: 'roles',
     title: 'Бариста и линейный сервис',
     shortTitle: 'Сервис / HoReCa',
     badge: 'Точка и гость · 10 кейсов',
@@ -918,6 +926,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'office_assist_check',
     slug: 'office',
+    group: 'roles',
     title: 'Офис-менеджер и ассистент',
     shortTitle: 'Офис-менеджер',
     badge: 'Операционка · 10 кейсов',
@@ -1092,6 +1101,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   {
     id: 'field_engineer_check',
     slug: 'engineer',
+    group: 'roles',
     title: 'Инженер / Монтажник (СКС и Видео)',
     shortTitle: 'СКС и Видео',
     badge: 'Объект и нормы · 10 кейсов',

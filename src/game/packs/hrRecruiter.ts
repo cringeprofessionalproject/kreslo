@@ -2,9 +2,9 @@ import type { JobPack } from '../../types';
 
 export const HR_RECRUITER_PACK: JobPack = {
   id: 'hr_family',
-  title: 'HR в «Молодой дружной семье»',
-  shortTitle: 'HR-Рекрутер',
-  badge: '💼 ОФИСНЫЙ ХАЙП',
+  title: 'HR в растущей компании',
+  shortTitle: 'HR и подбор',
+  badge: 'Сюжет · Подбор и команда',
   emoji: '💼',
   coverImage: './assets/portraits/vera.jpg',
   tiktokHook: 'POV: Тебе нужно найти сеньора с опытом 10 лет за 45 000 ₽ и бесплатные сушки! 💼🤡',
