@@ -27,6 +27,7 @@ export const FREE_STARTER_PACKS: PackId[] = [
   'barista_pro',
   'office_manager',
   'ai_agent',
+  'nvc_master',
 ];
 export const FREE_SHIFT_LIMIT = SHIFTS_PER_BLOCK; // 12 смен (полный Блок I)
 

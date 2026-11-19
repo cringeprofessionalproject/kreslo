@@ -219,6 +219,16 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinLight: '#EDF4F2',
     skinShade: '#D3E1DD',
   },
+  nvc_master: {
+    bg: '#2A2330',
+    bgDeep: '#19141E',
+    glow: '#4B3C57',
+    suit: '#382D42',
+    suitAlt: '#4A3C58',
+    accent: '#D9B6E8',
+    skinLight: '#F7EFE6',
+    skinShade: '#E2D4C5',
+  },
 };
 
 const FEMALE_TOKENS = [
@@ -618,6 +628,24 @@ export function EditorialCardPortrait({
             <rect x="8" y="24" width="56" height="38" rx="3" fill="#2A231B" stroke={pal.accent} strokeWidth="1.2" />
             <rect x="16" y="4" width="40" height="20" rx="2.5" fill="#342B20" stroke={pal.accent} strokeWidth="1.1" />
             <line x1="36" y1="4" x2="36" y2="24" stroke={pal.accent} strokeWidth="2" opacity="0.6" />
+          </g>
+        </g>
+      )}
+
+      {packId === 'nvc_master' && (
+        <g opacity="0.9">
+          {/* Тёплая пробковая доска с 4 кубиками-карточками конструктора диалога */}
+          <g transform="translate(20, 46)">
+            <rect x="0" y="0" width="76" height="54" rx="8" fill="rgba(46,35,54,0.82)" stroke={pal.accent} strokeWidth="1.1" />
+            <rect x="8" y="9" width="26" height="15" rx="3" fill="#D9B6E8" opacity="0.72" />
+            <rect x="40" y="9" width="28" height="15" rx="3" fill="#8ED7B6" opacity="0.72" />
+            <rect x="8" y="30" width="26" height="15" rx="3" fill="#F0C886" opacity="0.72" />
+            <rect x="40" y="30" width="28" height="15" rx="3" fill="rgba(255,255,255,0.22)" />
+          </g>
+          {/* Два пересекающихся тёплых диалоговых облака и кружка чая */}
+          <g transform="translate(268, 48)" opacity="0.82">
+            <rect x="0" y="6" width="44" height="24" rx="12" fill="rgba(217,182,232,0.2)" stroke={pal.accent} strokeWidth="1.2" />
+            <rect x="20" y="22" width="46" height="24" rx="12" fill="rgba(142,215,182,0.18)" stroke="#8ED7B6" strokeWidth="1.2" />
           </g>
         </g>
       )}
@@ -1247,6 +1275,14 @@ export function EditorialCardPortrait({
             d="M21 25 V15 C21 11.5, 29 11.5, 29 15 V28 C29 33, 18 33, 18 28 V17"
             strokeLinecap="round"
           />
+        )}
+
+        {packId === 'nvc_master' && (
+          /* Два диалоговых облака живого контакта */
+          <>
+            <rect x="13" y="13" width="16" height="12" rx="6" />
+            <rect x="21" y="22" width="16" height="12" rx="6" />
+          </>
         )}
 
         {packId === 'ai_agent' && (

@@ -157,6 +157,7 @@ export function PillarSvgIcon({
     car_flipper: 's4',
     office_manager: 's2',
     ai_agent: 's4',
+    nvc_master: 's2',
   };
 
   // Инженерия / Качество / Эстетика / Система
@@ -175,6 +176,7 @@ export function PillarSvgIcon({
     car_flipper: 's2',
     barista_pro: 's2',
     ai_agent: 's2',
+    nvc_master: 's3',
   };
 
   if (moneyMap[packId] === statKey) {

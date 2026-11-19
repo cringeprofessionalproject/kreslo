@@ -5,6 +5,7 @@ import { CAR_FLIPPER_PACK } from './carFlipper';
 import { CCTV_INSTALLER_PACK } from './cctvInstaller';
 import { HR_RECRUITER_PACK } from './hrRecruiter';
 import { IT_FIN_DIRECTOR_PACK } from './itFinDirector';
+import { NVC_MASTER_PACK } from './nvcMaster';
 import { OFFICE_MANAGER_PACK } from './officeManager';
 import { PLASTIC_SURGEON_PACK } from './plasticSurgeon';
 import { PRODUCT_MANAGER_PACK } from './productManager';
@@ -73,6 +74,7 @@ function withMeta(
 export const JOB_PACKS: JobPack[] = [
   // ── I. РАБОЧАЯ ПРАКТИКА И СПЕЦИАЛЬНОСТИ (12) ──
   withMeta(PRODUCT_MANAGER_PACK, 'tech_b2b', 'practice', 'Продукт, метрики и релизы'),
+  withMeta(NVC_MASTER_PACK, 'market_media', 'practice', 'Ненасильственное общение и границы'),
   withMeta(SALES_MANAGER_PACK, 'market_media', 'practice', 'Продажи, сделки и клиенты'),
   withMeta(SALES_ROP_PACK, 'market_media', 'practice', 'Управление отделом продаж и B2B'),
   withMeta(OFFICE_MANAGER_PACK, 'market_media', 'practice', 'Операционка и документооборот'),

@@ -81,7 +81,8 @@ export type PackId =
   | 'car_flipper'
   | 'barista_pro'
   | 'office_manager'
-  | 'ai_agent';
+  | 'ai_agent'
+  | 'nvc_master';
 
 export type PackCategory = 'all' | 'tech_b2b' | 'market_media' | 'real_sector';
 

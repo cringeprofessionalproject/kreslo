@@ -2352,20 +2352,25 @@ export function App() {
             const justChanged = poppingDeltas.deltas[pil.key] ?? 0;
             const danger = val <= 20 || val >= 84;
             const impact = revealSide && fullDelta !== 0 ? (Math.abs(fullDelta) >= 10 ? 'big' : 'small') : null;
+            const impactDir = revealSide && fullDelta !== 0 ? (fullDelta > 0 ? 'up' : 'down') : null;
             const projected = Math.max(0, Math.min(100, val + fullDelta));
             const willCrash = Boolean(impact) && (projected <= 0 || projected >= 100);
 
             return (
               <span
                 key={pil.key}
-                className={`ss-item ${danger ? 'danger' : ''} ${willCrash ? 'crash-warn' : ''}`}
+                className={`ss-item ${danger ? 'danger' : ''} ${willCrash ? 'crash-warn' : ''} ${
+                  impactDir ? `impact-${impactDir}` : ''
+                }`}
               >
                 <span
                   key={justChanged !== 0 ? `chg_${poppingDeltas.seq}` : 'still'}
                   className={`ss-ico ${justChanged > 0 ? 'bump-up' : justChanged < 0 ? 'bump-down' : ''}`}
                 >
                   <PillarSvgIcon packId={pack.id} statKey={pil.key} size={14} />
-                  <i className={`ss-dot ${impact ?? ''}`} />
+                  <i className={`ss-dot ${impact ?? ''} ${impactDir ?? ''}`} aria-hidden="true">
+                    {impactDir === 'up' ? '▲' : impactDir === 'down' ? '▼' : ''}
+                  </i>
                 </span>
                 <span className="ss-meter">
                   <i className="ss-fill" style={{ width: `${val}%` }} />

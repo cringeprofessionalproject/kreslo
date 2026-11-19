@@ -51,6 +51,7 @@ const VALID_PACKS = new Set([
   'barista_pro',
   'office_manager',
   'ai_agent',
+  'nvc_master',
 ]);
 
 const VALID_SOURCES = new Set(['intermission', 'ending', 'hub', 'vault']);
