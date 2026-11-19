@@ -147,6 +147,7 @@ export interface PersistentMeta {
   bestWeeksByPack: Record<string, number>;
   bestIqByPack: Record<string, number>;
   checkpointBlockByPack: Record<string, 1 | 2 | 3>; // Открытый чекпоинт блока (1, 2 или 3)
+  unlockedBlockByPack?: Record<string, 1 | 2 | 3>; // Поэтапно открытый модуль (1 -> 2 -> 3)
   attemptsByPack: Record<string, number>;
   unlockedEndings: string[];
   proUnlocked: boolean;

@@ -171,8 +171,16 @@ export function BlockIntermissionModal({
             Продолжить · Смена {nextBlock.startWeek} →
           </button>
         ) : (
-          <button type="button" className="cta-btn primary big" onClick={onUnlockMoreAndContinue}>
-            Открыть ещё ({nextBlock.title}) →
+          <button
+            type="button"
+            className={`cta-btn primary big ${
+              nextBlock.blockNum === 3 ? 'tier-unlock-polychrome' : 'tier-unlock-foil'
+            }`}
+            onClick={onUnlockMoreAndContinue}
+          >
+            {nextBlock.blockNum === 3
+              ? 'Открыть Блок III · Полихром →'
+              : 'Открыть Блок II · Фольга →'}
           </button>
         )}
       </div>

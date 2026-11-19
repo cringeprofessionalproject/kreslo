@@ -132,6 +132,7 @@ const DEFAULT_META: PersistentMeta = {
   bestWeeksByPack: {},
   bestIqByPack: {},
   checkpointBlockByPack: {},
+  unlockedBlockByPack: {},
   attemptsByPack: {},
   unlockedEndings: [],
   proUnlocked: false,
@@ -158,6 +159,7 @@ function loadMeta(): PersistentMeta {
       adUnlockedPacks: Array.isArray(parsed.adUnlockedPacks) ? parsed.adUnlockedPacks : [],
       bestIqByPack: parsed.telemetry ? (parsed.bestIqByPack ?? {}) : {},
       checkpointBlockByPack: parsed.checkpointBlockByPack ?? {},
+      unlockedBlockByPack: parsed.unlockedBlockByPack ?? {},
       telemetry: {
         ...DEFAULT_TELEMETRY,
         ...(parsed.telemetry ?? {}),
@@ -981,6 +983,58 @@ export function App() {
   useEffect(() => {
     setSoundProfile(meta.soundProfile ?? 'groove');
   }, [meta.soundProfile]);
+
+  const getUnlockedBlockForPack = useCallback(
+    (m: PersistentMeta, targetPackId: PackId): 1 | 2 | 3 => {
+      return m.unlockedBlockByPack?.[targetPackId] ?? 1;
+    },
+    []
+  );
+
+  const unlockNextBlockForPack = useCallback(
+    (
+      targetPackId: PackId,
+      targetBlock: 2 | 3,
+      source: 'intermission' | 'ending' | 'hub' | 'vault'
+    ) => {
+      sendAnonymousPulse('unlock_more', targetPackId, source);
+      setMeta((m) => {
+        const prevUnlocked = m.unlockedBlockByPack?.[targetPackId] ?? 1;
+        const nextUnlocked = Math.max(prevUnlocked, targetBlock) as 1 | 2 | 3;
+        const prevCkpt = m.checkpointBlockByPack[targetPackId] ?? 1;
+        return {
+          ...m,
+          unlockedBlockByPack: {
+            ...(m.unlockedBlockByPack ?? {}),
+            [targetPackId]: nextUnlocked,
+          },
+          checkpointBlockByPack: {
+            ...m.checkpointBlockByPack,
+            [targetPackId]: Math.max(prevCkpt, nextUnlocked) as 1 | 2 | 3,
+          },
+          telemetry: {
+            ...m.telemetry,
+            unlockMoreClicks: (m.telemetry.unlockMoreClicks ?? 0) + 1,
+            unlockMoreByPack: {
+              ...(m.telemetry.unlockMoreByPack ?? {}),
+              [targetPackId]: ((m.telemetry.unlockMoreByPack ?? {})[targetPackId] ?? 0) + 1,
+            },
+            unlockMoreBySource: {
+              ...(m.telemetry.unlockMoreBySource ?? {}),
+              [source]: ((m.telemetry.unlockMoreBySource ?? {})[source] ?? 0) + 1,
+            },
+          },
+        };
+      });
+      setToastMsg(
+        targetBlock === 3
+          ? 'Блок III открыт · Полихромные карточки'
+          : 'Блок II открыт · Фактура «Фольга»'
+      );
+      window.setTimeout(() => setToastMsg(null), 2600);
+    },
+    []
+  );
 
   const recordUnlockMoreAndOpen = useCallback(
     (
@@ -1953,6 +2007,7 @@ export function App() {
       activeCardElRef.current.style.transform = `translate3d(${rawDx.toFixed(
         1
       )}px, ${dampedY.toFixed(1)}px, 0) rotate(${rotDeg.toFixed(2)}deg)`;
+      activeCardElRef.current.style.setProperty('--foil-shift', `${(rawDx * 0.45).toFixed(1)}%`);
     }
 
     const pull = Math.min(1, Math.max(0, (Math.abs(rawDx) - 6) / 64));
@@ -2493,7 +2548,13 @@ export function App() {
           <div
             key={`under_${cardSeq}`}
             ref={back1ElRef}
-            className="dilemma-card apple-spring-card blurred-next-underlay"
+            className={`dilemma-card apple-spring-card blurred-next-underlay ${
+              getBlockForWeek(week + 1).blockNum === 2
+                ? 'card-tier-foil'
+                : getBlockForWeek(week + 1).blockNum === 3
+                  ? 'card-tier-polychrome'
+                  : ''
+            }`}
             aria-hidden="true"
           >
             <div className="dc-focus-plane">
@@ -2548,6 +2609,12 @@ export function App() {
             key={cardSeq}
             ref={activeCardElRef}
             className={`dilemma-card apple-spring-card fresh-card ${
+              curBlock.blockNum === 2
+                ? 'card-tier-foil'
+                : curBlock.blockNum === 3
+                  ? 'card-tier-polychrome'
+                  : ''
+            } ${
               cardSeq > 1 ? 'rack-focus-appear' : ''
             } ${
               activePreviewSide === 'left'
@@ -2559,6 +2626,15 @@ export function App() {
           >
             <div className="dc-focus-plane">
               <div ref={portraitAreaRef} className="dc-portrait-area">
+                {curBlock.blockNum >= 2 && (
+                  <span
+                    className={`dc-tier-badge ${
+                      curBlock.blockNum === 3 ? 'polychrome' : 'foil'
+                    }`}
+                  >
+                    {curBlock.blockNum === 3 ? 'III · POLYCHROME' : 'II · FOIL'}
+                  </span>
+                )}
                 {currentCard.videoClip ? (
                   <video
                     key={currentCard.videoClip}
@@ -2972,15 +3048,59 @@ export function App() {
                         </span>
                       </button>
 
-                      {ckpt > 1 && fullyUnlocked && (
-                        <button
-                          type="button"
-                          className="apr-ckpt-pill"
-                          onClick={() => startPackRun(jp.id, ckpt, false)}
-                        >
-                          Блок {ckpt === 2 ? 'II' : 'III'} →
-                        </button>
-                      )}
+                      {(() => {
+                        const unlockedBlk = getUnlockedBlockForPack(meta, jp.id);
+                        return (
+                          <div className="apr-modules-bar">
+                            {unlockedBlk >= 2 && (
+                              <button
+                                type="button"
+                                className="apr-mod-pill open-foil"
+                                onClick={() => startPackRun(jp.id, 2, false)}
+                              >
+                                Блок II · Фольга →
+                              </button>
+                            )}
+                            {unlockedBlk >= 3 && (
+                              <button
+                                type="button"
+                                className="apr-mod-pill open-poly"
+                                onClick={() => startPackRun(jp.id, 3, false)}
+                              >
+                                Блок III · Полихром →
+                              </button>
+                            )}
+                            {unlockedBlk === 1 && (
+                              <button
+                                type="button"
+                                className="apr-mod-pill buy-foil"
+                                onClick={() => {
+                                  sfxVictory();
+                                  vibrate([14, 30, 18]);
+                                  unlockNextBlockForPack(jp.id, 2, 'hub');
+                                  startPackRun(jp.id, 2, false);
+                                }}
+                              >
+                                Купить Блок II · Фольга
+                              </button>
+                            )}
+                            {unlockedBlk === 2 && (
+                              <button
+                                type="button"
+                                className="apr-mod-pill buy-poly"
+                                onClick={() => {
+                                  sfxVictory();
+                                  vibrate([14, 30, 22]);
+                                  unlockNextBlockForPack(jp.id, 3, 'hub');
+                                  startPackRun(jp.id, 3, false);
+                                }}
+                              >
+                                Купить Блок III · Полихром
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
                       </div>
                     </div>
                   );
@@ -3171,13 +3291,16 @@ export function App() {
           stats={stats}
           iqHits={iqHits}
           iqTotal={iqTotal}
-          isNextBlockUnlocked={packFullyOpen}
+          isNextBlockUnlocked={
+            getUnlockedBlockForPack(meta, pack.id) >= intermission.nextBlock.blockNum
+          }
           onContinueNextBlock={() => {
             setIntermission(null);
             sfxCardFlip();
           }}
           onUnlockMoreAndContinue={() => {
-            recordUnlockMoreAndOpen(pack.id, 'intermission', false);
+            const targetBlk = intermission.nextBlock.blockNum === 3 ? 3 : 2;
+            unlockNextBlockForPack(pack.id, targetBlk, 'intermission');
             setIntermission(null);
             sfxVictory();
           }}
