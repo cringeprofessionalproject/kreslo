@@ -39,9 +39,8 @@ import {
 import { getJobPack, JOB_PACKS } from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
 import {
-  isRunningInsideTelegramMiniApp,
+  getTelegramStarsPriceForPack,
   openTelegramStarsCheckout,
-  TELEGRAM_STARS_PRICE,
 } from './game/telegramStars';
 import {
   captureFaceSnapshotDataUrl,
@@ -1044,7 +1043,7 @@ export function App() {
       source: 'intermission' | 'ending' | 'hub' | 'vault',
       onAfterUnlock?: () => void
     ) => {
-      const res = await openTelegramStarsCheckout(targetBlock);
+      const res = await openTelegramStarsCheckout(targetBlock, targetPackId);
       if (res === 'cancelled') return;
       if (res === 'failed') {
         setToastMsg('Оплата не завершена — попробуйте ещё раз');
@@ -3077,27 +3076,26 @@ export function App() {
 
                       {(() => {
                         const unlockedBlk = getUnlockedBlockForPack(meta, jp.id);
+                        const starsPrice = getTelegramStarsPriceForPack(jp.id);
                         return (
                           <div className="apr-modules-bar">
-                            {unlockedBlk >= 2 && (
+                            <button
+                              type="button"
+                              className="apr-mod-pill open-base"
+                              onClick={() => startPackRun(jp.id, 1, false)}
+                            >
+                              Блок 1
+                            </button>
+
+                            {unlockedBlk >= 2 ? (
                               <button
                                 type="button"
                                 className="apr-mod-pill open-foil"
                                 onClick={() => startPackRun(jp.id, 2, false)}
                               >
-                                Блок II →
+                                Блок 2
                               </button>
-                            )}
-                            {unlockedBlk >= 3 && (
-                              <button
-                                type="button"
-                                className="apr-mod-pill open-poly"
-                                onClick={() => startPackRun(jp.id, 3, false)}
-                              >
-                                Блок III →
-                              </button>
-                            )}
-                            {unlockedBlk === 1 && (
+                            ) : (
                               <button
                                 type="button"
                                 className="apr-mod-pill buy-foil"
@@ -3107,12 +3105,19 @@ export function App() {
                                   );
                                 }}
                               >
-                                {isRunningInsideTelegramMiniApp()
-                                  ? `Купить Блок II · ${TELEGRAM_STARS_PRICE} ★`
-                                  : 'Купить Блок II'}
+                                Блок 2 · {starsPrice} ★
                               </button>
                             )}
-                            {unlockedBlk === 2 && (
+
+                            {unlockedBlk >= 3 ? (
+                              <button
+                                type="button"
+                                className="apr-mod-pill open-poly"
+                                onClick={() => startPackRun(jp.id, 3, false)}
+                              >
+                                Блок 3
+                              </button>
+                            ) : unlockedBlk === 2 ? (
                               <button
                                 type="button"
                                 className="apr-mod-pill buy-poly"
@@ -3122,9 +3127,18 @@ export function App() {
                                   );
                                 }}
                               >
-                                {isRunningInsideTelegramMiniApp()
-                                  ? `Купить Блок III · ${TELEGRAM_STARS_PRICE} ★`
-                                  : 'Купить Блок III'}
+                                Блок 3 · {starsPrice} ★
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="apr-mod-pill locked-later"
+                                onClick={() => {
+                                  setToastMsg('Сначала откройте Блок 2');
+                                  window.setTimeout(() => setToastMsg(null), 2200);
+                                }}
+                              >
+                                Блок 3 · {starsPrice} ★
                               </button>
                             )}
                           </div>

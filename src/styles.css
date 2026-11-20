@@ -8129,44 +8129,56 @@ body {
 .apr-modules-bar {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
   padding: 0 14px 11px;
 }
 
 .apr-mod-pill {
   appearance: none;
   border-radius: 999px;
-  padding: 5px 11px;
+  padding: 4px 9px;
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  font-weight: 750;
+  font-size: 11px;
+  font-weight: 700;
   letter-spacing: -0.01em;
+  white-space: nowrap;
   cursor: pointer;
-  transition: transform 0.14s ease, filter 0.16s ease;
+  transition: transform 0.14s ease, filter 0.16s ease, opacity 0.16s ease;
 }
 .apr-mod-pill:active {
   transform: scale(0.96);
 }
 
+.apr-mod-pill.open-base {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(236, 241, 240, 0.86);
+}
+
 .apr-mod-pill.buy-foil,
 .apr-mod-pill.open-foil {
-  border: 1px solid rgba(235, 198, 124, 0.52);
-  background: linear-gradient(125deg, rgba(235, 198, 124, 0.24) 0%, rgba(255, 240, 200, 0.14) 50%, rgba(196, 149, 68, 0.26) 100%);
-  color: #f9e4b4;
+  border: 1px solid rgba(235, 198, 124, 0.36);
+  background: linear-gradient(125deg, rgba(235, 198, 124, 0.16) 0%, rgba(255, 240, 200, 0.08) 50%, rgba(196, 149, 68, 0.18) 100%);
+  color: #f3dfb3;
 }
 
 .apr-mod-pill.buy-poly,
 .apr-mod-pill.open-poly {
-  border: 1px solid rgba(194, 152, 255, 0.56);
+  border: 1px solid rgba(194, 152, 255, 0.4);
   background: linear-gradient(
     125deg,
-    rgba(255, 96, 178, 0.24) 0%,
-    rgba(255, 214, 92, 0.2) 32%,
-    rgba(78, 236, 198, 0.24) 66%,
-    rgba(138, 132, 255, 0.28) 100%
+    rgba(255, 96, 178, 0.16) 0%,
+    rgba(255, 214, 92, 0.14) 32%,
+    rgba(78, 236, 198, 0.16) 66%,
+    rgba(138, 132, 255, 0.2) 100%
   );
-  color: #f8f0ff;
-  box-shadow: 0 2px 12px rgba(140, 122, 255, 0.22);
+  color: #f3e8ff;
+}
+
+.apr-mod-pill.locked-later {
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  color: rgba(205, 214, 212, 0.48);
 }
 
 .cta-btn.tier-unlock-foil {

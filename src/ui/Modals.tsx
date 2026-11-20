@@ -6,7 +6,10 @@ import {
   type RecordedReelResult,
 } from '../game/reelVideoRecorder';
 import { renderEditorialSharePoster } from '../game/shareCardRenderer';
-import { isRunningInsideTelegramMiniApp, TELEGRAM_STARS_PRICE } from '../game/telegramStars';
+import {
+  getTelegramStarsPriceForPack,
+  isRunningInsideTelegramMiniApp,
+} from '../game/telegramStars';
 import type { EndingDef, JobPack, PersistentMeta, PillarMeta, Stats } from '../types';
 import { EditorialCardPortrait } from './CharacterArt';
 import { IconShare, PillarSvgIcon } from './Icons';
@@ -181,11 +184,11 @@ export function BlockIntermissionModal({
           >
             {nextBlock.blockNum === 3
               ? isRunningInsideTelegramMiniApp()
-                ? `Открыть Блок III · ${TELEGRAM_STARS_PRICE} ★ →`
-                : 'Открыть Блок III →'
+                ? `Открыть Блок 3 · ${getTelegramStarsPriceForPack(pack.id)} ★ →`
+                : 'Открыть Блок 3 →'
               : isRunningInsideTelegramMiniApp()
-                ? `Открыть Блок II · ${TELEGRAM_STARS_PRICE} ★ →`
-                : 'Открыть Блок II →'}
+                ? `Открыть Блок 2 · ${getTelegramStarsPriceForPack(pack.id)} ★ →`
+                : 'Открыть Блок 2 →'}
           </button>
         )}
       </div>
