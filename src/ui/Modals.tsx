@@ -179,8 +179,8 @@ export function BlockIntermissionModal({
             onClick={onUnlockMoreAndContinue}
           >
             {nextBlock.blockNum === 3
-              ? 'Открыть Блок III · Полихром →'
-              : 'Открыть Блок II · Фольга →'}
+              ? 'Открыть Блок III →'
+              : 'Открыть Блок II →'}
           </button>
         )}
       </div>

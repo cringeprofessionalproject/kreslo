@@ -1026,11 +1026,7 @@ export function App() {
           },
         };
       });
-      setToastMsg(
-        targetBlock === 3
-          ? 'Блок III открыт · Полихромные карточки'
-          : 'Блок II открыт · Фактура «Фольга»'
-      );
+      setToastMsg(targetBlock === 3 ? 'Блок III открыт' : 'Блок II открыт');
       window.setTimeout(() => setToastMsg(null), 2600);
     },
     []
@@ -2632,7 +2628,7 @@ export function App() {
                       curBlock.blockNum === 3 ? 'polychrome' : 'foil'
                     }`}
                   >
-                    {curBlock.blockNum === 3 ? 'III · POLYCHROME' : 'II · FOIL'}
+                    {curBlock.blockNum === 3 ? 'БЛОК III' : 'БЛОК II'}
                   </span>
                 )}
                 {currentCard.videoClip ? (
@@ -3058,7 +3054,7 @@ export function App() {
                                 className="apr-mod-pill open-foil"
                                 onClick={() => startPackRun(jp.id, 2, false)}
                               >
-                                Блок II · Фольга →
+                                Блок II →
                               </button>
                             )}
                             {unlockedBlk >= 3 && (
@@ -3067,7 +3063,7 @@ export function App() {
                                 className="apr-mod-pill open-poly"
                                 onClick={() => startPackRun(jp.id, 3, false)}
                               >
-                                Блок III · Полихром →
+                                Блок III →
                               </button>
                             )}
                             {unlockedBlk === 1 && (
@@ -3081,7 +3077,7 @@ export function App() {
                                   startPackRun(jp.id, 2, false);
                                 }}
                               >
-                                Купить Блок II · Фольга
+                                Купить Блок II
                               </button>
                             )}
                             {unlockedBlk === 2 && (
@@ -3095,7 +3091,7 @@ export function App() {
                                   startPackRun(jp.id, 3, false);
                                 }}
                               >
-                                Купить Блок III · Полихром
+                                Купить Блок III
                               </button>
                             )}
                           </div>

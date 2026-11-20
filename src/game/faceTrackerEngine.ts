@@ -66,41 +66,46 @@ async function loadVisionModule(): Promise<MediaPipeVisionModule | null> {
   }
 }
 
+function isIosOrWebView(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent || '';
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+    /Telegram|WebView|wv/i.test(ua)
+  );
+}
+
 export async function getVideoFaceLandmarker(): Promise<FaceLandmarkerInstance | null> {
   if (videoLandmarkerPromise) return videoLandmarkerPromise;
+  const preferCpu = isIosOrWebView();
   videoLandmarkerPromise = (async () => {
     const mod = await loadVisionModule();
-    if (!mod) return null;
-    try {
-      const wasmUrl = new URL('./assets/mediapipe/wasm', window.location.href).href;
-      const modelUrl = new URL('./assets/mediapipe/face_landmarker.task', window.location.href).href;
-      const vision = await mod.FilesetResolver.forVisionTasks(wasmUrl);
-      return await mod.FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: modelUrl,
-          delegate: 'GPU',
-        },
-        runningMode: 'VIDEO',
-        numFaces: 1,
-        outputFaceBlendshapes: false,
-      });
-    } catch {
+    if (!mod) {
+      videoLandmarkerPromise = null;
+      return null;
+    }
+    const delegates: Array<'CPU' | 'GPU'> = preferCpu ? ['CPU', 'GPU'] : ['GPU', 'CPU'];
+    const wasmUrl = new URL('./assets/mediapipe/wasm', window.location.href).href;
+    const modelUrl = new URL('./assets/mediapipe/face_landmarker.task', window.location.href).href;
+    for (const delegate of delegates) {
       try {
-        const wasmUrl = new URL('./assets/mediapipe/wasm', window.location.href).href;
-        const modelUrl = new URL('./assets/mediapipe/face_landmarker.task', window.location.href).href;
         const vision = await mod.FilesetResolver.forVisionTasks(wasmUrl);
         return await mod.FaceLandmarker.createFromOptions(vision, {
           baseOptions: {
             modelAssetPath: modelUrl,
-            delegate: 'CPU',
+            delegate,
           },
           runningMode: 'VIDEO',
           numFaces: 1,
+          outputFaceBlendshapes: false,
         });
       } catch {
-        return null;
+        // try next delegate
       }
     }
+    videoLandmarkerPromise = null;
+    return null;
   })();
   return videoLandmarkerPromise;
 }

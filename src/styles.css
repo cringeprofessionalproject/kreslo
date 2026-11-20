@@ -8235,18 +8235,24 @@ body {
     0 0 16px rgba(96, 236, 206, 0.32);
 }
 
-/* ── БЛОК II: МЕТАЛЛИЧЕСКАЯ ФАКТУРА «ФОЛЬГА» (FOIL SHIMMER) ── */
+/* ── БЛОК II: ВЫРАЖЕННАЯ ЗОЛОТАЯ МЕТАЛЛИЧЕСКАЯ ФАКТУРА ── */
 .dilemma-card.card-tier-foil {
-  border: 1.5px solid rgba(238, 205, 138, 0.82) !important;
+  border: 2.5px solid #e7c174 !important;
   box-shadow:
-    0 22px 48px rgba(0, 0, 0, 0.56),
-    0 0 0 1px rgba(255, 240, 196, 0.42),
-    0 0 28px rgba(226, 182, 96, 0.28) !important;
+    0 24px 54px rgba(0, 0, 0, 0.62),
+    0 0 0 1px rgba(255, 244, 206, 0.72),
+    0 0 36px rgba(235, 188, 92, 0.42),
+    inset 0 0 18px rgba(255, 224, 152, 0.25) !important;
 }
 
 .dilemma-card.card-tier-foil .dc-focus-plane {
   position: relative;
-  background: linear-gradient(155deg, #fbf6ea 0%, #f1e5ca 52%, #faf3e2 100%);
+  background: linear-gradient(150deg, #f8ecd0 0%, #e7d19f 48%, #f6e7c4 100%) !important;
+}
+
+.dilemma-card.card-tier-foil .dc-speaker-bar {
+  background: linear-gradient(90deg, rgba(196, 148, 56, 0.22), rgba(255, 245, 214, 0.4), rgba(196, 148, 56, 0.18));
+  border-bottom: 1px solid rgba(176, 130, 44, 0.28);
 }
 
 .dilemma-card.card-tier-foil .dc-focus-plane::before {
@@ -8257,17 +8263,38 @@ body {
   pointer-events: none;
   border-radius: inherit;
   background: linear-gradient(
-    118deg,
-    transparent 12%,
-    rgba(255, 246, 214, 0.36) 32%,
-    rgba(220, 236, 255, 0.26) 44%,
-    rgba(245, 202, 116, 0.34) 56%,
-    transparent 76%
+    115deg,
+    transparent 8%,
+    rgba(255, 250, 222, 0.52) 26%,
+    rgba(255, 212, 118, 0.48) 38%,
+    rgba(255, 255, 255, 0.62) 48%,
+    rgba(218, 166, 68, 0.44) 60%,
+    transparent 78%
+  );
+  background-size: 280% 280%;
+  background-position: calc(50% + var(--foil-shift, 0%)) 50%;
+  mix-blend-mode: soft-light;
+  animation: foilCardShimmer 4.2s ease-in-out infinite alternate;
+}
+
+.dilemma-card.card-tier-foil .dc-portrait-area::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    120deg,
+    transparent 20%,
+    rgba(255, 232, 166, 0.32) 44%,
+    rgba(255, 252, 238, 0.42) 50%,
+    rgba(235, 186, 86, 0.26) 58%,
+    transparent 80%
   );
   background-size: 260% 260%;
   background-position: calc(50% + var(--foil-shift, 0%)) 50%;
-  mix-blend-mode: soft-light;
-  animation: foilCardShimmer 5.6s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
+  animation: foilCardShimmer 4.2s ease-in-out infinite alternate;
 }
 
 .dilemma-card.card-tier-foil .dc-focus-plane::after {
@@ -8278,41 +8305,119 @@ body {
   pointer-events: none;
   border-radius: inherit;
   box-shadow:
-    inset 0 1px 0 rgba(255, 250, 230, 0.85),
-    inset 0 -1px 0 rgba(196, 152, 72, 0.45);
+    inset 0 2px 0 rgba(255, 250, 232, 0.92),
+    inset 0 -2px 0 rgba(182, 134, 46, 0.58);
 }
 
 @keyframes foilCardShimmer {
   0% {
-    background-position: calc(10% + var(--foil-shift, 0%)) 20%;
+    background-position: calc(5% + var(--foil-shift, 0%)) 15%;
   }
   100% {
-    background-position: calc(90% + var(--foil-shift, 0%)) 80%;
+    background-position: calc(95% + var(--foil-shift, 0%)) 85%;
   }
 }
 
-/* ── БЛОК III: ПОЛИХРОМНАЯ ГОЛОГРАФИЧЕСКАЯ ФАКТУРА В СТИЛЕ BALATRO ── */
+/* ── БЛОК III: НАСТОЯЩАЯ ТЁМНО-ГОЛОГРАФИЧЕСКАЯ КАРТА BALATRO POLYCHROME ── */
 .dilemma-card.card-tier-polychrome {
-  border: 2px solid rgba(198, 224, 255, 0.86) !important;
+  border: 3px solid transparent !important;
+  background:
+    linear-gradient(#13101d, #13101d) padding-box,
+    linear-gradient(
+      125deg,
+      #ff3cac 0%,
+      #ffd84d 22%,
+      #2ef2be 46%,
+      #4da8ff 70%,
+      #b35cff 88%,
+      #ff3cac 100%
+    ) border-box !important;
+  background-size: 100% 100%, 300% 300% !important;
+  animation: polyBorderGlow 4.5s linear infinite;
   box-shadow:
-    0 24px 52px rgba(0, 0, 0, 0.62),
-    -6px -4px 26px rgba(255, 86, 182, 0.34),
-    6px 6px 28px rgba(72, 236, 202, 0.34),
-    0 0 36px rgba(142, 120, 255, 0.34) !important;
+    0 26px 56px rgba(0, 0, 0, 0.72),
+    -10px -6px 34px rgba(255, 60, 172, 0.45),
+    10px 8px 36px rgba(46, 242, 190, 0.42),
+    0 0 42px rgba(132, 102, 255, 0.46) !important;
+}
+
+@keyframes polyBorderGlow {
+  0% {
+    background-position: 0 0, 0% 50%;
+  }
+  100% {
+    background-position: 0 0, 300% 50%;
+  }
 }
 
 .dilemma-card.card-tier-polychrome .dc-focus-plane {
   position: relative;
-  background: linear-gradient(
-    145deg,
-    #faf5ff 0%,
-    #f1f9ff 36%,
-    #fff7ee 70%,
-    #f4f2ff 100%
-  );
+  background: linear-gradient(155deg, #171326 0%, #111928 52%, #1d1428 100%) !important;
+  color: #f8f5ff !important;
 }
 
-/* Слой 1: Радужная призматическая рефракция Balatro */
+.dilemma-card.card-tier-polychrome .dc-speaker-bar {
+  background: rgba(255, 255, 255, 0.045);
+  border-bottom: 1px solid rgba(196, 172, 255, 0.22);
+}
+.dilemma-card.card-tier-polychrome .dc-speaker-bar strong {
+  color: #ffffff !important;
+}
+.dilemma-card.card-tier-polychrome .dc-speaker-bar span {
+  color: rgba(214, 232, 255, 0.74) !important;
+}
+
+.dilemma-card.card-tier-polychrome .dc-question-body p {
+  color: #fbf8ff !important;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.45);
+}
+
+.dilemma-card.card-tier-polychrome .dc-inline-choices {
+  background: rgba(8, 6, 16, 0.42) !important;
+  border-top: 1px solid rgba(186, 168, 255, 0.24) !important;
+}
+.dilemma-card.card-tier-polychrome .dc-inline-side.left {
+  background: linear-gradient(150deg, rgba(255, 86, 168, 0.18), rgba(255, 196, 78, 0.14)) !important;
+  border-color: rgba(255, 152, 198, 0.48) !important;
+}
+.dilemma-card.card-tier-polychrome .dc-inline-side.right {
+  background: linear-gradient(150deg, rgba(46, 242, 190, 0.18), rgba(96, 168, 255, 0.18)) !important;
+  border-color: rgba(112, 244, 212, 0.5) !important;
+}
+.dilemma-card.card-tier-polychrome .dc-inline-side.left .dc-dir-kicker {
+  color: #ffb8d8 !important;
+}
+.dilemma-card.card-tier-polychrome .dc-inline-side.right .dc-dir-kicker {
+  color: #8bf7d9 !important;
+}
+.dilemma-card.card-tier-polychrome .dc-inline-copy strong {
+  color: #ffffff !important;
+}
+
+/* Яркий радужный призматический перелив поверх портрета в Блоке III */
+.dilemma-card.card-tier-polychrome .dc-portrait-area::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: linear-gradient(
+    122deg,
+    rgba(255, 48, 164, 0.36) 0%,
+    rgba(255, 214, 62, 0.32) 22%,
+    rgba(46, 246, 190, 0.36) 46%,
+    rgba(72, 164, 255, 0.38) 68%,
+    rgba(182, 86, 255, 0.38) 88%,
+    rgba(255, 48, 164, 0.36) 100%
+  );
+  background-size: 320% 320%;
+  background-position: calc(50% + var(--foil-shift, 0%)) 50%;
+  mix-blend-mode: color-dodge;
+  opacity: 0.72;
+  animation: balatroPolychromeFlow 4.8s ease-in-out infinite alternate;
+}
+
+/* Слой 1: Призматическая радужная вуаль по всей тёмной карте */
 .dilemma-card.card-tier-polychrome .dc-focus-plane::before {
   content: '';
   position: absolute;
@@ -8323,21 +8428,21 @@ body {
   background:
     linear-gradient(
       122deg,
-      rgba(255, 64, 166, 0.28) 0%,
-      rgba(255, 198, 64, 0.24) 18%,
-      rgba(64, 242, 188, 0.28) 38%,
-      rgba(86, 168, 255, 0.28) 58%,
-      rgba(176, 98, 255, 0.3) 78%,
-      rgba(255, 64, 166, 0.28) 100%
+      rgba(255, 56, 168, 0.26) 0%,
+      rgba(255, 206, 68, 0.2) 20%,
+      rgba(56, 244, 194, 0.24) 42%,
+      rgba(82, 162, 255, 0.26) 64%,
+      rgba(176, 92, 255, 0.28) 84%,
+      rgba(255, 56, 168, 0.26) 100%
     );
-  background-size: 320% 320%;
+  background-size: 300% 300%;
   background-position: calc(50% + var(--foil-shift, 0%)) 50%;
-  mix-blend-mode: color-burn;
-  opacity: 0.72;
-  animation: balatroPolychromeFlow 6.4s ease-in-out infinite alternate;
+  mix-blend-mode: screen;
+  opacity: 0.56;
+  animation: balatroPolychromeFlow 5.2s ease-in-out infinite alternate;
 }
 
-/* Слой 2: Тонкие голографические микрополосы и живой блик */
+/* Слой 2: Тонкие голографические микрополосы + живой блик */
 .dilemma-card.card-tier-polychrome .dc-focus-plane::after {
   content: '';
   position: absolute;
@@ -8348,34 +8453,34 @@ body {
   background:
     repeating-linear-gradient(
       118deg,
-      rgba(255, 255, 255, 0.14) 0px,
-      rgba(255, 255, 255, 0.14) 2px,
+      rgba(255, 255, 255, 0.11) 0px,
+      rgba(255, 255, 255, 0.11) 2px,
       transparent 2px,
-      transparent 7px
+      transparent 6px
     ),
     radial-gradient(
-      circle at calc(50% + var(--foil-shift, 0%)) 34%,
-      rgba(255, 255, 255, 0.42) 0%,
-      rgba(146, 244, 224, 0.16) 28%,
+      circle at calc(50% + var(--foil-shift, 0%)) 30%,
+      rgba(255, 255, 255, 0.34) 0%,
+      rgba(116, 244, 224, 0.18) 28%,
       transparent 62%
     );
   mix-blend-mode: overlay;
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.9),
-    inset 0 -1.5px 0 rgba(162, 132, 255, 0.6);
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -1.5px 0 rgba(174, 132, 255, 0.68);
 }
 
 @keyframes balatroPolychromeFlow {
   0% {
-    background-position: calc(0% + var(--foil-shift, 0%)) 15%;
+    background-position: calc(0% + var(--foil-shift, 0%)) 12%;
     filter: hue-rotate(0deg);
   }
   50% {
-    background-position: calc(55% + var(--foil-shift, 0%)) 55%;
-    filter: hue-rotate(28deg);
+    background-position: calc(55% + var(--foil-shift, 0%)) 52%;
+    filter: hue-rotate(36deg);
   }
   100% {
-    background-position: calc(100% + var(--foil-shift, 0%)) 85%;
-    filter: hue-rotate(-22deg);
+    background-position: calc(100% + var(--foil-shift, 0%)) 88%;
+    filter: hue-rotate(-28deg);
   }
 }

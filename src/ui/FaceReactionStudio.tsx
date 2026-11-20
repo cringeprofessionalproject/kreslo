@@ -56,8 +56,21 @@ export function useLiveFaceTracker(
 
     const video = document.createElement('video');
     video.playsInline = true;
+    video.setAttribute('playsinline', '');
+    video.setAttribute('webkit-playsinline', '');
     video.muted = true;
     video.autoplay = true;
+    Object.assign(video.style, {
+      position: 'fixed',
+      top: '0',
+      left: '0',
+      width: '2px',
+      height: '2px',
+      opacity: '0.001',
+      pointerEvents: 'none',
+      zIndex: '-1',
+    });
+    document.body.appendChild(video);
     video.srcObject = stream;
     hiddenVideoRef.current = video;
     void video.play().catch(() => {});
@@ -97,6 +110,7 @@ export function useLiveFaceTracker(
       cancelled = true;
       window.cancelAnimationFrame(rafId);
       video.srcObject = null;
+      if (video.parentNode) video.parentNode.removeChild(video);
       hiddenVideoRef.current = null;
     };
   }, [active, stream]);
