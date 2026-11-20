@@ -38,6 +38,7 @@ import {
 } from './game/blockCampaignEngine';
 import { getJobPack, JOB_PACKS } from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
+import { openTelegramStarsCheckout } from './game/telegramStars';
 import {
   captureFaceSnapshotDataUrl,
   captureLiveGameScreenBlob,
@@ -1030,6 +1031,32 @@ export function App() {
       window.setTimeout(() => setToastMsg(null), 2600);
     },
     []
+  );
+
+  const handlePurchaseOrUnlockBlock = useCallback(
+    async (
+      targetPackId: PackId,
+      targetBlock: 2 | 3,
+      source: 'intermission' | 'ending' | 'hub' | 'vault',
+      onAfterUnlock?: () => void
+    ) => {
+      const res = await openTelegramStarsCheckout(targetBlock);
+      if (res === 'cancelled') return;
+      if (res === 'failed') {
+        setToastMsg('Оплата не завершена — попробуйте ещё раз');
+        window.setTimeout(() => setToastMsg(null), 2600);
+        return;
+      }
+      // 'paid' (в боевом TG Stars) или 'unavailable' (вне TG / до включения TELEGRAM_STARS_LIVE)
+      sfxVictory();
+      vibrate([14, 30, 20]);
+      unlockNextBlockForPack(targetPackId, targetBlock, source);
+      if (source === 'intermission') {
+        setIntermission(null);
+      }
+      onAfterUnlock?.();
+    },
+    [unlockNextBlockForPack]
   );
 
   const recordUnlockMoreAndOpen = useCallback(
@@ -3071,10 +3098,9 @@ export function App() {
                                 type="button"
                                 className="apr-mod-pill buy-foil"
                                 onClick={() => {
-                                  sfxVictory();
-                                  vibrate([14, 30, 18]);
-                                  unlockNextBlockForPack(jp.id, 2, 'hub');
-                                  startPackRun(jp.id, 2, false);
+                                  void handlePurchaseOrUnlockBlock(jp.id, 2, 'hub', () =>
+                                    startPackRun(jp.id, 2, false)
+                                  );
                                 }}
                               >
                                 Купить Блок II
@@ -3085,10 +3111,9 @@ export function App() {
                                 type="button"
                                 className="apr-mod-pill buy-poly"
                                 onClick={() => {
-                                  sfxVictory();
-                                  vibrate([14, 30, 22]);
-                                  unlockNextBlockForPack(jp.id, 3, 'hub');
-                                  startPackRun(jp.id, 3, false);
+                                  void handlePurchaseOrUnlockBlock(jp.id, 3, 'hub', () =>
+                                    startPackRun(jp.id, 3, false)
+                                  );
                                 }}
                               >
                                 Купить Блок III
@@ -3296,9 +3321,7 @@ export function App() {
           }}
           onUnlockMoreAndContinue={() => {
             const targetBlk = intermission.nextBlock.blockNum === 3 ? 3 : 2;
-            unlockNextBlockForPack(pack.id, targetBlk, 'intermission');
-            setIntermission(null);
-            sfxVictory();
+            void handlePurchaseOrUnlockBlock(pack.id, targetBlk, 'intermission');
           }}
         />
       )}
