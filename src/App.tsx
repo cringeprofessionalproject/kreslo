@@ -38,7 +38,11 @@ import {
 } from './game/blockCampaignEngine';
 import { getJobPack, JOB_PACKS } from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
-import { openTelegramStarsCheckout } from './game/telegramStars';
+import {
+  isRunningInsideTelegramMiniApp,
+  openTelegramStarsCheckout,
+  TELEGRAM_STARS_PRICE,
+} from './game/telegramStars';
 import {
   captureFaceSnapshotDataUrl,
   captureLiveGameScreenBlob,
@@ -3103,7 +3107,9 @@ export function App() {
                                   );
                                 }}
                               >
-                                Купить Блок II
+                                {isRunningInsideTelegramMiniApp()
+                                  ? `Купить Блок II · ${TELEGRAM_STARS_PRICE} ★`
+                                  : 'Купить Блок II'}
                               </button>
                             )}
                             {unlockedBlk === 2 && (
@@ -3116,7 +3122,9 @@ export function App() {
                                   );
                                 }}
                               >
-                                Купить Блок III
+                                {isRunningInsideTelegramMiniApp()
+                                  ? `Купить Блок III · ${TELEGRAM_STARS_PRICE} ★`
+                                  : 'Купить Блок III'}
                               </button>
                             )}
                           </div>

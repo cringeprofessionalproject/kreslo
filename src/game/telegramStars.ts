@@ -7,8 +7,8 @@
 
 export const TELEGRAM_STARS_PRICE = 189;
 
-// Переключить в true сразу после деплоя scripts/telegram-stars-worker.js и setWebhook!
-export const TELEGRAM_STARS_LIVE = false;
+// Включено: Cloudflare Worker (kreslo-stars.koshernoe-detya.workers.dev) и Telegram setWebhook активны!
+export const TELEGRAM_STARS_LIVE = true;
 
 export const TELEGRAM_STARS_INVOICES: Record<2 | 3, string> = {
   2: 'https://t.me/$Pc1WIZoSAEidGgAASURU7RXloks',
