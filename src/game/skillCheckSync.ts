@@ -442,7 +442,7 @@ export function buildCheckShareUrl(slug: string, token: string): string {
     return getTelegramBotAppUrl(`chk_${slug}-${token}`);
   }
   if (typeof window === 'undefined') {
-    return `https://kreslo.heuristics.ru/?check=${encodeURIComponent(`${slug}.${token}`)}`;
+    return `https://cringeprofessionalproject.github.io/kreslo/?check=${encodeURIComponent(`${slug}.${token}`)}`;
   }
   const url = new URL(window.location.href);
   url.search = '';
@@ -453,7 +453,7 @@ export function buildCheckShareUrl(slug: string, token: string): string {
 
 export function buildDirectSnapshotUrl(slug: string, token: string, receipt: string): string {
   if (typeof window === 'undefined') {
-    return `https://kreslo.heuristics.ru/?check=${encodeURIComponent(`${slug}.${token}`)}&r=${encodeURIComponent(receipt)}`;
+    return `https://cringeprofessionalproject.github.io/kreslo/?check=${encodeURIComponent(`${slug}.${token}`)}&r=${encodeURIComponent(receipt)}`;
   }
   const url = new URL(window.location.href);
   url.search = '';

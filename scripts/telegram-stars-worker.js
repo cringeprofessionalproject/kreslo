@@ -81,7 +81,7 @@ export default {
             [
               {
                 text: 'Открыть КРЕСЛО',
-                web_app: { url: `https://kreslo.heuristics.ru/?bot=vkreslegame${param}` },
+                web_app: { url: `https://cringeprofessionalproject.github.io/kreslo/?bot=vkreslegame${param}` },
               },
             ],
           ],
