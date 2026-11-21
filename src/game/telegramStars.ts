@@ -118,13 +118,24 @@ export function isRunningInsideTelegramMiniApp(): boolean {
   return Boolean(tg && typeof tg.openInvoice === 'function' && tg.initData);
 }
 
-/** Чистая публичная ссылка на бота/приложение БЕЗ утечки #tgWebAppData */
+/**
+ * Чистая публичная ссылка на бота/приложение БЕЗ утечки #tgWebAppData.
+ * Используем ?start=..., чтобы Cloudflare Worker всегда выдавал кнопку с пробросом параметра
+ * даже без отдельной настройки Main Mini App в BotFather.
+ */
 export function getTelegramBotAppUrl(startParam?: string): string {
   if (startParam) {
     const clean = startParam.replace(/[^A-Za-z0-9_-]/g, '');
-    return `https://t.me/${TELEGRAM_PRIMARY_BOT}?startapp=${clean}`;
+    return `https://t.me/${TELEGRAM_PRIMARY_BOT}?start=${clean}`;
   }
   return `https://t.me/${TELEGRAM_PRIMARY_BOT}`;
+}
+
+export const PUBLIC_WEB_GAME_BASE_URL = 'https://cringeprofessionalproject.github.io/kreslo/';
+
+export function getDirectWebPlayUrl(slugOrPackId: string): string {
+  const clean = slugOrPackId.replace(/[^A-Za-z0-9_-]/g, '');
+  return `${PUBLIC_WEB_GAME_BASE_URL}?play=${clean}`;
 }
 
 export function shareLinkViaTelegramOrNative(url: string, text: string): boolean {

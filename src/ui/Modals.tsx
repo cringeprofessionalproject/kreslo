@@ -241,7 +241,7 @@ export function GachaContinueModal({
         style={{ maxWidth: 410 }}
       >
         <div className="sheet-grabber-bar" />
-        <span className="eyebrow-tag" style={{ color: '#fbbf24' }}>
+        <span className="eyebrow-tag" style={{ color: 'var(--brass)' }}>
           СРЫВ НА {week}-й СМЕНЕ ИЗ 36 · «{crashedStatLabel.toUpperCase()}»
         </span>
         <h2 className="sheet-serif-title" style={{ marginTop: 6 }}>
@@ -258,7 +258,7 @@ export function GachaContinueModal({
             className="cta-btn primary big tier-unlock-foil"
             onClick={onAcceptSave}
           >
-            {pack.lifelineIcon || '☕'} Продолжить с {week}-й смены · {starsPrice} ★
+            Продолжить с {week}-й смены · {starsPrice} ★
           </button>
           <button type="button" className="cta-btn subtle" onClick={onDeclineAndFinish}>
             Завершить смену и посмотреть итог
@@ -566,32 +566,44 @@ export function EndingModal({
             <div
               style={{
                 padding: '11px 13px',
-                borderRadius: 14,
+                borderRadius: 12,
                 marginBottom: 10,
-                background: isBlunder ? 'rgba(244, 63, 94, 0.11)' : 'rgba(16, 185, 129, 0.11)',
-                border: `1px solid ${
-                  isBlunder ? 'rgba(244, 63, 94, 0.34)' : 'rgba(16, 185, 129, 0.34)'
-                }`,
+                background: 'var(--paper)',
+                color: 'var(--ink)',
+                border: '1px solid var(--paper-Rule)',
                 textAlign: 'left',
               }}
             >
               <div
                 style={{
-                  fontSize: 10.5,
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  color: isBlunder ? '#fda4af' : '#6ee7b7',
+                  color: isBlunder ? 'var(--vermilion)' : 'var(--forest)',
                   marginBottom: 3,
                 }}
               >
                 {isBlunder
-                  ? `💀 Реальный тупняк истории · ${rc.person} (${rc.year})`
-                  : `🏛 Реальный кейс истории · ${rc.person} (${rc.year})`}
+                  ? `Известный просчёт · ${rc.person} (${rc.year})`
+                  : `Исторический прецедент · ${rc.person} (${rc.year})`}
               </div>
               <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{rc.headline}</div>
-              <div style={{ fontSize: 12, opacity: 0.86, lineHeight: 1.38 }}>{rc.story}</div>
-              <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 4 }}>Пруф: {rc.source}</div>
+              <div style={{ fontSize: 12, color: 'var(--ink-muted)', lineHeight: 1.38 }}>
+                {rc.story}
+              </div>
+              <div
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 10.5,
+                  color: 'var(--ink-muted)',
+                  opacity: 0.78,
+                  marginTop: 4,
+                }}
+              >
+                Источник: {rc.source}
+              </div>
             </div>
           );
         })()}
@@ -611,16 +623,8 @@ export function EndingModal({
 
         <div className="ee-actions">
           {onOpenShortsCombain && (
-            <button
-              type="button"
-              className="cta-btn primary big"
-              onClick={onOpenShortsCombain}
-              style={{
-                background: 'linear-gradient(120deg, #ff6b57 0%, #ff3ca6 100%)',
-                color: '#fff',
-              }}
-            >
-              🎬 Собрать Shorts-хайлайт (13.5 сек)
+            <button type="button" className="cta-btn subtle" onClick={onOpenShortsCombain}>
+              Собрать видео-сводку смены (13.5 сек)
             </button>
           )}
           {showVideoControls && (
@@ -668,7 +672,7 @@ export function EndingModal({
           <div className="two-col-btns">
             {onOpenDuelChallenge ? (
               <button type="button" className="cta-btn subtle" onClick={onOpenDuelChallenge}>
-                ⚔️ Дуэль с другом
+                Дуэль по раскладу
               </button>
             ) : (
               <button

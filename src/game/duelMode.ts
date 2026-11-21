@@ -1,6 +1,6 @@
 import type { DilemmaCard, JobPack, PackId } from '../types';
 import { prepareBalancedCard } from './balanceMath';
-import { getTelegramBotAppUrl } from './telegramStars';
+import { getTelegramBotAppUrl, PUBLIC_WEB_GAME_BASE_URL } from './telegramStars';
 
 /**
  * РЕЖИМ «⚔️ БЛИЦ-ДУЭЛЬ ПО ССЫЛКЕ» (v39):
@@ -171,13 +171,15 @@ export function buildDeterministicDuelDeck(pack: JobPack, seed: number): Dilemma
 
 export function buildDuelSharePayload(data: DuelGhostData, packTitle: string): {
   url: string;
+  webUrl: string;
   text: string;
 } {
   const startParam = encodeDuelStartParam(data);
   const url = getTelegramBotAppUrl(startParam);
+  const webUrl = `${PUBLIC_WEB_GAME_BASE_URL}?duel=${encodeURIComponent(startParam)}`;
   const text =
     data.survivedCount >= DUEL_BLITZ_LENGTH
-      ? `Прошёл блиц «${packTitle}» 6 из 6 на двойном уроне. Выстоишь на моём же раскладе за 40 сек?`
-      : `Срезался на ${data.survivedCount + 1}-м ходу в «${packTitle}» 💀 Пройдёшь дальше на моём же раскладе?`;
-  return { url, text };
+      ? `Расклад «${packTitle}» пройден 6 из 6 на повышенном уроне. Удержишь кресло на тех же самых карточках?`
+      : `Срыв на ${data.survivedCount + 1}-м ходу в «${packTitle}». Пройдёшь дальше на этом же раскладе?`;
+  return { url, webUrl, text };
 }

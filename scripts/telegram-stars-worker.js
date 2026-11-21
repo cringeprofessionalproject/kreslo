@@ -72,15 +72,27 @@ export default {
     // 4. Кнопка запуска Mini App по команде /start (с пробросом deep-link параметра)
     if (text.startsWith('/start')) {
       const parts = text.trim().split(/\s+/);
-      const param = parts[1] ? `&tgWebAppStartParam=${encodeURIComponent(parts[1])}` : '';
+      const rawParam = parts[1] || '';
+      const param = rawParam ? `&tgWebAppStartParam=${encodeURIComponent(rawParam)}` : '';
+      const isDuel = rawParam.startsWith('duel_');
+      const isDirectPlay = rawParam.startsWith('play_') || rawParam.startsWith('pack_');
+      const btnText = isDuel
+        ? 'Принять вызов на расклад →'
+        : isDirectPlay
+          ? 'Начать смену сразу →'
+          : 'Открыть КРЕСЛО →';
       await api('sendMessage', {
         chat_id: update.message.chat.id,
-        text: 'КРЕСЛО — симулятор острых рабочих решений, дуэли с друзьями и реальные исторические кейсы. Нажмите «Открыть КРЕСЛО»:',
+        text: isDuel
+          ? 'Вам брошен вызов на фиксированный расклад в «КРЕСЛО». Нажмите кнопку ниже, чтобы начать на тех же карточках:'
+          : isDirectPlay
+            ? 'Колода готова — игра откроется сразу на первой карточке без главного меню:'
+            : 'КРЕСЛО — симулятор острых рабочих решений, дуэли на одном раскладе и исторические прецеденты:',
         reply_markup: {
           inline_keyboard: [
             [
               {
-                text: 'Открыть КРЕСЛО',
+                text: btnText,
                 web_app: { url: `https://cringeprofessionalproject.github.io/kreslo/?bot=vkreslegame${param}` },
               },
             ],

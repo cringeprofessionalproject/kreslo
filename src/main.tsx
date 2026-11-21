@@ -26,8 +26,8 @@ function initTelegramMiniApp() {
     tg.ready?.();
     tg.expand?.();
     tg.disableVerticalSwipes?.();
-    tg.setHeaderColor?.('#120e1e');
-    tg.setBackgroundColor?.('#120e1e');
+    tg.setHeaderColor?.('#0d1512');
+    tg.setBackgroundColor?.('#0d1512');
   } catch {
     // ignore outside Telegram
   }

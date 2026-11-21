@@ -1,30 +1,36 @@
 import type { DilemmaCard, EndingDef, JobPack, PackId, RealHistoricalCase } from '../types';
 
 /**
- * «ШОРТС-КОМБАЙН» (v39):
- * Собирает сочный 13.5-секундный вертикальный клип (720×1280, 9:16) прямо на клиенте:
- * 1) 0.0–2.4 с: Хук с авторским титром игрока + фирменный цвет колоды + стикер-гифка.
- * 2) 2.4–8.1 с: 3 самых острых свайпа забега в ритм со штампами ВЛЕВО/ВПРАВО.
- * 3) 8.1–12.4 с: Разворот «РЕАЛЬНЫЙ ПРОТОТИП / ЗНАМЕНИТЫЙ ТУПНЯК С ПРУФОМ» (байт на паузу и споры).
- * 4) 12.4–13.05 с: Финальный штамп концовки.
- * 5) 13.05–13.50 с: «25-й кадр» (0.45 сек) с проверенным QR на https://t.me/vkreslegame («кто захочет — поймает на паузе»).
+ * ВИДЕО-ХАЙЛАЙТ СМЕНЫ (v40 · Стиль «КРЕСЛО / Эвристика»):
+ * Собирает вертикальный клип 13.5 сек (720×1280, 9:16) прямо на устройстве:
+ * 1) 0.0–2.2 с: Титульный лист смены на архивной бумаге + верхний авторский тезис.
+ * 2) 2.2–7.9 с: 3 ключевых свайпа партии со штампами выбора.
+ * 3) 7.9–12.1 с: Исторический прецедент или известный просчёт с источником.
+ * 4) 12.1–13.05 с: Итоговый вердикт смены.
+ * 5) 13.05–13.50 с: Короткий финальный кадр (0.45 сек) с верифицированным QR на https://t.me/vkreslegame.
  */
 
-export type HighlightStickerId = 'fire_chair' | 'stamp_fired' | 'clown_boss' | 'cash_burn' | 'crown_win' | 'none';
+export type HighlightStickerId =
+  | 'fire_chair'
+  | 'stamp_fired'
+  | 'clown_boss'
+  | 'cash_burn'
+  | 'crown_win'
+  | 'none';
 
 export interface HighlightStickerDef {
   id: HighlightStickerId;
   label: string;
-  emoji: string;
+  stamp: string;
 }
 
 export const HIGHLIGHT_STICKERS: HighlightStickerDef[] = [
-  { id: 'fire_chair', label: 'Кресло горит', emoji: '🔥' },
-  { id: 'stamp_fired', label: 'Штамп УВОЛЕН', emoji: '💀' },
-  { id: 'clown_boss', label: 'Гений управления', emoji: '🤡' },
-  { id: 'cash_burn', label: 'Деньги на ветер', emoji: '💸' },
-  { id: 'crown_win', label: 'Босс выстоял', emoji: '👑' },
-  { id: 'none', label: 'Без стикера', emoji: '✕' },
+  { id: 'fire_chair', label: 'Кресло горит', stamp: 'КРЕСЛО В ОГНЕ' },
+  { id: 'stamp_fired', label: 'Штамп: Уволен', stamp: 'СНЯТ С ДОЛЖНОСТИ' },
+  { id: 'clown_boss', label: 'Управленческий ход', stamp: 'СИЛЬНЫЙ МАНЁВР' },
+  { id: 'cash_burn', label: 'Кассовый разрыв', stamp: 'МИНУС БЮДЖЕТ' },
+  { id: 'crown_win', label: 'Удержал кресло', stamp: 'БАЛАНС УДЕРЖАН' },
+  { id: 'none', label: 'Без штампа', stamp: '' },
 ];
 
 export interface RunSwipeHighlight {
@@ -33,7 +39,6 @@ export interface RunSwipeHighlight {
   text: string;
   chosenLabel: string;
   side: 'left' | 'right';
-  /** Совпал ли выбор игрока с исходным left/right реального прототипа */
   matchedRealCase?: boolean;
   realCase?: RealHistoricalCase;
 }
@@ -48,7 +53,7 @@ export interface ShortsCombainOptions {
   faceSnapshotUrl?: string | null;
 }
 
-// Проверенная через Apple CIDetectorTypeQRCode 25×25 ISO-18004 матрица для "https://t.me/vkreslegame"
+// Верифицированная через Apple CIDetectorTypeQRCode 25×25 ISO-18004 матрица для "https://t.me/vkreslegame"
 export const VKRESLEGAME_QR_MATRIX: readonly string[] = [
   '1111111000100001001111111',
   '1000001001000001101000001',
@@ -77,7 +82,7 @@ export const VKRESLEGAME_QR_MATRIX: readonly string[] = [
   '1111111010101100111100011',
 ];
 
-export interface PackPopPalette {
+export interface PackEditorialPalette {
   bgTop: string;
   bgBottom: string;
   accent: string;
@@ -85,79 +90,44 @@ export interface PackPopPalette {
   cardHeader: string;
 }
 
-export function getSignaturePopPalette(packId: PackId): PackPopPalette {
+export function getSignaturePopPalette(packId: PackId): PackEditorialPalette {
   switch (packId) {
+    case 'renovation_pro':
+    case 'barista_pro':
+      return {
+        bgTop: '#1c1712',
+        bgBottom: '#0d0b09',
+        accent: '#c89b4f',
+        accentSoft: 'rgba(200, 155, 79, 0.18)',
+        cardHeader: '#261f18',
+      };
+    case 'car_flipper':
     case 'wb_seller':
     case 'pvz_december':
       return {
-        bgTop: '#260b34',
-        bgBottom: '#11061c',
-        accent: '#ff3ca6',
-        accentSoft: 'rgba(255, 60, 166, 0.24)',
-        cardHeader: '#4b1468',
+        bgTop: '#1d1413',
+        bgBottom: '#0d0a09',
+        accent: '#c83e31',
+        accentSoft: 'rgba(200, 62, 49, 0.16)',
+        cardHeader: '#2a1a18',
       };
     case 'it_product':
-    case 'ai_agent':
-    case 'ux_designer':
-      return {
-        bgTop: '#0b1c3d',
-        bgBottom: '#060d1f',
-        accent: '#38bdf8',
-        accentSoft: 'rgba(56, 189, 248, 0.24)',
-        cardHeader: '#163570',
-      };
-    case 'sales_rop':
-    case 'sales_manager':
-    case 'it_cfo':
-      return {
-        bgTop: '#082c24',
-        bgBottom: '#041512',
-        accent: '#34d399',
-        accentSoft: 'rgba(52, 211, 153, 0.24)',
-        cardHeader: '#0f4c3d',
-      };
-    case 'renovation_pro':
-    case 'cctv_installer':
-    case 'scs_designer':
-      return {
-        bgTop: '#331a0a',
-        bgBottom: '#170b04',
-        accent: '#fbbf24',
-        accentSoft: 'rgba(251, 191, 36, 0.24)',
-        cardHeader: '#5c2d10',
-      };
-    case 'car_flipper':
-      return {
-        bgTop: '#2f0b12',
-        bgBottom: '#140508',
-        accent: '#fb7185',
-        accentSoft: 'rgba(251, 113, 133, 0.24)',
-        cardHeader: '#5c1422',
-      };
     case 'plastic_surgeon':
       return {
-        bgTop: '#082c36',
-        bgBottom: '#04141a',
-        accent: '#2dd4bf',
-        accentSoft: 'rgba(45, 212, 191, 0.24)',
-        cardHeader: '#0f4d5c',
-      };
-    case 'barista_pro':
-      return {
-        bgTop: '#2c1910',
-        bgBottom: '#140b07',
-        accent: '#f59e0b',
-        accentSoft: 'rgba(245, 158, 11, 0.24)',
-        cardHeader: '#522e1c',
+        bgTop: '#101d20',
+        bgBottom: '#091113',
+        accent: '#6cc4a1',
+        accentSoft: 'rgba(108, 196, 161, 0.16)',
+        cardHeader: '#16292d',
       };
     default:
-      // Офис на грани и остальные — тёплый графит + электрический коралл
+      // Фирменная хвойно-латунная палитра «КРЕСЛО / Эвристика»
       return {
-        bgTop: '#1f1630',
-        bgBottom: '#0d0917',
-        accent: '#ff6b57',
-        accentSoft: 'rgba(255, 107, 87, 0.24)',
-        cardHeader: '#392659',
+        bgTop: '#15241e',
+        bgBottom: '#0b100e',
+        accent: '#c89b4f',
+        accentSoft: 'rgba(200, 155, 79, 0.18)',
+        cardHeader: '#172821',
       };
   }
 }
@@ -184,16 +154,16 @@ export function pickBestRealCaseForHighlight(
 export function getDefaultHookPresets(pack: JobPack, ending: EndingDef, weeks: number): string[] {
   if (ending.isVictory) {
     return [
-      `Прошёл все ${weeks} смен в «${pack.shortTitle}» и не вылетел!`,
-      '92% срезаются до финала, а я удержал кресло',
-      'А как бы ты вырулил на этом раскладе?',
+      `Прошёл все ${weeks} смен в «${pack.shortTitle}» и удержал баланс`,
+      '92% срезаются до финала, а здесь все 4 шкалы устояли',
+      'Как бы вы решили этот рабочий конфликт?',
     ];
   }
   return [
-    `Меня вынесли на ${weeks}-й смене в «${pack.shortTitle}» 💀`,
-    'Один неверный свайп — и контора в труху',
-    '90% делают тут ту же ошибку, что и я',
-    'А какой вариант выбрал бы ты?',
+    `Срыв на ${weeks}-й смене в «${pack.shortTitle}»`,
+    'Одно решение — и вся система пошла вразнос',
+    'Типичная управленческая ловушка, на которой горят 9 из 10',
+    'А какой вариант выбрали бы вы?',
   ];
 }
 
@@ -227,22 +197,17 @@ function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number
   return lines;
 }
 
-function drawQrMatrix(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  boxSize: number
-) {
+function drawQrMatrix(ctx: CanvasRenderingContext2D, x: number, y: number, boxSize: number) {
   const quiet = 3;
   const n = VKRESLEGAME_QR_MATRIX.length;
   const totalMods = n + quiet * 2;
   const cell = boxSize / totalMods;
 
-  ctx.fillStyle = '#ffffff';
-  drawRoundedRect(ctx, x, y, boxSize, boxSize, 12);
+  ctx.fillStyle = '#f4efe4';
+  drawRoundedRect(ctx, x, y, boxSize, boxSize, 10);
   ctx.fill();
 
-  ctx.fillStyle = '#0b0b12';
+  ctx.fillStyle = '#0d1512';
   for (let r = 0; r < n; r++) {
     const row = VKRESLEGAME_QR_MATRIX[r];
     for (let c = 0; c < n; c++) {
@@ -258,7 +223,7 @@ function drawQrMatrix(
   }
 }
 
-function drawAnimatedSticker(
+function drawEditorialStamp(
   ctx: CanvasRenderingContext2D,
   sticker: HighlightStickerId,
   tSec: number,
@@ -267,30 +232,34 @@ function drawAnimatedSticker(
 ) {
   if (sticker === 'none') return;
   const def = HIGHLIGHT_STICKERS.find((s) => s.id === sticker);
-  if (!def) return;
+  if (!def || !def.stamp) return;
+
+  const isPositive = sticker === 'crown_win' || sticker === 'clown_boss';
+  const color = isPositive ? '#1e6b52' : '#c83e31';
 
   ctx.save();
-  const pulse = 1 + Math.sin(tSec * 9.5) * 0.08;
-  const tilt = Math.sin(tSec * 6.2) * 0.09;
+  const scale = 1 + Math.sin(tSec * 5.2) * 0.03;
   ctx.translate(x, y);
-  ctx.rotate(tilt);
-  ctx.scale(pulse, pulse);
+  ctx.rotate(-0.08);
+  ctx.scale(scale, scale);
 
-  ctx.fillStyle = 'rgba(15, 14, 24, 0.9)';
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
-  ctx.lineWidth = 3;
-  drawRoundedRect(ctx, -118, -38, 236, 76, 38);
+  ctx.fillStyle = 'rgba(244, 239, 228, 0.96)';
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3.5;
+  drawRoundedRect(ctx, -138, -32, 276, 64, 8);
   ctx.fill();
   ctx.stroke();
 
-  ctx.font = '700 34px system-ui, -apple-system, sans-serif';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(def.emoji, -98, 2);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  drawRoundedRect(ctx, -131, -25, 262, 50, 5);
+  ctx.stroke();
 
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '800 20px system-ui, -apple-system, sans-serif';
-  ctx.fillText(def.label.toUpperCase(), -50, 1);
+  ctx.fillStyle = color;
+  ctx.font = '800 19px "JetBrains Mono", ui-monospace, monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(def.stamp, 0, 1);
   ctx.restore();
 }
 
@@ -309,7 +278,6 @@ export function renderShortsFrameAtTime(
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Свечение в стиле Signature Pop
   const rad = ctx.createRadialGradient(W * 0.5, H * 0.28, 30, W * 0.5, H * 0.28, W * 0.72);
   rad.addColorStop(0, pal.accentSoft);
   rad.addColorStop(1, 'rgba(0,0,0,0)');
@@ -319,253 +287,271 @@ export function renderShortsFrameAtTime(
   const selectedSwipes = opts.swipes.slice(-3);
   const caseBundle = pickBestRealCaseForHighlight(opts.pack, opts.swipes);
 
-  // СЦЕНА 5 (13.05–13.50 с): 25-Й КАДР С МИКРО-QR (0.45 сек)
+  // СЦЕНА 5 (13.05–13.50 с): КОРОТКИЙ КАДР С QR (0.45 сек)
   if (tSec >= 13.05) {
-    ctx.fillStyle = '#090910';
+    ctx.fillStyle = '#0d1512';
     ctx.fillRect(0, 0, W, H);
 
-    ctx.fillStyle = pal.accent;
-    ctx.font = '800 22px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#c89b4f';
+    ctx.font = '700 20px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText('КРЕСЛО · БЫСТРАЯ ВСТАВКА 0.4 СЕК', W / 2, H * 0.34);
+    ctx.fillText('КРЕСЛО · СИМУЛЯТОР РЕШЕНИЙ', W / 2, H * 0.34);
 
-    ctx.fillStyle = 'rgba(255,255,255,0.88)';
-    ctx.font = '600 25px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Не тратим ваше время рекламой.', W / 2, H * 0.39);
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    ctx.font = '500 21px system-ui, -apple-system, sans-serif';
-    ctx.fillText('Кому надо — поймал на паузе:', W / 2, H * 0.43);
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '700 25px "Manrope", system-ui, sans-serif';
+    ctx.fillText('Не отнимаем время рекламой.', W / 2, H * 0.39);
+    ctx.fillStyle = '#a6aba6';
+    ctx.font = '500 21px "Manrope", system-ui, sans-serif';
+    ctx.fillText('Поставьте на паузу, чтобы открыть расклад:', W / 2, H * 0.43);
 
-    const qrSize = 210;
+    const qrSize = 216;
     drawQrMatrix(ctx, (W - qrSize) / 2, H * 0.47, qrSize);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 26px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '700 25px "JetBrains Mono", ui-monospace, monospace';
     ctx.fillText('@vkreslegame', W / 2, H * 0.47 + qrSize + 48);
     return;
   }
 
-  // ВЕРХНЯЯ ПЛАШКА-ХУК ИГРОКА (держится на всех основных сценах)
+  // ВЕРХНЯЯ КАРТОЧКА-ТЕЗИС НА АРХИВНОЙ БУМАГЕ
   ctx.save();
-  ctx.fillStyle = '#ffffff';
-  drawRoundedRect(ctx, 44, 68, W - 88, 126, 26);
+  ctx.fillStyle = '#f4efe4';
+  ctx.strokeStyle = '#c89b4f';
+  ctx.lineWidth = 2;
+  drawRoundedRect(ctx, 44, 68, W - 88, 124, 16);
   ctx.fill();
+  ctx.stroke();
 
-  ctx.fillStyle = '#111118';
-  ctx.font = '800 29px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#181614';
+  ctx.font = '800 28px "Manrope", system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const hookLines = wrapLines(ctx, opts.hookText || 'Один свайп решил всё', W - 136).slice(0, 2);
+  const hookLines = wrapLines(ctx, opts.hookText || 'Одно решение изменило всю смену', W - 136).slice(
+    0,
+    2
+  );
   hookLines.forEach((ln, idx) => {
-    ctx.fillText(ln, W / 2, hookLines.length === 1 ? 140 : 118 + idx * 36);
+    ctx.fillText(ln, W / 2, hookLines.length === 1 ? 138 : 117 + idx * 35);
   });
   ctx.restore();
 
-  // СЦЕНА 1 (0.0–2.2 с): ВХОД В ПРОФЕССИЮ
+  // СЦЕНА 1 (0.0–2.2 с): ТИТУЛЬНЫЙ ЛИСТ ПРОФЕССИИ
   if (tSec < 2.2) {
-    const pop = Math.min(1, tSec / 0.28);
+    const pop = Math.min(1, tSec / 0.26);
     ctx.save();
-    ctx.translate(W / 2, H * 0.52);
-    ctx.scale(0.9 + 0.1 * pop, 0.9 + 0.1 * pop);
+    ctx.translate(W / 2, H * 0.53);
+    ctx.scale(0.92 + 0.08 * pop, 0.92 + 0.08 * pop);
 
-    ctx.fillStyle = '#faf6ee';
-    drawRoundedRect(ctx, -296, -270, 592, 540, 36);
+    ctx.fillStyle = '#f4efe4';
+    ctx.strokeStyle = '#dcd3c0';
+    ctx.lineWidth = 2;
+    drawRoundedRect(ctx, -296, -260, 592, 520, 24);
     ctx.fill();
+    ctx.stroke();
 
     ctx.fillStyle = pal.cardHeader;
-    drawRoundedRect(ctx, -296, -270, 592, 180, 36);
+    drawRoundedRect(ctx, -296, -260, 592, 138, 24);
     ctx.fill();
 
-    ctx.font = '92px system-ui, sans-serif';
+    ctx.fillStyle = '#c89b4f';
+    ctx.font = '700 19px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(opts.pack.emoji || '🪑', 0, -148);
+    ctx.fillText('КРЕСЛО · ДОСЬЕ СМЕНЫ', 0, -205);
 
-    ctx.fillStyle = '#15151c';
-    ctx.font = '900 40px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '700 22px "Manrope", system-ui, sans-serif';
+    ctx.fillText(`Смена ${opts.weeksSurvived} из 36`, 0, -166);
+
+    ctx.fillStyle = '#181614';
+    ctx.font = '800 39px "Manrope", system-ui, sans-serif';
     const titleLines = wrapLines(ctx, opts.pack.title, 510).slice(0, 2);
-    titleLines.forEach((l, i) => ctx.fillText(l, 0, -24 + i * 46));
+    titleLines.forEach((l, i) => ctx.fillText(l, 0, -56 + i * 46));
 
-    ctx.fillStyle = '#57534e';
-    ctx.font = '600 25px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#5c5449';
+    ctx.font = '600 25px "Manrope", system-ui, sans-serif';
     const firstQ = selectedSwipes[0]?.text || opts.pack.subtitle;
     wrapLines(ctx, firstQ, 500)
       .slice(0, 3)
-      .forEach((l, i) => ctx.fillText(l, 0, 88 + i * 36));
+      .forEach((l, i) => ctx.fillText(l, 0, 68 + i * 36));
 
     ctx.restore();
-    drawAnimatedSticker(ctx, opts.sticker, tSec, W - 170, H - 150);
+    drawEditorialStamp(ctx, opts.sticker, tSec, W - 186, H - 148);
     return;
   }
 
-  // СЦЕНА 2 (2.2–7.9 с): 3 УДАРНЫХ СВАЙПА В БИТ (по 1.9 с каждый)
+  // СЦЕНА 2 (2.2–7.9 с): 3 КЛЮЧЕВЫХ СВАЙПА
   if (tSec < 7.9 && selectedSwipes.length > 0) {
     const local = tSec - 2.2;
     const slotLen = 5.7 / selectedSwipes.length;
     const idx = Math.min(selectedSwipes.length - 1, Math.floor(local / slotLen));
-    const phase = (local - idx * slotLen) / slotLen; // 0..1
+    const phase = (local - idx * slotLen) / slotLen;
     const sw = selectedSwipes[idx];
 
     const fly = phase > 0.68 ? (phase - 0.68) / 0.32 : 0;
     const dir = sw.side === 'right' ? 1 : -1;
     const shiftX = dir * Math.pow(fly, 2) * 440;
-    const rot = dir * Math.pow(fly, 1.6) * 0.22;
+    const rot = dir * Math.pow(fly, 1.6) * 0.2;
 
     ctx.save();
     ctx.translate(W / 2 + shiftX, H * 0.53);
     ctx.rotate(rot);
 
-    ctx.fillStyle = '#faf6ee';
-    drawRoundedRect(ctx, -304, -295, 608, 590, 36);
+    ctx.fillStyle = '#f4efe4';
+    ctx.strokeStyle = '#dcd3c0';
+    ctx.lineWidth = 2;
+    drawRoundedRect(ctx, -304, -290, 608, 580, 24);
     ctx.fill();
+    ctx.stroke();
 
     ctx.fillStyle = pal.cardHeader;
-    drawRoundedRect(ctx, -304, -295, 608, 132, 36);
+    drawRoundedRect(ctx, -304, -290, 608, 126, 24);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.font = '700 21px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#c89b4f';
+    ctx.font = '700 18px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`СМЕНА ${sw.week} / 36`, -264, -238);
+    ctx.fillText(`СМЕНА ${String(sw.week).padStart(2, '0')} / 36`, -264, -238);
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 26px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '800 26px "Manrope", system-ui, sans-serif';
     ctx.fillText(sw.speaker.slice(0, 32), -264, -196);
 
-    ctx.fillStyle = '#14141b';
-    ctx.font = '700 31px system-ui, -apple-system, sans-serif';
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#181614';
+    ctx.font = '700 30px "Manrope", system-ui, sans-serif';
     wrapLines(ctx, sw.text, 524)
       .slice(0, 4)
-      .forEach((l, i) => ctx.fillText(l, -264, -104 + i * 42));
+      .forEach((l, i) => ctx.fillText(l, -264, -104 + i * 41));
 
-    // Выбранный вариант игрока
-    ctx.fillStyle = sw.side === 'right' ? '#065f46' : '#7f1d1d';
-    drawRoundedRect(ctx, -268, 120, 536, 134, 24);
+    ctx.fillStyle = sw.side === 'right' ? '#1e6b52' : '#9e2f25';
+    drawRoundedRect(ctx, -268, 118, 536, 132, 16);
     ctx.fill();
 
-    ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.font = '800 19px system-ui, -apple-system, sans-serif';
-    ctx.fillText(sw.side === 'right' ? 'ВЫБОР ВПРАВО →' : '← ВЫБОР ВЛЕВО', -236, 158);
+    ctx.fillStyle = 'rgba(244, 239, 228, 0.78)';
+    ctx.font = '700 17px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillText(sw.side === 'right' ? 'РЕШЕНИЕ ВПРАВО →' : '← РЕШЕНИЕ ВЛЕВО', -236, 154);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = '800 26px system-ui, -apple-system, sans-serif';
+    ctx.font = '800 25px "Manrope", system-ui, sans-serif';
     wrapLines(ctx, sw.chosenLabel, 476)
       .slice(0, 2)
-      .forEach((l, i) => ctx.fillText(l, -236, 196 + i * 32));
+      .forEach((l, i) => ctx.fillText(l, -236, 192 + i * 32));
 
     ctx.restore();
 
     if (faceImg) {
       ctx.save();
       ctx.beginPath();
-      ctx.arc(118, H - 156, 68, 0, Math.PI * 2);
+      ctx.arc(118, H - 156, 66, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      ctx.drawImage(faceImg, 50, H - 224, 136, 136);
+      ctx.drawImage(faceImg, 52, H - 222, 132, 132);
       ctx.restore();
     }
-    drawAnimatedSticker(ctx, opts.sticker, tSec, W - 168, H - 152);
+    drawEditorialStamp(ctx, opts.sticker, tSec, W - 186, H - 148);
     return;
   }
 
-  // СЦЕНА 3 (7.9–12.1 с): РЕАЛЬНЫЙ КЕЙС ИЛИ ЗНАМЕНИТЫЙ ТУПНЯК С ПРУФОМ!
+  // СЦЕНА 3 (7.9–12.1 с): ИСТОРИЧЕСКИЙ ПРЕЦЕДЕНТ ИЛИ ИЗВЕСТНЫЙ ПРОСЧЁТ
   if (tSec < 12.1 && caseBundle) {
     const rc = caseBundle.realCase;
     const isBlunder = rc.kind === 'blunder';
+    const accentCol = isBlunder ? '#c83e31' : '#1e6b52';
 
     ctx.save();
-    ctx.fillStyle = '#12101c';
-    ctx.strokeStyle = isBlunder ? '#f43f5e' : '#10b981';
-    ctx.lineWidth = 5;
-    drawRoundedRect(ctx, 44, 232, W - 88, 790, 34);
+    ctx.fillStyle = '#f4efe4';
+    ctx.strokeStyle = accentCol;
+    ctx.lineWidth = 4;
+    drawRoundedRect(ctx, 44, 232, W - 88, 780, 24);
     ctx.fill();
     ctx.stroke();
 
-    // Бейдж
-    ctx.fillStyle = isBlunder ? '#f43f5e' : '#10b981';
-    drawRoundedRect(ctx, 80, 272, W - 160, 62, 18);
+    ctx.fillStyle = accentCol;
+    drawRoundedRect(ctx, 80, 270, W - 160, 56, 10);
     ctx.fill();
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 23px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '700 20px "JetBrains Mono", ui-monospace, monospace';
     ctx.textAlign = 'center';
     ctx.fillText(
-      isBlunder ? '💀 РЕАЛЬНЫЙ ИСТОРИЧЕСКИЙ ТУПНЯК' : '🏛 РЕАЛЬНЫЙ ИСТОРИЧЕСКИЙ ХОД',
+      isBlunder ? 'ДОКУМЕНТИРОВАННЫЙ ПРОСЧЁТ' : 'ИСТОРИЧЕСКИЙ ПРЕЦЕДЕНТ',
       W / 2,
-      311
+      305
     );
 
-    ctx.fillStyle = '#fbbf24';
-    ctx.font = '800 30px system-ui, -apple-system, sans-serif';
-    ctx.fillText(`${rc.person} · ${rc.year}`, W / 2, 392);
+    ctx.fillStyle = '#181614';
+    ctx.font = '800 30px "Manrope", system-ui, sans-serif';
+    ctx.fillText(`${rc.person} · ${rc.year}`, W / 2, 384);
 
     if (caseBundle.playerMatched !== undefined) {
-      ctx.fillStyle = 'rgba(255,255,255,0.72)';
-      ctx.font = '700 22px system-ui, -apple-system, sans-serif';
+      ctx.fillStyle = '#5c5449';
+      ctx.font = '700 21px "Manrope", system-ui, sans-serif';
       const matchNote = caseBundle.playerMatched
         ? isBlunder
-          ? 'Ты наступил ровно на те же грабли в этой смене!'
-          : 'Ты принял точно такое же решение в этой смене!'
+          ? 'В этой смене вы повторили ровно этот шаг:'
+          : 'В этой смене вы приняли такое же решение:'
         : isBlunder
-          ? 'Ты обошёл эту ловушку, а в реальности было так:'
-          : 'Ты пошёл другим путём, а в истории было так:';
-      ctx.fillText(matchNote, W / 2, 434);
+          ? 'Вы обошли ловушку, а в реальности было так:'
+          : 'Вы выбрали иной путь, а в истории было так:';
+      ctx.fillText(matchNote, W / 2, 424);
     }
 
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 31px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#181614';
+    ctx.font = '800 30px "Manrope", system-ui, sans-serif';
     ctx.textAlign = 'left';
     const headLines = wrapLines(ctx, rc.headline, W - 168).slice(0, 2);
-    headLines.forEach((l, i) => ctx.fillText(l, 84, 502 + i * 40));
+    headLines.forEach((l, i) => ctx.fillText(l, 84, 492 + i * 39));
 
-    ctx.fillStyle = 'rgba(244, 244, 248, 0.9)';
-    ctx.font = '600 26px system-ui, -apple-system, sans-serif';
+    ctx.fillStyle = '#3d3730';
+    ctx.font = '600 25px "Manrope", system-ui, sans-serif';
     const storyLines = wrapLines(ctx, rc.story, W - 168).slice(0, 7);
-    storyLines.forEach((l, i) => ctx.fillText(l, 84, 600 + i * 38));
+    storyLines.forEach((l, i) => ctx.fillText(l, 84, 588 + i * 37));
 
-    ctx.fillStyle = 'rgba(255,255,255,0.52)';
-    ctx.font = '600 20px system-ui, -apple-system, sans-serif';
-    ctx.fillText(`Пруф: ${rc.source.slice(0, 48)}`, 84, 976);
+    ctx.fillStyle = '#7a7164';
+    ctx.font = '600 19px "JetBrains Mono", ui-monospace, monospace';
+    ctx.fillText(`Источник: ${rc.source.slice(0, 46)}`, 84, 968);
     ctx.restore();
 
-    drawAnimatedSticker(ctx, opts.sticker, tSec, W - 168, H - 132);
+    drawEditorialStamp(ctx, opts.sticker, tSec, W - 186, H - 134);
     return;
   }
 
-  // СЦЕНА 4 (до 13.05 с): ФИНАЛЬНЫЙ ШТАМП КОНЦОВКИ
+  // СЦЕНА 4 (до 13.05 с): ФИНАЛЬНЫЙ ВЕРДИКТ СМЕНЫ
   ctx.save();
-  ctx.fillStyle = '#faf6ee';
-  drawRoundedRect(ctx, 56, 270, W - 112, 680, 38);
+  ctx.fillStyle = '#f4efe4';
+  ctx.strokeStyle = '#dcd3c0';
+  ctx.lineWidth = 2;
+  drawRoundedRect(ctx, 56, 270, W - 112, 660, 24);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = opts.ending.isVictory ? '#1e6b52' : '#c83e31';
+  drawRoundedRect(ctx, 96, 314, W - 192, 62, 12);
   ctx.fill();
 
-  ctx.fillStyle = opts.ending.isVictory ? '#059669' : '#dc2626';
-  drawRoundedRect(ctx, 96, 316, W - 192, 68, 20);
-  ctx.fill();
-
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '900 26px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#f4efe4';
+  ctx.font = '700 23px "JetBrains Mono", ui-monospace, monospace';
   ctx.textAlign = 'center';
   ctx.fillText(
     opts.ending.isVictory
-      ? `ПОБЕДА · ${opts.weeksSurvived} СМЕН`
-      : `УВОЛЕН НА ${opts.weeksSurvived}-й СМЕНЕ`,
+      ? `АТТЕСТОВАН · ${opts.weeksSurvived} СМЕН`
+      : `СРЫВ НА ${opts.weeksSurvived}-й СМЕНЕ`,
     W / 2,
-    359
+    353
   );
 
-  ctx.fillStyle = '#111118';
-  ctx.font = '900 38px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#181614';
+  ctx.font = '800 37px "Manrope", system-ui, sans-serif';
   wrapLines(ctx, opts.ending.title, W - 180)
     .slice(0, 2)
-    .forEach((l, i) => ctx.fillText(l, W / 2, 456 + i * 46));
+    .forEach((l, i) => ctx.fillText(l, W / 2, 448 + i * 45));
 
-  ctx.fillStyle = '#44403c';
-  ctx.font = '600 26px system-ui, -apple-system, sans-serif';
+  ctx.fillStyle = '#5c5449';
+  ctx.font = '600 25px "Manrope", system-ui, sans-serif';
   wrapLines(ctx, opts.ending.description, W - 180)
     .slice(0, 5)
-    .forEach((l, i) => ctx.fillText(l, W / 2, 574 + i * 38));
+    .forEach((l, i) => ctx.fillText(l, W / 2, 562 + i * 37));
 
   ctx.restore();
-  drawAnimatedSticker(ctx, opts.sticker, tSec, W / 2, H - 156);
+  drawEditorialStamp(ctx, opts.sticker, tSec, W / 2, H - 152);
 }
 
 function loadImageOptional(src?: string | null): Promise<HTMLImageElement | null> {

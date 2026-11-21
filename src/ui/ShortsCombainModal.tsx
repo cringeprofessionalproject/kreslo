@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { sfxUiTap, sfxVictory } from '../audio';
+import { DIRECT_PLAY_SLUGS } from '../game/packs';
 import {
   exportShortsCombainVideo,
   getDefaultHookPresets,
@@ -11,6 +12,7 @@ import {
 } from '../game/shortsHighlightBuilder';
 import { getTelegramBotAppUrl, shareLinkViaTelegramOrNative } from '../game/telegramStars';
 import type { EndingDef, JobPack } from '../types';
+import { useSheetPullToDismiss } from './useNativeGestures';
 
 interface ShortsCombainModalProps {
   pack: JobPack;
@@ -33,7 +35,9 @@ export function ShortsCombainModal({
     () => getDefaultHookPresets(pack, ending, weeksSurvived),
     [pack, ending, weeksSurvived]
   );
-  const [hookText, setHookText] = useState<string>(presets[0] || 'Один свайп решил всё');
+  const [hookText, setHookText] = useState<string>(
+    presets[0] || 'Одно решение изменило всю смену'
+  );
   const [sticker, setSticker] = useState<HighlightStickerId>(
     ending.isVictory ? 'crown_win' : 'fire_chair'
   );
@@ -41,12 +45,15 @@ export function ShortsCombainModal({
   const [statusNote, setStatusNote] = useState<string | null>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement | null>(null);
 
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(() => {
+    if (exportProgress === null) onClose();
+  });
+
   const realCaseInfo = useMemo(
     () => pickBestRealCaseForHighlight(pack, swipes),
     [pack, swipes]
   );
 
-  // Живое превью 13.5-секундного ролика на холсте
   useEffect(() => {
     let raf = 0;
     let faceImg: HTMLImageElement | null = null;
@@ -117,7 +124,7 @@ export function ShortsCombainModal({
           title: 'КРЕСЛО · Хайлайт смены',
           text: `${hookText} — проверь себя в @vkreslegame`,
         });
-        setStatusNote('Ролик отправлен!');
+        setStatusNote('Ролик отправлен');
       } else {
         const a = document.createElement('a');
         a.href = res.url;
@@ -126,10 +133,10 @@ export function ShortsCombainModal({
         a.click();
         a.remove();
         window.setTimeout(() => URL.revokeObjectURL(res.url), 30_000);
-        setStatusNote('Видео сохранено — загружай в Shorts / Reels / Stories!');
+        setStatusNote('Видео сохранено для Shorts / Reels / Stories');
       }
     } catch {
-      setStatusNote('Отправка отменена или недоступна в этом окне');
+      setStatusNote('Отправка отменена');
     } finally {
       setExportProgress(null);
     }
@@ -137,86 +144,68 @@ export function ShortsCombainModal({
 
   const handleShareTelegramLink = () => {
     sfxUiTap();
-    const url = getTelegramBotAppUrl(`pack_${pack.id}`);
+    const slug = DIRECT_PLAY_SLUGS[pack.id] || pack.id;
+    const url = getTelegramBotAppUrl(`play_${slug}`);
     const shareText = `${hookText} — попробуй удержать кресло в «${pack.title}»:`;
     if (!shareLinkViaTelegramOrNative(url, shareText)) {
       void navigator.clipboard?.writeText(`${shareText} ${url}`);
-      setStatusNote('Ссылка на @vkreslegame скопирована!');
+      setStatusNote('Ссылка на @vkreslegame скопирована');
     }
   };
 
   return (
     <div
       className="overlay-backdrop"
-      style={{ zIndex: 3200 }}
+      style={{ ...backdropStyle, zIndex: 3200 }}
       onClick={(e) => {
         if (e.target === e.currentTarget && exportProgress === null) onClose();
       }}
     >
       <div
-        className="modal-card ending-editorial-sheet"
-        style={{
-          maxWidth: 440,
-          width: '94vw',
-          maxHeight: '92dvh',
-          overflowY: 'auto',
-          padding: '16px 16px 20px',
-          background: '#12101d',
-          color: '#f5f3ff',
-          border: '1px solid rgba(255,255,255,0.14)',
-        }}
+        className="ending-sheet native-ios-sheet"
+        {...sheetProps}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 440, textAlign: 'left' }}
       >
+        <div className="sheet-grabber-bar" />
+
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            width: '100%',
             marginBottom: 10,
           }}
         >
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800 }}>🎬 Шортс-комбайн · 13.5 сек</div>
-            <div style={{ fontSize: 11.5, color: 'rgba(245,243,255,0.62)' }}>
-              Автонарезка свайпов + реальный кейс + микро-QR на 0.4 сек
-            </div>
+            <span className="eyebrow-tag">ВИДЕО-СВОДКА СМЕНЫ · 13.5 СЕК</span>
+            <h3 className="sheet-serif-title" style={{ margin: '2px 0 0', fontSize: 19 }}>
+              Сборка вертикального клипа
+            </h3>
           </div>
           <button
             type="button"
+            className="hb-circle-btn"
             onClick={onClose}
             disabled={exportProgress !== null}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 999,
-              border: '1px solid rgba(255,255,255,0.18)',
-              background: 'rgba(255,255,255,0.06)',
-              color: '#fff',
-              fontSize: 15,
-              cursor: 'pointer',
-            }}
+            aria-label="Закрыть"
           >
-            ✕
+            ×
           </button>
         </div>
 
-        {/* Живое превью 9:16 */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            marginBottom: 12,
-          }}
-        >
+        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: 12 }}>
           <canvas
             ref={previewCanvasRef}
             width={360}
             height={640}
             style={{
-              width: 176,
-              height: 313,
-              borderRadius: 18,
-              border: '1px solid rgba(255,255,255,0.2)',
-              boxShadow: '0 14px 36px rgba(0,0,0,0.45)',
+              width: 172,
+              height: 306,
+              borderRadius: 14,
+              border: '1px solid rgba(200, 155, 79, 0.34)',
+              boxShadow: '0 14px 34px rgba(0,0,0,0.48)',
             }}
           />
         </div>
@@ -224,43 +213,52 @@ export function ShortsCombainModal({
         {realCaseInfo && (
           <div
             style={{
-              padding: '8px 11px',
-              borderRadius: 12,
-              background:
-                realCaseInfo.realCase.kind === 'blunder'
-                  ? 'rgba(244, 63, 94, 0.14)'
-                  : 'rgba(16, 185, 129, 0.14)',
-              border: `1px solid ${
-                realCaseInfo.realCase.kind === 'blunder'
-                  ? 'rgba(244, 63, 94, 0.4)'
-                  : 'rgba(16, 185, 129, 0.4)'
-              }`,
+              width: '100%',
+              padding: '9px 11px',
+              borderRadius: 10,
+              background: 'var(--paper)',
+              color: 'var(--ink)',
+              border: '1px solid var(--paper-Rule)',
               fontSize: 12,
-              lineHeight: 1.35,
+              lineHeight: 1.36,
               marginBottom: 10,
             }}
           >
-            <strong>
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color:
+                  realCaseInfo.realCase.kind === 'blunder'
+                    ? 'var(--vermilion)'
+                    : 'var(--forest)',
+                marginBottom: 2,
+              }}
+            >
               {realCaseInfo.realCase.kind === 'blunder'
-                ? '💀 В ролик вшит знаменитый тупняк:'
-                : '🏛 В ролик вшит реальный кейс:'}
+                ? 'В ролик включён исторический просчёт'
+                : 'В ролик включён исторический прецедент'}
+            </div>
+            <strong>
+              {realCaseInfo.realCase.person} ({realCaseInfo.realCase.year})
             </strong>{' '}
-            {realCaseInfo.realCase.person} ({realCaseInfo.realCase.year}) —{' '}
-            {realCaseInfo.realCase.headline}
+            — {realCaseInfo.realCase.headline}
           </div>
         )}
 
-        {/* Текст верхнего хука */}
-        <div style={{ marginBottom: 10 }}>
+        <div style={{ width: '100%', marginBottom: 10 }}>
           <div
             style={{
               fontSize: 11.5,
               fontWeight: 700,
-              color: 'rgba(245,243,255,0.72)',
+              color: 'var(--text-dim)',
               marginBottom: 5,
             }}
           >
-            Заголовок сверху (свой или в 1 тап):
+            Верхний тезис ролика:
           </div>
           <input
             type="text"
@@ -269,80 +267,58 @@ export function ShortsCombainModal({
             onChange={(e) => setHookText(e.target.value)}
             style={{
               width: '100%',
-              padding: '8px 11px',
-              borderRadius: 10,
-              border: '1px solid rgba(255,255,255,0.2)',
-              background: 'rgba(255,255,255,0.07)',
-              color: '#fff',
+              padding: '9px 11px',
+              borderRadius: 9,
+              border: '1px solid rgba(200, 155, 79, 0.28)',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-light)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 600,
               marginBottom: 6,
+              outline: 'none',
             }}
           />
-          <div style={{ display: 'flex', gap: 5, overflowX: 'auto', paddingBottom: 2 }}>
+          <div className="ios-context-chips" style={{ padding: 0 }}>
             {presets.map((pr, idx) => (
               <button
                 key={idx}
                 type="button"
+                className={hookText === pr ? 'on' : ''}
                 onClick={() => {
                   sfxUiTap();
                   setHookText(pr);
                 }}
-                style={{
-                  whiteSpace: 'nowrap',
-                  padding: '4px 9px',
-                  borderRadius: 999,
-                  fontSize: 11,
-                  border: '1px solid rgba(255,255,255,0.16)',
-                  background:
-                    hookText === pr ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.05)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
               >
-                Вариант {idx + 1}
+                Тезис {idx + 1}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Анимированный стикер */}
-        <div style={{ marginBottom: 12 }}>
+        <div style={{ width: '100%', marginBottom: 12 }}>
           <div
             style={{
               fontSize: 11.5,
               fontWeight: 700,
-              color: 'rgba(245,243,255,0.72)',
+              color: 'var(--text-dim)',
               marginBottom: 5,
             }}
           >
-            Живой стикер-реакция:
+            Архивный штамп на кадре:
           </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div className="ios-context-chips" style={{ padding: 0 }}>
             {HIGHLIGHT_STICKERS.map((st) => (
               <button
                 key={st.id}
                 type="button"
+                className={sticker === st.id ? 'on' : ''}
                 onClick={() => {
                   sfxUiTap();
                   setSticker(st.id);
                 }}
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: 999,
-                  fontSize: 11.5,
-                  fontWeight: 700,
-                  border:
-                    sticker === st.id
-                      ? '1px solid #fbbf24'
-                      : '1px solid rgba(255,255,255,0.15)',
-                  background:
-                    sticker === st.id ? 'rgba(251, 191, 36, 0.22)' : 'rgba(255,255,255,0.05)',
-                  color: '#fff',
-                  cursor: 'pointer',
-                }}
               >
-                {st.emoji} {st.label}
+                {st.label}
               </button>
             ))}
           </div>
@@ -351,36 +327,31 @@ export function ShortsCombainModal({
         {statusNote && (
           <div
             style={{
+              width: '100%',
               fontSize: 12,
               textAlign: 'center',
-              color: '#86efac',
+              color: 'var(--forest-light)',
               marginBottom: 8,
-              fontWeight: 600,
+              fontWeight: 700,
             }}
           >
             {statusNote}
           </div>
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
           <button
             type="button"
             className="cta-btn primary big"
             disabled={exportProgress !== null}
             onClick={() => void handleExportAndShare()}
-            style={{ width: '100%' }}
           >
             {exportProgress !== null
-              ? `Собираем ролик… ${exportProgress}%`
-              : '🎬 Скачать / Поделиться клипом (MP4)'}
+              ? `Сборка видео… ${exportProgress}%`
+              : 'Сохранить или отправить клип (MP4)'}
           </button>
-          <button
-            type="button"
-            className="cta-btn secondary"
-            onClick={handleShareTelegramLink}
-            style={{ width: '100%' }}
-          >
-            Отправить игру в чат Telegram →
+          <button type="button" className="cta-btn subtle" onClick={handleShareTelegramLink}>
+            Отправить ссылку на эту колоду в Telegram →
           </button>
         </div>
       </div>

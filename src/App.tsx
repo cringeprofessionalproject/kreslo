@@ -36,13 +36,20 @@ import {
   getBlockForWeek,
   type BlockMetaInfo,
 } from './game/blockCampaignEngine';
-import { getJobPack, SHOWCASE_PACKS } from './game/packs';
+import {
+  DIRECT_PLAY_SLUGS,
+  getJobPack,
+  parseDirectPlayPackFromWindow,
+  SHOWCASE_PACKS,
+} from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
 import { parseDuelRouteFromWindow, type DuelGhostData } from './game/duelMode';
 import type { RunSwipeHighlight } from './game/shortsHighlightBuilder';
 import {
   GACHA_FREE_DEATHS_GRACE,
+  getDirectWebPlayUrl,
   getGachaSaveStarsPrice,
+  getTelegramBotAppUrl,
   getTelegramStarsPriceForPack,
   hydratePurchasesFromTelegramCloud,
   openTelegramDeepLinkOutsideTma,
@@ -86,6 +93,7 @@ import {
   IconFrame,
   IconGrid,
   IconInfo,
+  IconShare,
   IconVolume,
   PillarSvgIcon,
 } from './ui/Icons';
@@ -461,6 +469,7 @@ function DrawerSheet({
   onToggleShareRun,
   onOpenTuneFace,
   onTakeScreenshot,
+  onCopyDirectLinks,
   onOpenMuseum,
   onOpenInstall,
   onOpenVault,
@@ -481,6 +490,7 @@ function DrawerSheet({
   onToggleShareRun: () => void;
   onOpenTuneFace?: () => void;
   onTakeScreenshot: () => void;
+  onCopyDirectLinks: (mode: 'web' | 'tg') => void;
   onOpenMuseum: () => void;
   onOpenInstall: () => void;
   onOpenVault: () => void;
@@ -674,13 +684,43 @@ function DrawerSheet({
             className="drawer-row-btn"
             onClick={() => {
               onClose();
+              onCopyDirectLinks('web');
+            }}
+          >
+            <IconShare size={18} />
+            <div>
+              <strong>Прямая Web-ссылка на «{pack.shortTitle}»</strong>
+              <small>Открывает сразу 1-ю карточку этой колоды без главного меню</small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="drawer-row-btn"
+            onClick={() => {
+              onClose();
+              onCopyDirectLinks('tg');
+            }}
+          >
+            <IconShare size={18} />
+            <div>
+              <strong>Прямая Telegram-ссылка на «{pack.shortTitle}»</strong>
+              <small>Запуск этой колоды напрямую через @vkreslegame</small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="drawer-row-btn"
+            onClick={() => {
+              onClose();
               window.open('./wiki.html', '_blank', 'noopener,noreferrer');
             }}
           >
             <IconArchive size={18} />
             <div>
-              <strong>Фандом · Кодекс весов и кейсов</strong>
-              <small>Точные веса карточек, формулы и архив реальных тупняков</small>
+              <strong>Кодекс весов, ссылок и прецедентов</strong>
+              <small>Все прямые ссылки на 9 игр, веса карточек и 36 реальных кейсов</small>
             </div>
           </button>
 
@@ -705,13 +745,31 @@ function DrawerSheet({
 }
 
 export function App() {
-  const [meta, setMeta] = useState<PersistentMeta>(loadMeta);
-  const pack: JobPack = useMemo(() => getJobPack(meta.selectedPackId), [meta.selectedPackId]);
-
+  const initialDirectPackId = useMemo(() => parseDirectPlayPackFromWindow(), []);
   const initialUrlRoute = useMemo(() => parseUrlCheckRoute(), []);
 
-  const [inHub, setInHub] = useState(true);
-  const [hasActiveRun, setHasActiveRun] = useState(false);
+  const [meta, setMeta] = useState<PersistentMeta>(() => {
+    const loaded = loadMeta();
+    if (initialDirectPackId) {
+      return {
+        ...loaded,
+        selectedPackId: initialDirectPackId,
+        telemetry: {
+          ...loaded.telemetry,
+          runsStarted: (loaded.telemetry.runsStarted ?? 0) + 1,
+          packPlays: {
+            ...(loaded.telemetry.packPlays ?? {}),
+            [initialDirectPackId]: ((loaded.telemetry.packPlays ?? {})[initialDirectPackId] ?? 0) + 1,
+          },
+        },
+      };
+    }
+    return loaded;
+  });
+  const pack: JobPack = useMemo(() => getJobPack(meta.selectedPackId), [meta.selectedPackId]);
+
+  const [inHub, setInHub] = useState(() => !initialDirectPackId);
+  const [hasActiveRun, setHasActiveRun] = useState(() => Boolean(initialDirectPackId));
   const [hubTab, setHubTab] = useState<'jobs' | 'checks' | 'minigames'>(() =>
     initialUrlRoute && (initialUrlRoute.isOwner || initialUrlRoute.directReceipt) ? 'checks' : 'jobs'
   );
@@ -834,9 +892,15 @@ export function App() {
   const [exitingCards, setExitingCards] = useState<ExitingCardSnapshot[]>([]);
 
   const [flags, setFlags] = useState<Set<string>>(() => new Set());
-  const [usedOnce, setUsedOnce] = useState<Set<string>>(() => new Set());
+  const [usedOnce, setUsedOnce] = useState<Set<string>>(() =>
+    pack.onboardingCards[0] ? new Set([pack.onboardingCards[0].id]) : new Set()
+  );
   const [scheduled, setScheduled] = useState<QueuedEvent[]>([]);
-  const bagRef = useRef<DilemmaCard[]>(shuffle(buildFullDeck(pack)));
+  const bagRef = useRef<DilemmaCard[]>(
+    shuffle(buildFullDeck(pack)).filter(
+      (c) => c.id !== pack.onboardingCards[0]?.id && c.id !== pack.onboardingCards[1]?.id
+    )
+  );
 
   const [inspectedPillar, setInspectedPillar] = useState<PillarMeta | null>(null);
   const [lifelineInfoOpen, setLifelineInfoOpen] = useState(false);
@@ -3013,6 +3077,20 @@ export function App() {
           }}
           onOpenTuneFace={() => setFaceTuneHudOpen(true)}
           onTakeScreenshot={() => void takeLiveScreenshot()}
+          onCopyDirectLinks={(mode) => {
+            const slug = DIRECT_PLAY_SLUGS[pack.id] || pack.id;
+            const link =
+              mode === 'tg'
+                ? getTelegramBotAppUrl(`play_${slug}`)
+                : getDirectWebPlayUrl(slug);
+            void navigator.clipboard?.writeText(link);
+            setToastMsg(
+              mode === 'tg'
+                ? `Telegram-ссылка на «${pack.shortTitle}» скопирована`
+                : `Прямая ссылка на «${pack.shortTitle}» скопирована`
+            );
+            window.setTimeout(() => setToastMsg(null), 2400);
+          }}
           onOpenMuseum={() => setMuseumOpen(true)}
           onOpenInstall={() => setInstallModalOpen(true)}
           onOpenVault={() => setVaultModalTab('vault')}
@@ -3036,12 +3114,8 @@ export function App() {
                   type="button"
                   className="apple-cam-pill"
                   onClick={() => setDuelModalState({ open: true, ghost: null })}
-                  style={{
-                    background: 'rgba(251, 191, 36, 0.16)',
-                    borderColor: 'rgba(251, 191, 36, 0.38)',
-                  }}
                 >
-                  <span>⚔️ Дуэль</span>
+                  <span>Дуэль</span>
                 </button>
                 {hasActiveRun ? (
                   <button
@@ -3735,14 +3809,14 @@ export function App() {
             left: '50%',
             transform: 'translateX(-50%)',
             zIndex: 6500,
-            background: 'rgba(20, 16, 34, 0.96)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.2)',
+            background: 'rgba(17, 25, 22, 0.96)',
+            color: 'var(--text-light)',
+            border: '1px solid rgba(200, 155, 79, 0.32)',
             padding: '10px 18px',
             borderRadius: 999,
             fontSize: 13,
             fontWeight: 700,
-            boxShadow: '0 10px 30px rgba(0,0,0,0.45)',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.55)',
             pointerEvents: 'none',
             whiteSpace: 'nowrap',
           }}
