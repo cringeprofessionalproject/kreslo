@@ -1,15 +1,17 @@
 :root {
-  --bg-canvas: #0b100e;
-  --bg-shell: #111916;
-  --bg-elevated: #17231e;
+  --bg-canvas: #0c1219;
+  --bg-glow: #1b293a;
+  --bg-shell: #121a24;
+  --bg-shell-bottom: #0b1017;
+  --bg-elevated: #192432;
   --paper: #f4efe4;
   --paper-Rule: #dcd3c0;
   --ink: #181614;
   --ink-muted: #5c5449;
   --text-light: #f2eee6;
   --text-dim: #a6aba6;
-  --brass: #c89b4f;
-  --brass-soft: rgba(200, 155, 79, 0.26);
+  --brass: #d6a05c;
+  --brass-soft: rgba(214, 160, 92, 0.26);
   --forest: #1e6b52;
   --forest-light: #6cc4a1;
   --vermilion: #c83e31;
@@ -33,7 +35,8 @@ html {
   width: 100%;
   height: 100vh;
   height: 100dvh;
-  background: #0d1512;
+  background: var(--bg-canvas);
+  transition: background-color 420ms ease;
   overflow: hidden;
   overscroll-behavior: none;
 }
@@ -53,7 +56,8 @@ body,
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
-  background: #0d1512;
+  background: var(--bg-canvas);
+  transition: background-color 420ms ease;
   color: var(--text-light);
   font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
@@ -64,6 +68,7 @@ body,
 
 .reigns-shell {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -72,10 +77,51 @@ body,
   height: 100dvh;
   min-height: 0;
   margin: 0 auto;
-  background: radial-gradient(circle at 50% 24%, #1a2c25 0%, #0d1512 76%);
-  border-left: 1px solid rgba(200, 155, 79, 0.14);
-  border-right: 1px solid rgba(200, 155, 79, 0.14);
+  background: radial-gradient(circle at 50% 24%, var(--bg-glow) 0%, var(--bg-canvas) 76%);
+  border-left: 1px solid var(--brass-soft);
+  border-right: 1px solid var(--brass-soft);
   box-shadow: 0 0 80px rgba(0, 0, 0, 0.85);
+  transition: background 450ms ease, border-color 450ms ease;
+}
+
+/* Атмосферный архитектурный слой сюжета и аудитории позади карточек */
+.scene-backdrop-layer {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.scene-backdrop-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  transition: opacity 450ms ease;
+}
+
+.scene-escalation-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 34%, transparent 38%, rgba(0, 0, 0, 0.28) 100%);
+}
+
+.scene-escalation-vignette.tier-3 {
+  background: radial-gradient(circle at 50% 32%, transparent 30%, rgba(0, 0, 0, 0.44) 100%);
+}
+
+.scene-danger-halo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 0%, rgba(200, 62, 49, 0.22) 0%, transparent 58%);
+  animation: sceneDangerPulse 2.4s ease-in-out infinite;
+}
+
+@keyframes sceneDangerPulse {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
 }
 
 @media all and (display-mode: standalone) {
@@ -561,7 +607,7 @@ body,
   position: relative;
   height: 43%;
   min-height: 132px;
-  background: #17241f;
+  background: var(--bg-elevated);
   overflow: hidden;
   border-bottom: 1.5px solid #181614;
   display: flex;
@@ -4545,7 +4591,7 @@ body {
 .native-ios-sheet {
   animation: iosSheetSlideUp 0.32s cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
-  background: linear-gradient(180deg, #16231e 0%, #0f1814 100%) !important;
+  background: linear-gradient(180deg, var(--bg-elevated) 0%, var(--bg-shell-bottom) 100%) !important;
   border: 1px solid rgba(255, 255, 255, 0.11) !important;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.78) !important;
 }
@@ -5111,15 +5157,20 @@ body {
 
 /* 18.5 Экран выбора режима и специальностей в чистой эстетике Apple HIG */
 .apple-hub-backdrop {
-  background: #0d1512;
+  background: var(--bg-canvas);
+  transition: background-color 420ms ease;
 }
 
 .hub-sheet.apple-hub-sheet {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: linear-gradient(180deg, #131f1a 0%, #0c1411 100%);
+  background: radial-gradient(circle at 50% 14%, var(--bg-glow) 0%, var(--bg-shell-bottom) 82%);
   border-color: rgba(255, 255, 255, 0.08);
+  transition: background 450ms ease;
   padding: calc(env(safe-area-inset-top, 0px) + 16px) 18px
     calc(env(safe-area-inset-bottom, 0px) + 18px);
 }

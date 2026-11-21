@@ -32,6 +32,7 @@ import {
 import type { DilemmaCard, JobPack, PackId, StatDelta, StatKey, Stats } from '../types';
 import { EditorialCardPortrait } from './CharacterArt';
 import { IconGrid, PillarSvgIcon } from './Icons';
+import { SceneBackdrop } from './SceneBackdrop';
 
 interface DuelExperienceModalProps {
   pack: JobPack;
@@ -571,6 +572,15 @@ export function DuelExperienceModal({
 
   const mySurvived = deadAtStep !== null ? deadAtStep : step;
   const savePrice = getGachaSaveStarsPrice(savesUsed);
+  const duelDanger =
+    stats.s1 <= 20 ||
+    stats.s1 >= 84 ||
+    stats.s2 <= 20 ||
+    stats.s2 >= 84 ||
+    stats.s3 <= 20 ||
+    stats.s3 >= 84 ||
+    stats.s4 <= 20 ||
+    stats.s4 >= 84;
 
   return (
     <div
@@ -578,12 +588,14 @@ export function DuelExperienceModal({
         position: 'fixed',
         inset: 0,
         zIndex: 3100,
-        background: '#0d1512',
+        background: 'var(--bg-canvas)',
+        transition: 'background-color 420ms ease',
         display: 'flex',
         justifyContent: 'center',
       }}
     >
       <div className={`reigns-shell ${isFinished ? 'sc-completed-shell' : 'sc-active-runner'}`}>
+        <SceneBackdrop packId={pack.id} blockNum={2} inDanger={!isFinished && duelDanger} />
         <header className="top-bar unified-bar">
           <button
             type="button"

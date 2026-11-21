@@ -1,4 +1,5 @@
 import type { DilemmaCard, EndingDef, JobPack, PackId, RealHistoricalCase } from '../types';
+import { getPackAtmosphere } from './sceneAtmospheres';
 
 /**
  * ВИДЕО-ХАЙЛАЙТ СМЕНЫ (v40 · Стиль «КРЕСЛО / Эвристика»):
@@ -91,45 +92,14 @@ export interface PackEditorialPalette {
 }
 
 export function getSignaturePopPalette(packId: PackId): PackEditorialPalette {
-  switch (packId) {
-    case 'renovation_pro':
-    case 'barista_pro':
-      return {
-        bgTop: '#1c1712',
-        bgBottom: '#0d0b09',
-        accent: '#c89b4f',
-        accentSoft: 'rgba(200, 155, 79, 0.18)',
-        cardHeader: '#261f18',
-      };
-    case 'car_flipper':
-    case 'wb_seller':
-    case 'pvz_december':
-      return {
-        bgTop: '#1d1413',
-        bgBottom: '#0d0a09',
-        accent: '#c83e31',
-        accentSoft: 'rgba(200, 62, 49, 0.16)',
-        cardHeader: '#2a1a18',
-      };
-    case 'it_product':
-    case 'plastic_surgeon':
-      return {
-        bgTop: '#101d20',
-        bgBottom: '#091113',
-        accent: '#6cc4a1',
-        accentSoft: 'rgba(108, 196, 161, 0.16)',
-        cardHeader: '#16292d',
-      };
-    default:
-      // Фирменная хвойно-латунная палитра «КРЕСЛО / Эвристика»
-      return {
-        bgTop: '#15241e',
-        bgBottom: '#0b100e',
-        accent: '#c89b4f',
-        accentSoft: 'rgba(200, 155, 79, 0.18)',
-        cardHeader: '#172821',
-      };
-  }
+  const atm = getPackAtmosphere(packId, 2, false);
+  return {
+    bgTop: atm.bgGlow,
+    bgBottom: atm.bgCanvas,
+    accent: atm.accent,
+    accentSoft: atm.accentSoft,
+    cardHeader: atm.cardHeader,
+  };
 }
 
 export function pickBestRealCaseForHighlight(

@@ -43,6 +43,7 @@ import {
   SHOWCASE_PACKS,
 } from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
+import { applyAtmosphereToDocument, getPackAtmosphere } from './game/sceneAtmospheres';
 import { parseDuelRouteFromWindow, type DuelGhostData } from './game/duelMode';
 import type { RunSwipeHighlight } from './game/shortsHighlightBuilder';
 import {
@@ -110,6 +111,7 @@ import {
   MuseumModal,
 } from './ui/Modals';
 import { DuelExperienceModal } from './ui/DuelExperienceModal';
+import { SceneBackdrop } from './ui/SceneBackdrop';
 import { ShortsCombainModal } from './ui/ShortsCombainModal';
 import { ProInsightModal } from './ui/PaywallAndSponsorModal';
 import { CameraLocalNoticeModal, PrivacyZeroPiiModal } from './ui/PrivacyAndCameraNoticeModal';
@@ -776,6 +778,7 @@ export function App() {
   const [jobFilter, setJobFilter] = useState<
     'all' | 'practice' | 'story' | 'tech' | 'commerce'
   >('all');
+  const [hoveredHubPackId, setHoveredHubPackId] = useState<PackId | null>(null);
   const [checksRefreshSeq, setChecksRefreshSeq] = useState(0);
   const [activeCheckRun, setActiveCheckRun] = useState<{
     check: SkillCheckDef;
@@ -1006,6 +1009,41 @@ export function App() {
   useEffect(() => {
     setGameMusicContext(pack.category, curBlock.blockNum, anyStatDanger);
   }, [anyStatDanger, curBlock.blockNum, pack.category]);
+
+  const effectiveAtmospherePackId = useMemo<PackId>(() => {
+    if (duelModalState.open) {
+      return duelModalState.ghost?.packId ?? pack.id;
+    }
+    if (!inHub) {
+      return pack.id;
+    }
+    if (hoveredHubPackId) {
+      return hoveredHubPackId;
+    }
+    if (hubTab === 'jobs') {
+      if (jobFilter === 'story') return 'pvz_december';
+      if (jobFilter === 'tech') return 'it_product';
+      if (jobFilter === 'commerce') return 'barista_pro';
+      if (jobFilter === 'practice') return 'office_manager';
+    }
+    return pack.id;
+  }, [
+    duelModalState.ghost?.packId,
+    duelModalState.open,
+    hoveredHubPackId,
+    hubTab,
+    inHub,
+    jobFilter,
+    pack.id,
+  ]);
+
+  useLayoutEffect(() => {
+    applyAtmosphereToDocument(
+      effectiveAtmospherePackId,
+      inHub ? 1 : curBlock.blockNum,
+      !inHub && anyStatDanger
+    );
+  }, [anyStatDanger, curBlock.blockNum, effectiveAtmospherePackId, inHub]);
 
   useEffect(() => {
     if (poppingDeltas.seq === 0) return;
@@ -2500,6 +2538,7 @@ export function App() {
       onTouchStart={onShellEdgeTouchStart}
       onTouchEnd={onShellEdgeTouchEnd}
     >
+      <SceneBackdrop packId={pack.id} blockNum={curBlock.blockNum} inDanger={anyStatDanger} />
       <input
         ref={quickSelfieInputRef}
         type="file"
@@ -3104,6 +3143,7 @@ export function App() {
       {inHub && (
         <div className="overlay-backdrop apple-hub-backdrop">
           <div className="hub-sheet apple-hub-sheet">
+            <SceneBackdrop packId={effectiveAtmospherePackId} blockNum={1} inDanger={false} />
             <div className="apple-hub-header">
               <div className="ahh-titles">
                 <h1 className="ahh-large-title">Кресло</h1>
@@ -3257,7 +3297,18 @@ export function App() {
                           </span>
                         </div>
                       )}
-                      <div className={`apple-pack-row ${isCurrent ? 'is-selected' : ''}`}>
+                      <div
+                        className={`apple-pack-row ${isCurrent ? 'is-selected' : ''}`}
+                        onPointerEnter={() => setHoveredHubPackId(jp.id)}
+                        onPointerLeave={() =>
+                          setHoveredHubPackId((cur) => (cur === jp.id ? null : cur))
+                        }
+                        style={
+                          isCurrent
+                            ? { borderColor: getPackAtmosphere(jp.id).accentSoft }
+                            : undefined
+                        }
+                      >
                       <button
                         type="button"
                         className="apr-main-tap"

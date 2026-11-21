@@ -26,8 +26,11 @@ function initTelegramMiniApp() {
     tg.ready?.();
     tg.expand?.();
     tg.disableVerticalSwipes?.();
-    tg.setHeaderColor?.('#0d1512');
-    tg.setBackgroundColor?.('#0d1512');
+    const curBg =
+      getComputedStyle(document.documentElement).getPropertyValue('--bg-canvas').trim() ||
+      '#0c1219';
+    tg.setHeaderColor?.(curBg);
+    tg.setBackgroundColor?.(curBg);
   } catch {
     // ignore outside Telegram
   }
