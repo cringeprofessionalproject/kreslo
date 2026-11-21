@@ -12,6 +12,7 @@ import {
   vibrate,
 } from '../audio';
 import { sendAnonymousPulse } from '../game/anonymousPulse';
+import { shareLinkViaTelegramOrNative } from '../game/telegramStars';
 import {
   buildCheckShareUrl,
   buildDirectSnapshotUrl,
@@ -123,11 +124,11 @@ function evaluateCheckAttempt(
     verdictTitle = 'Сильная база · Без красных флагов';
     verdictSub = 'Решения совпадают с отраслевым стандартом и здравым смыслом.';
     tone = 'good';
-  } else if (score >= 7 && criticalFails > 0) {
+  } else if (criticalFails > 0 && score >= 6) {
     verdictTitle = `Есть стоп-риск (${criticalFails} кр. флаг)`;
     verdictSub =
-      'Общий балл неплохой, но допущена опасная ошибка в зоне критического риска — стоит разобрать на встрече.';
-    tone = 'warn';
+      'Допущена опасная ошибка в зоне критического риска — стоит предметно разобрать на встрече.';
+    tone = score >= 7 ? 'warn' : 'bad';
   } else if (score >= 6) {
     verdictTitle = 'Пограничный результат';
     verdictSub = 'Плавает в спорных ситуациях — потребуется чёткий инструктаж на старте.';
@@ -476,11 +477,15 @@ export const OwnerCheckTrackerModal: React.FC<{
   const handleNativeShareMainLink = async () => {
     sfxUiTap(true);
     sendAnonymousPulse('share_click');
+    const shareText = `Пройди короткую проверку на 10 рабочих ситуаций (2 минуты): ${check.title}`;
+    if (shareLinkViaTelegramOrNative(shareUrl, shareText)) {
+      return;
+    }
     if (navigator.share) {
       try {
         await navigator.share({
           title: `Блиц-проверка: ${check.title}`,
-          text: `Пройди короткую проверку на 10 рабочих ситуаций (2–3 минуты): ${check.title}`,
+          text: shareText,
           url: shareUrl,
         });
         return;

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --port 4177 --host",
-    "build": "tsc -b && vite build",
+    "build": "node scripts/generate-wiki.mjs && tsc -b && vite build",
     "preview": "vite preview --port 4178 --host"
   },
   "dependencies": {

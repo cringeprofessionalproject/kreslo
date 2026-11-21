@@ -75,6 +75,14 @@ function NightChatSim({
   const [finished, setFinished] = useState(false);
 
   const step = scenario.steps[stepIdx];
+  const replyOrder = useMemo(() => {
+    const indices = step.replies.map((_, i) => i);
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    return indices;
+  }, [step]);
 
   useEffect(() => {
     setTyping(true);
@@ -120,6 +128,23 @@ function NightChatSim({
           <span className="chat-step-pill">
             {stepIdx + 1}/{scenario.steps.length}
           </span>
+          <button
+            type="button"
+            onClick={() => onComplete(0.75)}
+            aria-label="Закрыть"
+            style={{
+              marginLeft: 6,
+              width: 28,
+              height: 28,
+              borderRadius: 999,
+              border: '1px solid rgba(255,255,255,0.2)',
+              background: 'rgba(255,255,255,0.08)',
+              color: '#fff',
+              cursor: 'pointer',
+            }}
+          >
+            ✕
+          </button>
         </div>
 
         {!finished ? (
@@ -165,14 +190,14 @@ function NightChatSim({
               {!typing && pickedReplyIdx === null && (
                 <>
                   <div className="chat-prompt-label">⚡ Что ответишь в рабочий чат?</div>
-                  {step.replies.map((r, idx) => (
+                  {replyOrder.map((origIdx) => (
                     <button
-                      key={idx}
+                      key={origIdx}
                       type="button"
                       className="chat-reply-btn"
-                      onClick={() => chooseReply(idx)}
+                      onClick={() => chooseReply(origIdx)}
                     >
-                      {r.text}
+                      {step.replies[origIdx].text}
                     </button>
                   ))}
                 </>
@@ -197,7 +222,7 @@ function NightChatSim({
               Набрано очков адекватности: <b>{scoreSum}</b> из {maxScore}.
               {!standalone &&
                 (ratio >= 0.75
-                  ? ` Все 4 метрики выровнены к норме + выдан бонусный ${pack.lifelineIcon}!`
+                  ? ' Все 4 метрики выровнены к рабочей норме!'
                   : ' Метрики получили лёгкую встряску.')}
             </p>
             <button
@@ -345,9 +370,9 @@ function XrayScannerSim({
             <p>
               {!standalone
                 ? correctCount >= 2
-                  ? `Ни одна диверсия не прошла! Шкалы стабилизированы + бонусный ${pack.lifelineIcon}!`
-                  : 'Часть контрабанды просочилась, будь бдительнее со сканером!'
-                : 'Идеальный сюжет для записи челленджа в Reels!'}
+                  ? 'Ни одна уловка не прошла — показатели стабилизированы!'
+                  : 'Часть уловок просочилась, будь внимательнее к деталям.'
+                : 'Отличная разминка внимания к документам.'}
             </p>
             <button
               type="button"
@@ -461,9 +486,9 @@ function RedGreenFlagSim({
             <p>
               {!standalone
                 ? hits >= 3
-                  ? `Мощный иммунитет к лапше на уши! Все шкалы подтянуты к 50% + заряд ${pack.lifelineIcon}!`
-                  : 'Осторожнее с красивыми обещаниями без фактов!'
-                : 'А сколько флагов угадают в комментариях?!'}
+                  ? 'Отличная калибровка — все показатели подтянуты к норме!'
+                  : 'Осторожнее с красивыми обещаниями без фактов.'
+                : 'Быстрая проверка чутья завершена.'}
             </p>
             <button
               type="button"

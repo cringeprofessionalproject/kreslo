@@ -9,6 +9,7 @@ import {
   shareRecordedReelToGallery,
   type RecordedReelResult,
 } from '../game/reelVideoRecorder';
+import { getTelegramBotAppUrl } from '../game/telegramStars';
 import type { JobPack } from '../types';
 import { IconShare } from './Icons';
 import { useSheetPullToDismiss } from './useNativeGestures';
@@ -635,7 +636,7 @@ export function ReelReadyShareModal({
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const { sheetProps, backdropStyle } = useSheetPullToDismiss(onClose);
 
-  const captionText = `Моё прохождение «${pack.shortTitle}» · Опыт: ${masteryPct}% (${weeksSurvived}/36 смен) → ${window.location.href}`;
+  const captionText = `Моё прохождение «${pack.shortTitle}» · Опыт: ${masteryPct}% (${weeksSurvived}/36 смен) → ${getTelegramBotAppUrl(`pack_${pack.id}`)}`;
 
   const downloadVideoDirect = () => {
     sfxVictory();

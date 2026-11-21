@@ -57,7 +57,7 @@ function ensureCtx(): AudioContext | null {
       applyIosAudioSession('ambient');
     }
   }
-  if (ctx && ctx.state === 'suspended') {
+  if (ctx && (ctx.state === 'suspended' || (ctx.state as string) === 'interrupted')) {
     void ctx.resume().catch(() => {});
   }
   return ctx;
@@ -454,13 +454,31 @@ export function initSound(initialMutedOrProfile: boolean | SoundProfile = false)
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
+  const onVisibility = () => {
+    if (document.hidden) {
+      classicAudioEl?.pause();
+      if (grooveTimer !== null) {
+        window.clearInterval(grooveTimer);
+        grooveTimer = null;
+      }
+      if (ctx && ctx.state === 'running') {
+        void ctx.suspend().catch(() => {});
+      }
+    } else {
+      ensureCtx();
+      syncBackgroundMusic();
+    }
+  };
+
   window.addEventListener('pointerdown', unlock, { passive: true });
   window.addEventListener('touchend', onTouchEndFlush, { passive: true });
   window.addEventListener('keydown', unlock, { passive: true });
+  document.addEventListener('visibilitychange', onVisibility);
   return () => {
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('touchend', onTouchEndFlush);
     window.removeEventListener('keydown', unlock);
+    document.removeEventListener('visibilitychange', onVisibility);
     observer?.disconnect();
     if (rafWire) window.cancelAnimationFrame(rafWire);
     classicAudioEl?.pause();
@@ -478,8 +496,8 @@ export function setAudioMuted(nextMuted: boolean) {
 
 export function setSoundProfile(next: SoundProfile) {
   profile = next;
-  if (next !== 'off') {
-    applyIosAudioSession('playback');
+  if (next !== 'off' && !micDuckActive) {
+    applyIosAudioSession('ambient');
   }
   syncBackgroundMusic();
 }

@@ -30,62 +30,62 @@ interface PackPalette {
 
 const PALETTES: Record<PackId, PackPalette> = {
   it_product: {
-    bg: '#131E27',
-    bgDeep: '#0B1218',
-    glow: '#2C4A63',
-    suit: '#182634',
-    suitAlt: '#233242',
-    accent: '#E59F56',
+    bg: '#112247',
+    bgDeep: '#081126',
+    glow: '#254E9E',
+    suit: '#18305E',
+    suitAlt: '#23427D',
+    accent: '#4CC9F0',
     skinLight: '#F4EAD9',
     skinShade: '#DFCFB6',
   },
   smm_insta: {
-    bg: '#21161A',
-    bgDeep: '#120B0E',
-    glow: '#4E2D35',
-    suit: '#271B20',
-    suitAlt: '#36232B',
-    accent: '#EA7B5E',
+    bg: '#2E1228',
+    bgDeep: '#160813',
+    glow: '#6E2558',
+    suit: '#3B1933',
+    suitAlt: '#522347',
+    accent: '#FF6B9D',
     skinLight: '#F6EDE4',
     skinShade: '#E2CFC1',
   },
   sales_rop: {
-    bg: '#142029',
-    bgDeep: '#0B1218',
-    glow: '#274357',
-    suit: '#192834',
-    suitAlt: '#243747',
-    accent: '#E0A458',
+    bg: '#0D2C25',
+    bgDeep: '#061713',
+    glow: '#1B5E4E',
+    suit: '#143D34',
+    suitAlt: '#1E5448',
+    accent: '#34D399',
     skinLight: '#F3EAD9',
     skinShade: '#DDD0B8',
   },
   plastic_surgeon: {
-    bg: '#112427',
-    bgDeep: '#091517',
-    glow: '#234F54',
-    suit: '#18363A',
-    suitAlt: '#22474C',
-    accent: '#78CBC2',
+    bg: '#0E2D36',
+    bgDeep: '#06161B',
+    glow: '#1D6173',
+    suit: '#15424F',
+    suitAlt: '#1E5969',
+    accent: '#2DD4BF',
     skinLight: '#F2F6F5',
     skinShade: '#D7E3E1',
   },
   renovation_pro: {
-    bg: '#221C14',
-    bgDeep: '#130F0A',
-    glow: '#493A22',
-    suit: '#292218',
-    suitAlt: '#382E20',
-    accent: '#E6AD4F',
+    bg: '#341D11',
+    bgDeep: '#1A0E08',
+    glow: '#703D1F',
+    suit: '#422617',
+    suitAlt: '#593420',
+    accent: '#FBBF24',
     skinLight: '#F4ECDF',
     skinShade: '#DFD0BA',
   },
   wb_seller: {
-    bg: '#1E1627',
-    bgDeep: '#100B16',
-    glow: '#423057',
-    suit: '#251C31',
-    suitAlt: '#332643',
-    accent: '#DC9873',
+    bg: '#34114A',
+    bgDeep: '#190726',
+    glow: '#6D249C',
+    suit: '#43185E',
+    suitAlt: '#59227D',
+    accent: '#FF4DB8',
     skinLight: '#F4ECF3',
     skinShade: '#DFD0DD',
   },
@@ -120,12 +120,12 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinShade: '#DBD5C4',
   },
   pvz_december: {
-    bg: '#231915',
-    bgDeep: '#140D0B',
-    glow: '#4C3229',
-    suit: '#2A1E1A',
-    suitAlt: '#3A2923',
-    accent: '#E49756',
+    bg: '#2B142C',
+    bgDeep: '#150916',
+    glow: '#612863',
+    suit: '#3B1C3D',
+    suitAlt: '#512754',
+    accent: '#FF7A45',
     skinLight: '#F4EDE5',
     skinShade: '#E0D1C2',
   },
@@ -170,22 +170,22 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinShade: '#DCD4C7',
   },
   car_flipper: {
-    bg: '#231A14',
-    bgDeep: '#140E0A',
-    glow: '#4E3624',
-    suit: '#2A1F18',
-    suitAlt: '#3B2B21',
-    accent: '#E8A24E',
+    bg: '#2D1119',
+    bgDeep: '#16070B',
+    glow: '#692234',
+    suit: '#3D1722',
+    suitAlt: '#542030',
+    accent: '#FB7185',
     skinLight: '#F4ECE1',
     skinShade: '#DFCEBC',
   },
   barista_pro: {
-    bg: '#241913',
-    bgDeep: '#140D09',
-    glow: '#4F3526',
-    suit: '#2C1E16',
-    suitAlt: '#3D2A1F',
-    accent: '#E2A66B',
+    bg: '#2E1B12',
+    bgDeep: '#170D08',
+    glow: '#663B24',
+    suit: '#3D2418',
+    suitAlt: '#543222',
+    accent: '#F59E0B',
     skinLight: '#F6EEE4',
     skinShade: '#E2D2C1',
   },
@@ -200,12 +200,12 @@ const PALETTES: Record<PackId, PackPalette> = {
     skinShade: '#DFD1BD',
   },
   office_manager: {
-    bg: '#1B221E',
-    bgDeep: '#0F1411',
-    glow: '#35473D',
-    suit: '#222C26',
-    suitAlt: '#2F3D35',
-    accent: '#8ECFAA',
+    bg: '#231938',
+    bgDeep: '#110B1E',
+    glow: '#4B327A',
+    suit: '#2E214A',
+    suitAlt: '#3F2E63',
+    accent: '#FF6B57',
     skinLight: '#F5EFE7',
     skinShade: '#E0D5C7',
   },
@@ -270,15 +270,12 @@ const FEMALE_TOKENS = [
 
 function detectFemaleSpeaker(speaker: string, seed: number): boolean {
   const low = speaker.toLowerCase();
+  const words: string[] = low.match(/[а-яёa-z]+/g) ?? [];
   for (const tok of FEMALE_TOKENS) {
-    if (low.includes(tok)) return true;
+    if (words.includes(tok)) return true;
   }
-  const firstWord = low.split(/[\s,·()-]+/)[0] ?? '';
-  if (
-    firstWord.endsWith('а') ||
-    firstWord.endsWith('я')
-  ) {
-    // Исключаем мужские уменьшительные имена на -а/-я
+  const firstWord = words[0] ?? '';
+  if (firstWord.endsWith('а') || firstWord.endsWith('я')) {
     if (
       ![
         'гоша',
@@ -297,6 +294,10 @@ function detectFemaleSpeaker(speaker: string, seed: number): boolean {
         'серёжа',
         'сережа',
         'костя',
+        'толя',
+        'дядя',
+        'саня',
+        'женя',
       ].includes(firstWord)
     ) {
       return true;
@@ -680,6 +681,12 @@ export function EditorialCardPortrait({
         />
       )}
 
+      {/* Шея рисуется ДО воротника и костюма, чтобы не перекрывать водолазки */}
+      <rect x="168" y="113" width="24" height="25" rx="8" fill={pal.skinShade} />
+      {!hideFaceForCutout && (
+        <ellipse cx="180" cy="120" rx="12" ry="5" fill="rgba(0,0,0,0.22)" />
+      )}
+
       {/* ───────── 2. СЕМЬ СИЛУЭТОВ ОДЕЖДЫ И АКСЕССУАРОВ ПЛЕЧЕВОГО ПОЯСА ───────── */}
       {/* Базовый скульптурный торс со светотенью */}
       <path
@@ -798,27 +805,29 @@ export function EditorialCardPortrait({
           <circle cx="180" cy="154" r="3" fill={pal.accent} />
           <path d="M152 135 L178 176 M208 135 L182 176" stroke="rgba(255,255,255,0.22)" strokeWidth="1.5" fill="none" />
         </g>
-      ) : outfitKind === 5 ? (
-        /* Халат / аудит-френч со стетоскопом или ручкой в кармане */
+      ) : outfitKind === 5 && packId === 'plastic_surgeon' ? (
+        /* Медицинский халат со стетоскопом — строго в клинике */
         <g>
           <polygon points="158,134 180,170 202,134" fill="#F5F7F6" />
           <path d="M154 136 C150 162, 164 174, 172 174" fill="none" stroke={pal.accent} strokeWidth="2" />
           <circle cx="173" cy="174" r="4" fill={pal.accent} />
           <rect x="206" y="164" width="18" height="4" rx="2" fill={pal.accent} opacity="0.85" />
         </g>
-      ) : (
-        /* Ремесленный фартук / рабочая куртка с ремешком */
+      ) : outfitKind === 6 && packId === 'renovation_pro' ? (
+        /* Ремесленный фартук — только для стройки и кофейни */
         <g>
           <polygon points="160,134 180,160 200,134" fill={pal.skinLight} opacity="0.9" />
           <rect x="150" y="156" width="60" height="46" rx="4" fill="rgba(0,0,0,0.28)" stroke={pal.accent} strokeWidth="1.2" />
           <line x1="156" y1="135" x2="156" y2="156" stroke={pal.accent} strokeWidth="2.4" />
           <line x1="204" y1="135" x2="204" y2="156" stroke={pal.accent} strokeWidth="2.4" />
         </g>
+      ) : (
+        /* Современный блейзер поверх футболки */
+        <g>
+          <polygon points="160,134 180,168 200,134" fill="#F4F1EA" />
+          <path d="M154 134 L176 174 M206 134 L184 174" stroke={pal.accent} strokeWidth="1.6" fill="none" opacity="0.7" />
+        </g>
       )}
-
-      {/* Шея с мягкой анатомической тенью (остаётся и для живого ИИ-лица!) */}
-      <rect x="168" y="113" width="24" height="25" rx="8" fill={pal.skinShade} />
-      <ellipse cx="180" cy="120" rx="12" ry="5" fill="rgba(0,0,0,0.22)" />
 
       {/* ───────── 3. СКУЛЬПТУРНАЯ ГОЛОВА, ПРИЧЁСКИ, ОЧКИ И МИМИКА ───────── */}
       {!hideFaceForCutout && (
@@ -989,66 +998,72 @@ export function EditorialCardPortrait({
               <circle cx="167" cy="85" r="2.5" fill="#FFFFFF" />
               <circle cx="193" cy="85" r="2.5" fill="#FFFFFF" />
             </g>
-          ) : glassesKind === 0 ? (
-            /* Архитектурная прямоугольная оправа */
-            <g>
-              <rect
-                x="155"
-                y="79"
-                width="20"
-                height="13"
-                rx="3.5"
-                fill="rgba(20,28,26,0.16)"
-                stroke="#181614"
-                strokeWidth="2.1"
-              />
-              <rect
-                x="185"
-                y="79"
-                width="20"
-                height="13"
-                rx="3.5"
-                fill="rgba(20,28,26,0.16)"
-                stroke="#181614"
-                strokeWidth="2.1"
-              />
-              <line x1="175" y1="84" x2="185" y2="84" stroke="#181614" strokeWidth="2" />
-            </g>
-          ) : glassesKind === 1 ? (
-            /* Круглые интеллигентные очки в тонкой оправе */
-            <g>
-              <circle
-                cx="165"
-                cy="85"
-                r="9"
-                fill="rgba(200,155,79,0.1)"
-                stroke="#221E1A"
-                strokeWidth="1.9"
-              />
-              <circle
-                cx="195"
-                cy="85"
-                r="9"
-                fill="rgba(200,155,79,0.1)"
-                stroke="#221E1A"
-                strokeWidth="1.9"
-              />
-              <line x1="174" y1="85" x2="186" y2="85" stroke="#221E1A" strokeWidth="1.8" />
-            </g>
-          ) : glassesKind === 2 ? (
-            /* Полуободковые клабмастеры */
-            <g>
-              <path d="M154 80 H176 M184 80 H206" stroke="#181614" strokeWidth="2.8" strokeLinecap="round" />
-              <rect x="155" y="80" width="20" height="12" rx="5" fill="rgba(20,28,26,0.12)" stroke="#181614" strokeWidth="1.4" />
-              <rect x="185" y="80" width="20" height="12" rx="5" fill="rgba(20,28,26,0.12)" stroke="#181614" strokeWidth="1.4" />
-              <line x1="175" y1="83" x2="185" y2="83" stroke="#181614" strokeWidth="1.8" />
-            </g>
           ) : (
-            /* Выразительный взгляд без очков */
-            <g fill="#181614">
-              <circle cx="166" cy="84.5" r="2.6" />
-              <circle cx="194" cy="84.5" r="2.6" />
-            </g>
+            <>
+              {/* Зрачки рисуются ДО прозрачных линз очков */}
+              <g fill="#181614">
+                <circle cx="166" cy="84.5" r="2.6" />
+                <circle cx="194" cy="84.5" r="2.6" />
+              </g>
+              {glassesKind === 0 ? (
+                <g>
+                  <line x1="147" y1="84" x2="155" y2="84" stroke="#181614" strokeWidth="1.8" />
+                  <line x1="205" y1="84" x2="213" y2="84" stroke="#181614" strokeWidth="1.8" />
+                  <rect
+                    x="155"
+                    y="79"
+                    width="20"
+                    height="13"
+                    rx="3.5"
+                    fill="rgba(20,28,26,0.12)"
+                    stroke="#181614"
+                    strokeWidth="2.1"
+                  />
+                  <rect
+                    x="185"
+                    y="79"
+                    width="20"
+                    height="13"
+                    rx="3.5"
+                    fill="rgba(20,28,26,0.12)"
+                    stroke="#181614"
+                    strokeWidth="2.1"
+                  />
+                  <line x1="175" y1="84" x2="185" y2="84" stroke="#181614" strokeWidth="2" />
+                </g>
+              ) : glassesKind === 1 ? (
+                <g>
+                  <line x1="147" y1="85" x2="156" y2="85" stroke="#221E1A" strokeWidth="1.6" />
+                  <line x1="204" y1="85" x2="213" y2="85" stroke="#221E1A" strokeWidth="1.6" />
+                  <circle
+                    cx="165"
+                    cy="85"
+                    r="9"
+                    fill="rgba(200,155,79,0.08)"
+                    stroke="#221E1A"
+                    strokeWidth="1.9"
+                  />
+                  <circle
+                    cx="195"
+                    cy="85"
+                    r="9"
+                    fill="rgba(200,155,79,0.08)"
+                    stroke="#221E1A"
+                    strokeWidth="1.9"
+                  />
+                  <line x1="174" y1="85" x2="186" y2="85" stroke="#221E1A" strokeWidth="1.8" />
+                </g>
+              ) : glassesKind === 2 ? (
+                <g>
+                  <line x1="147" y1="83" x2="155" y2="83" stroke="#181614" strokeWidth="1.8" />
+                  <line x1="205" y1="83" x2="213" y2="83" stroke="#181614" strokeWidth="1.8" />
+                  <path d="M154 80 H176 M184 80 H206" stroke="#181614" strokeWidth="2.8" strokeLinecap="round" />
+                  <rect x="155" y="80" width="20" height="12" rx="5" fill="rgba(20,28,26,0.1)" stroke="#181614" strokeWidth="1.4" />
+                  <rect x="185" y="80" width="20" height="12" rx="5" fill="rgba(20,28,26,0.1)" stroke="#181614" strokeWidth="1.4" />
+                  <line x1="175" y1="83" x2="185" y2="83" stroke="#181614" strokeWidth="1.8" />
+                </g>
+              ) : null}
+            </>
           )}
 
           {/* Нос и мимика губ (или медицинская маска у части врачей) */}
@@ -1110,8 +1125,8 @@ export function EditorialCardPortrait({
         </g>
       )}
 
-      {/* ───────── 4. УНИКАЛЬНАЯ ПРОФЕССИОНАЛЬНАЯ ЭМБЛЕМА ДЛЯ КАЖДОЙ ИЗ 19 ПРОФЕССИЙ ───────── */}
-      <g transform="translate(292, 134)" stroke={pal.accent} strokeWidth="1.6" fill="none">
+      {/* ───────── 4. ПРОФЕССИОНАЛЬНАЯ ЭМБЛЕМА В SAFE-ZONE СМАРТФОНА ───────── */}
+      <g transform="translate(226, 144)" stroke={pal.accent} strokeWidth="1.6" fill="none">
         <rect
           x="0"
           y="0"

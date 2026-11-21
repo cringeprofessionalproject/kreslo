@@ -1,9 +1,12 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
+import { rememberActiveBotFromUrl } from './game/telegramStars';
 import './styles.css';
 
-// Мягкая инициализация Telegram Mini App (если открыто внутри @heuristic_p1_bot)
+rememberActiveBotFromUrl();
+
+// Инициализация Telegram Mini App (@vkreslegame)
 function initTelegramMiniApp() {
   const tg = (
     window as unknown as {
@@ -23,8 +26,8 @@ function initTelegramMiniApp() {
     tg.ready?.();
     tg.expand?.();
     tg.disableVerticalSwipes?.();
-    tg.setHeaderColor?.('#0d1512');
-    tg.setBackgroundColor?.('#0d1512');
+    tg.setHeaderColor?.('#120e1e');
+    tg.setBackgroundColor?.('#120e1e');
   } catch {
     // ignore outside Telegram
   }
@@ -41,12 +44,6 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
         reg.update().catch(() => {});
       })
       .catch(() => {});
-    let refreshing = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      if (refreshing) return;
-      refreshing = true;
-      window.location.reload();
-    });
   });
 }
 

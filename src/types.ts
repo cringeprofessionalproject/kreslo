@@ -32,6 +32,19 @@ export interface ProKnowledgeEntry {
   crowdFailPct: number;
 }
 
+export interface RealHistoricalCase {
+  /** Чей реальный кейс или знаменитый провал зашит в дилемму */
+  person: string;
+  year: string;
+  /** 'win' — легендарный сильный ход; 'blunder' — знаменитый исторический тупняк */
+  kind: 'win' | 'blunder';
+  /** Какой стороне карточки (в исходнике до зеркалирования) соответствует поступок реального прототипа */
+  matchingSide: 'left' | 'right';
+  headline: string;
+  story: string;
+  source: string;
+}
+
 export interface DilemmaCard {
   id: string;
   speaker: string;
@@ -46,6 +59,8 @@ export interface DilemmaCard {
   left: ChoiceOption;
   right: ChoiceOption;
   oncePerRun?: boolean;
+  /** Скрытый реальный кейс или знаменитый тупняк — раскрывается только в финальном хайлайте и на Вики */
+  realCase?: RealHistoricalCase;
 }
 
 export interface EndingDef {
@@ -148,6 +163,7 @@ export interface PersistentMeta {
   bestIqByPack: Record<string, number>;
   checkpointBlockByPack: Record<string, 1 | 2 | 3>; // Открытый чекпоинт блока (1, 2 или 3)
   unlockedBlockByPack?: Record<string, 1 | 2 | 3>; // Поэтапно открытый модуль (1 -> 2 -> 3)
+  deathsTotal?: number; // Общее число срывов смены (после 3-го включается гача-предложение продолжить за ★)
   attemptsByPack: Record<string, number>;
   unlockedEndings: string[];
   proUnlocked: boolean;

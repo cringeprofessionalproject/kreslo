@@ -22,7 +22,15 @@ export function useSheetPullToDismiss(onDismiss: () => void) {
 
   const onPointerDown = (e: React.PointerEvent<HTMLElement>) => {
     const el = e.currentTarget;
-    // Если внутри шторки прокрутили список вниз — не перехватываем обычный скролл
+    // Проверяем как саму шторку, так и любой скроллящийся вложенный блок
+    let node = e.target as HTMLElement | null;
+    while (node && node !== el) {
+      if (node.scrollTop > 2) {
+        gestureLockedRef.current = 'ignore';
+        return;
+      }
+      node = node.parentElement;
+    }
     if (el.scrollTop > 4) {
       gestureLockedRef.current = 'ignore';
       return;
@@ -90,6 +98,9 @@ export function useSheetPullToDismiss(onDismiss: () => void) {
       setOffsetY(window.innerHeight);
       window.setTimeout(() => {
         onDismiss();
+        // Если шторка осталась смонтированной (например, отменили оплату), возвращаем её обратно без soft-lock!
+        setIsClosing(false);
+        setOffsetY(0);
       }, 220);
     } else {
       setOffsetY(0);

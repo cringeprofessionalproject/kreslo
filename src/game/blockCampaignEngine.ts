@@ -55,6 +55,12 @@ export function getBlockForWeek(week: number): BlockMetaInfo {
  * и Блока III (смены 25–36), адаптирующиеся под терминологию выбранной должности.
  */
 export function buildEscalationDeckForPack(pack: JobPack): DilemmaCard[] {
+  // Если в флагманской колоде уже есть собственные профильные карточки Блоков 2 и 3 — не подмешиваем чужие офисные шаблоны!
+  const ownLateCount = pack.deckCards.filter((c) => (c.blockMin ?? 1) >= 2).length;
+  if (ownLateCount >= 6) {
+    return [];
+  }
+
   const p1 = pack.pillars[0].label;
   const p2 = pack.pillars[1].label;
   const p3 = pack.pillars[2].label;

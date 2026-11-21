@@ -272,11 +272,11 @@ export async function renderEditorialSharePoster(params: ShareCardParams): Promi
   c.font = '600 27px -apple-system, BlinkMacSystemFont, sans-serif';
   c.fillText(`${stripEmojis(rank.title)} · Лучше ${rank.percentile}% игроков`, innerX + 34, curY + 108);
 
-  // Нижняя строка приложения
-  c.fillStyle = '#7E8D86';
-  c.font = '600 25px ui-monospace, monospace';
+  // Нижняя строка приложения с адресом бота @vkreslegame
+  c.fillStyle = '#B8C4BE';
+  c.font = '700 26px ui-monospace, monospace';
   c.textAlign = 'center';
-  c.fillText('КРЕСЛО  ·  Симулятор рабочих решений', 540, 1796);
+  c.fillText('КРЕСЛО  ·  @vkreslegame', 540, 1796);
   c.textAlign = 'left';
 
   const previewDataUrl = canvas.toDataURL('image/png');

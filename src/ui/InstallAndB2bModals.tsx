@@ -3,6 +3,7 @@ import { sfxCoffeeSave, sfxVictory } from '../audio';
 import { fetchServerAggregateStats, type ServerAggregateStats } from '../game/anonymousPulse';
 import { JOB_PACKS } from '../game/packs';
 import { PRO_VAULT_CHEATSHEETS, type ProVaultDoc } from '../game/proInsights';
+import { getTelegramBotAppUrl } from '../game/telegramStars';
 import type { PersistentMeta } from '../types';
 import { IconClose } from './Icons';
 import { useSheetPullToDismiss } from './useNativeGestures';
@@ -45,7 +46,7 @@ export function InstallHomeScreenModal({
   const copyGameLink = async () => {
     sfxCoffeeSave();
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      await navigator.clipboard.writeText(getTelegramBotAppUrl());
       setLinkCopied(true);
       window.setTimeout(() => setLinkCopied(false), 2500);
     } catch {

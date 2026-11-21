@@ -225,7 +225,7 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
   // ─────────────────────────────────────────────────────────────────────────────
   {
     id: 'genz_work_fit',
-    slug: 'genz',
+    slug: 'team',
     group: 'standards',
     title: 'Командная этика и рабочая база',
     shortTitle: 'Рабочая база',
@@ -1273,5 +1273,8 @@ export const SKILL_CHECKS: SkillCheckDef[] = [
 ];
 
 export function getSkillCheckById(idOrSlug: string): SkillCheckDef | undefined {
+  if (idOrSlug === 'genz') {
+    return SKILL_CHECKS.find((c) => c.id === 'genz_work_fit');
+  }
   return SKILL_CHECKS.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
 }

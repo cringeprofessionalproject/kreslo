@@ -70,35 +70,36 @@ function withMeta(
   };
 }
 
-// 19 симуляторов: 12 прикладных специальностей («Рабочая практика») + 7 сюжетных историй («Сюжетные истории»)
+// Золотая девятка флагманских колод для витрины «КРЕСЛО» (прокачаны на 36 смен с реальными кейсами и тупняками)
+export const SHOWCASE_PACKS: JobPack[] = [
+  withMeta(OFFICE_MANAGER_PACK, 'market_media', 'practice', 'Интриги, шеф и дедлайны', 'Офис на грани'),
+  withMeta(SALES_ROP_PACK, 'market_media', 'practice', 'Сделки, давление и команда', 'Переговоры и Босс продаж'),
+  withMeta(IT_PRODUCT_PACK_ALIAS(), 'tech_b2b', 'practice', 'Продукт, метрики и релизы'),
+  withMeta(RENOVATION_PRO_PACK, 'real_sector', 'practice', 'Архитектура, смета и стройка'),
+  withMeta(BARISTA_PRO_PACK, 'real_sector', 'practice', 'Гости, касса и команда', 'Своя кофейня'),
+
+  withMeta(PVZ_MANAGER_PACK, 'market_media', 'story', 'Сюжет · Пиковый сезон'),
+  withMeta(WB_SELLER_PACK, 'market_media', 'story', 'Сюжет · Поставки и маркетплейсы'),
+  withMeta(CAR_FLIPPER_PACK, 'real_sector', 'story', 'Сюжет · Вторичный авторынок', 'Автоподбор и Перекуп'),
+  withMeta(PLASTIC_SURGEON_PACK, 'real_sector', 'story', 'Сюжет · Частная клиника'),
+];
+
+function IT_PRODUCT_PACK_ALIAS(): JobPack {
+  return PRODUCT_MANAGER_PACK;
+}
+
+// Полный реестр всех 20 колод (включая резервные колоды для совместимости сохранений и проверок)
 export const JOB_PACKS: JobPack[] = [
-  // ── I. РАБОЧАЯ ПРАКТИКА И СПЕЦИАЛЬНОСТИ (12) ──
-  withMeta(PRODUCT_MANAGER_PACK, 'tech_b2b', 'practice', 'Продукт, метрики и релизы'),
+  ...SHOWCASE_PACKS,
   withMeta(NVC_MASTER_PACK, 'market_media', 'practice', 'Ненасильственное общение и границы'),
   withMeta(SALES_MANAGER_PACK, 'market_media', 'practice', 'Продажи, сделки и клиенты'),
-  withMeta(SALES_ROP_PACK, 'market_media', 'practice', 'Управление отделом продаж и B2B'),
-  withMeta(OFFICE_MANAGER_PACK, 'market_media', 'practice', 'Операционка и документооборот'),
   withMeta(SCS_DESIGNER_PACK, 'tech_b2b', 'practice', 'Инженерия и кабельные системы'),
   withMeta(CCTV_INSTALLER_PACK, 'real_sector', 'practice', 'Слаботочные системы и объекты'),
   withMeta(SEC_SYSADMIN_PACK, 'tech_b2b', 'practice', 'Инфраструктура и защита данных'),
   withMeta(IT_FIN_DIRECTOR_PACK, 'tech_b2b', 'practice', 'Финансы, налоги и учёт'),
   withMeta(TENDER_SPEC_PACK, 'tech_b2b', 'practice', 'Госзакупки и контракты'),
   withMeta(UX_DESIGNER_PACK, 'tech_b2b', 'practice', 'Интерфейсы и дизайн-системы'),
-  withMeta(BARISTA_PRO_PACK, 'real_sector', 'practice', 'Кофе, касса и сервис'),
-  withMeta(RENOVATION_PRO_PACK, 'real_sector', 'practice', 'Архитектура, смета и стройка'),
-
-  // ── II. СЮЖЕТНЫЕ ИСТОРИИ (7) ──
   withMeta(AI_AGENT_PACK, 'tech_b2b', 'story', 'Сюжет · Взгляд изнутри нейросети'),
-  withMeta(
-    CAR_FLIPPER_PACK,
-    'real_sector',
-    'story',
-    'Сюжет · Вторичный авторынок',
-    'Автоподбор и перепродажа'
-  ),
-  withMeta(PVZ_MANAGER_PACK, 'market_media', 'story', 'Сюжет · Пиковый сезон'),
-  withMeta(PLASTIC_SURGEON_PACK, 'real_sector', 'story', 'Сюжет · Частная клиника'),
-  withMeta(WB_SELLER_PACK, 'market_media', 'story', 'Сюжет · Поставки и маркетплейсы'),
   withMeta(SMM_PRODUCER_PACK, 'market_media', 'story', 'Сюжет · Медиа и дедлайны'),
   withMeta(HR_RECRUITER_PACK, 'market_media', 'story', 'Сюжет · Подбор и команда'),
 ];

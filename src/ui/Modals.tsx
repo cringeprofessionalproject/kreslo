@@ -6,6 +6,8 @@ import {
   type RecordedReelResult,
 } from '../game/reelVideoRecorder';
 import { renderEditorialSharePoster } from '../game/shareCardRenderer';
+import type { RunSwipeHighlight } from '../game/shortsHighlightBuilder';
+import { pickBestRealCaseForHighlight } from '../game/shortsHighlightBuilder';
 import {
   getTelegramStarsPriceForPack,
   isRunningInsideTelegramMiniApp,
@@ -110,6 +112,7 @@ interface BlockIntermissionProps {
   isNextBlockUnlocked: boolean;
   onContinueNextBlock: () => void;
   onUnlockMoreAndContinue: () => void;
+  onBackToHub: () => void;
 }
 
 export function BlockIntermissionModal({
@@ -122,14 +125,28 @@ export function BlockIntermissionModal({
   isNextBlockUnlocked,
   onContinueNextBlock,
   onUnlockMoreAndContinue,
+  onBackToHub,
 }: BlockIntermissionProps) {
   const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 80;
-  const primaryAction = isNextBlockUnlocked ? onContinueNextBlock : onUnlockMoreAndContinue;
-  const { sheetProps, backdropStyle } = useSheetPullToDismiss(primaryAction);
+  // Свайп вниз закрывает в каталог (а не вызывает оплату!)
+  const dismissAction = isNextBlockUnlocked ? onContinueNextBlock : onBackToHub;
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(dismissAction);
+  const targetBlk = nextBlock.blockNum === 3 ? 3 : 2;
+  const blockStars = getTelegramStarsPriceForPack(pack.id, targetBlk);
 
   return (
-    <div className="overlay-backdrop" style={backdropStyle}>
-      <div className="ending-sheet native-ios-sheet" {...sheetProps}>
+    <div
+      className="overlay-backdrop"
+      style={backdropStyle}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) dismissAction();
+      }}
+    >
+      <div
+        className="ending-sheet native-ios-sheet"
+        {...sheetProps}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="sheet-grabber-bar" />
         <span className="eyebrow-tag">РУБЕЖ ПРОЙДЕН · ЧЕКПОИНТ СОХРАНЁН</span>
 
@@ -175,22 +192,78 @@ export function BlockIntermissionModal({
             Продолжить · Смена {nextBlock.startWeek} →
           </button>
         ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+            <button
+              type="button"
+              className={`cta-btn primary big ${
+                nextBlock.blockNum === 3 ? 'tier-unlock-polychrome' : 'tier-unlock-foil'
+              }`}
+              onClick={onUnlockMoreAndContinue}
+            >
+              {isRunningInsideTelegramMiniApp()
+                ? `Открыть Блок ${targetBlk} · ${blockStars} ★ →`
+                : `Открыть Блок ${targetBlk} в Telegram · ${blockStars} ★ →`}
+            </button>
+            <button type="button" className="cta-btn subtle" onClick={onBackToHub}>
+              К выбору колоды
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ───────── 2.5. ГАЧА-СПАСЕНИЕ «УДЕРЖАТЬ КРЕСЛО С ЭТОЙ СМЕНЫ» (ПОСЛЕ 3-ГО СРЫВА ИЛИ В БЛОКАХ 2–3) ─────────
+
+export function GachaContinueModal({
+  pack,
+  week,
+  crashedStatLabel,
+  starsPrice,
+  onAcceptSave,
+  onDeclineAndFinish,
+}: {
+  pack: JobPack;
+  week: number;
+  crashedStatLabel: string;
+  starsPrice: number;
+  onAcceptSave: () => void;
+  onDeclineAndFinish: () => void;
+}) {
+  const { sheetProps, backdropStyle } = useSheetPullToDismiss(onDeclineAndFinish);
+  return (
+    <div className="overlay-backdrop" style={backdropStyle} onClick={onDeclineAndFinish}>
+      <div
+        className="ending-sheet native-ios-sheet"
+        {...sheetProps}
+        onClick={(e) => e.stopPropagation()}
+        style={{ maxWidth: 410 }}
+      >
+        <div className="sheet-grabber-bar" />
+        <span className="eyebrow-tag" style={{ color: '#fbbf24' }}>
+          СРЫВ НА {week}-й СМЕНЕ ИЗ 36 · «{crashedStatLabel.toUpperCase()}»
+        </span>
+        <h2 className="sheet-serif-title" style={{ marginTop: 6 }}>
+          Удержать кресло с этого хода?
+        </h2>
+        <p className="ending-desc">
+          Сработает экстренный резерв (<b>{pack.lifelineName}</b>): критический показатель вернётся
+          в рабочую зону, и вы продолжите партию прямо с <b>{week}-й смены</b> без потери прогресса.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, width: '100%', marginTop: 10 }}>
           <button
             type="button"
-            className={`cta-btn primary big ${
-              nextBlock.blockNum === 3 ? 'tier-unlock-polychrome' : 'tier-unlock-foil'
-            }`}
-            onClick={onUnlockMoreAndContinue}
+            className="cta-btn primary big tier-unlock-foil"
+            onClick={onAcceptSave}
           >
-            {nextBlock.blockNum === 3
-              ? isRunningInsideTelegramMiniApp()
-                ? `Открыть Блок 3 · ${getTelegramStarsPriceForPack(pack.id)} ★ →`
-                : 'Открыть Блок 3 →'
-              : isRunningInsideTelegramMiniApp()
-                ? `Открыть Блок 2 · ${getTelegramStarsPriceForPack(pack.id)} ★ →`
-                : 'Открыть Блок 2 →'}
+            {pack.lifelineIcon || '☕'} Продолжить с {week}-й смены · {starsPrice} ★
           </button>
-        )}
+          <button type="button" className="cta-btn subtle" onClick={onDeclineAndFinish}>
+            Завершить смену и посмотреть итог
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -210,10 +283,13 @@ interface EndingModalProps {
   iqTotal: number;
   isPackFullyUnlocked: boolean;
   decisionLog?: { id: string; title: string; fact: string; wasSmart: boolean }[];
+  runSwipeHighlights?: RunSwipeHighlight[];
   faceSnapshotUrl?: string | null;
   recordedReel?: RecordedReelResult | null;
   isFinalizingReel?: boolean;
   onOpenRecordedReel?: () => void;
+  onOpenShortsCombain?: () => void;
+  onOpenDuelChallenge?: () => void;
   onStartReactionRun?: () => void;
   onTrackShare: () => void;
   onUnlockMoreFromEnding: () => void;
@@ -235,10 +311,13 @@ export function EndingModal({
   iqTotal,
   isPackFullyUnlocked,
   decisionLog,
+  runSwipeHighlights,
   faceSnapshotUrl,
   recordedReel,
   isFinalizingReel,
-  onOpenRecordedReel,
+  onOpenRecordedReel: _onOpenRecordedReel,
+  onOpenShortsCombain,
+  onOpenDuelChallenge,
   onTrackShare,
   onUnlockMoreFromEnding,
   onRestartFromCheckpoint,
@@ -478,22 +557,72 @@ export function EndingModal({
           );
         })()}
 
+        {(() => {
+          const rcBundle = pickBestRealCaseForHighlight(pack, runSwipeHighlights ?? []);
+          if (!rcBundle) return null;
+          const rc = rcBundle.realCase;
+          const isBlunder = rc.kind === 'blunder';
+          return (
+            <div
+              style={{
+                padding: '11px 13px',
+                borderRadius: 14,
+                marginBottom: 10,
+                background: isBlunder ? 'rgba(244, 63, 94, 0.11)' : 'rgba(16, 185, 129, 0.11)',
+                border: `1px solid ${
+                  isBlunder ? 'rgba(244, 63, 94, 0.34)' : 'rgba(16, 185, 129, 0.34)'
+                }`,
+                textAlign: 'left',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 10.5,
+                  fontWeight: 800,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: isBlunder ? '#fda4af' : '#6ee7b7',
+                  marginBottom: 3,
+                }}
+              >
+                {isBlunder
+                  ? `💀 Реальный тупняк истории · ${rc.person} (${rc.year})`
+                  : `🏛 Реальный кейс истории · ${rc.person} (${rc.year})`}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>{rc.headline}</div>
+              <div style={{ fontSize: 12, opacity: 0.86, lineHeight: 1.38 }}>{rc.story}</div>
+              <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 4 }}>Пруф: {rc.source}</div>
+            </div>
+          );
+        })()}
+
         {!isPackFullyUnlocked && !unlockedJustNow && (
           <button
             type="button"
             className="ee-unlock-inline"
             onClick={() => {
-              sfxVictory();
-              setUnlockedJustNow(true);
               onUnlockMoreFromEnding();
             }}
           >
-            <span>Доступны Блоки II и III (до 36-й смены)</span>
-            <b>Открыть ещё →</b>
+            <span>Открыть следующий модуль (до 36-й смены)</span>
+            <b>Продолжить →</b>
           </button>
         )}
 
         <div className="ee-actions">
+          {onOpenShortsCombain && (
+            <button
+              type="button"
+              className="cta-btn primary big"
+              onClick={onOpenShortsCombain}
+              style={{
+                background: 'linear-gradient(120deg, #ff6b57 0%, #ff3ca6 100%)',
+                color: '#fff',
+              }}
+            >
+              🎬 Собрать Shorts-хайлайт (13.5 сек)
+            </button>
+          )}
           {showVideoControls && (
             <button
               type="button"
@@ -537,16 +666,22 @@ export function EndingModal({
           )}
 
           <div className="two-col-btns">
-            <button
-              type="button"
-              className="cta-btn subtle icon-inline-btn"
-              onClick={handlePosterShareClick}
-            >
-              <IconShare size={16} />
-              <span>Скрин</span>
-            </button>
+            {onOpenDuelChallenge ? (
+              <button type="button" className="cta-btn subtle" onClick={onOpenDuelChallenge}>
+                ⚔️ Дуэль с другом
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="cta-btn subtle icon-inline-btn"
+                onClick={handlePosterShareClick}
+              >
+                <IconShare size={16} />
+                <span>Скрин</span>
+              </button>
+            )}
             <button type="button" className="cta-btn subtle" onClick={onSwitchPack}>
-              К курсам
+              К колодам
             </button>
           </div>
         </div>

@@ -121,6 +121,7 @@ export const PRO_VAULT_CHEATSHEETS: ProVaultDoc[] = [
 
 export function isPackFullyUnlocked(meta: PersistentMeta, packId: PackId): boolean {
   if (meta.proUnlocked) return true;
+  if ((meta.unlockedBlockByPack?.[packId] ?? 1) >= 3) return true;
   return (meta.adUnlockedPacks ?? []).includes(packId);
 }
 

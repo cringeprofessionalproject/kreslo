@@ -36,11 +36,19 @@ import {
   getBlockForWeek,
   type BlockMetaInfo,
 } from './game/blockCampaignEngine';
-import { getJobPack, JOB_PACKS } from './game/packs';
+import { getJobPack, SHOWCASE_PACKS } from './game/packs';
 import { getProInsightForCard, isPackFullyUnlocked } from './game/proInsights';
+import { parseDuelRouteFromWindow, type DuelGhostData } from './game/duelMode';
+import type { RunSwipeHighlight } from './game/shortsHighlightBuilder';
 import {
+  GACHA_FREE_DEATHS_GRACE,
+  getGachaSaveStarsPrice,
   getTelegramStarsPriceForPack,
+  hydratePurchasesFromTelegramCloud,
+  openTelegramDeepLinkOutsideTma,
   openTelegramStarsCheckout,
+  openTelegramStarsSaveCheckout,
+  syncPurchasesToTelegramCloud,
 } from './game/telegramStars';
 import {
   captureFaceSnapshotDataUrl,
@@ -89,9 +97,12 @@ import {
 import {
   BlockIntermissionModal,
   EndingModal,
+  GachaContinueModal,
   MetricInfoModal,
   MuseumModal,
 } from './ui/Modals';
+import { DuelExperienceModal } from './ui/DuelExperienceModal';
+import { ShortsCombainModal } from './ui/ShortsCombainModal';
 import { ProInsightModal } from './ui/PaywallAndSponsorModal';
 import { CameraLocalNoticeModal, PrivacyZeroPiiModal } from './ui/PrivacyAndCameraNoticeModal';
 import {
@@ -132,11 +143,12 @@ const DEFAULT_TELEMETRY: TelemetryStats = {
 };
 
 const DEFAULT_META: PersistentMeta = {
-  selectedPackId: 'it_product',
+  selectedPackId: 'office_manager',
   bestWeeksByPack: {},
   bestIqByPack: {},
   checkpointBlockByPack: {},
   unlockedBlockByPack: {},
+  deathsTotal: 0,
   attemptsByPack: {},
   unlockedEndings: [],
   proUnlocked: false,
@@ -158,7 +170,7 @@ function loadMeta(): PersistentMeta {
     return {
       ...DEFAULT_META,
       ...parsed,
-      selectedPackId: parsed.selectedPackId ?? 'it_product',
+      selectedPackId: parsed.selectedPackId ?? 'office_manager',
       soundProfile: parsed.soundProfile ?? (parsed.muted ? 'off' : 'groove'),
       adUnlockedPacks: Array.isArray(parsed.adUnlockedPacks) ? parsed.adUnlockedPacks : [],
       bestIqByPack: parsed.telemetry ? (parsed.bestIqByPack ?? {}) : {},
@@ -357,10 +369,17 @@ function OutgoingCardGhost({
   const chosenText =
     snapshot.side === 'left' ? snapshot.card.left.label : snapshot.card.right.label;
 
+  const ghostTierCls =
+    snapshot.blockNum === 3
+      ? 'card-tier-polychrome'
+      : snapshot.blockNum === 2
+        ? 'card-tier-foil'
+        : '';
+
   return (
     <div
       ref={ghostRef}
-      className={`dilemma-card apple-spring-card outgoing-ghost-card exit-${snapshot.side}`}
+      className={`dilemma-card apple-spring-card outgoing-ghost-card ${ghostTierCls} exit-${snapshot.side}`}
     >
       <div className="dc-portrait-area">
         {snapshot.card.videoClip ? (
@@ -655,6 +674,21 @@ function DrawerSheet({
             className="drawer-row-btn"
             onClick={() => {
               onClose();
+              window.open('./wiki.html', '_blank', 'noopener,noreferrer');
+            }}
+          >
+            <IconArchive size={18} />
+            <div>
+              <strong>Фандом · Кодекс весов и кейсов</strong>
+              <small>Точные веса карточек, формулы и архив реальных тупняков</small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="drawer-row-btn"
+            onClick={() => {
+              onClose();
               onOpenPrivacy();
             }}
           >
@@ -813,6 +847,27 @@ export function App() {
   const [activeEnding, setActiveEnding] = useState<{ def: EndingDef; isNew: boolean } | null>(null);
   const [endlessMode, setEndlessMode] = useState(false);
   const [museumOpen, setMuseumOpen] = useState(false);
+
+  // v39: Шортс-комбайн, Блиц-дуэль и Гача-спасение за Stars
+  const [runSwipeHighlights, setRunSwipeHighlights] = useState<RunSwipeHighlight[]>([]);
+  const [shortsCombainOpen, setShortsCombainOpen] = useState(false);
+  const [duelModalState, setDuelModalState] = useState<{
+    open: boolean;
+    ghost: DuelGhostData | null;
+  }>(() => {
+    const g = parseDuelRouteFromWindow();
+    return g ? { open: true, ghost: g } : { open: false, ghost: null };
+  });
+  const [savesUsedInRun, setSavesUsedInRun] = useState(0);
+  const [pendingGachaCrash, setPendingGachaCrash] = useState<{
+    endDef: EndingDef;
+    isNew: boolean;
+    crashedStatLabel: string;
+    nextWeek: number;
+    nextFlags: Set<string>;
+    nextUsed: Set<string>;
+    nextQ: QueuedEvent[];
+  } | null>(null);
 
   // Квантованный стейт предпросмотра для шкал и шторки (обновляется только при смене шага, без 120fps нагрузки на React!)
   const [swipePreview, setSwipePreview] = useState<{
@@ -988,8 +1043,31 @@ export function App() {
     setSoundProfile(meta.soundProfile ?? 'groove');
   }, [meta.soundProfile]);
 
+  // Гидратация покупок из облака Telegram (работает между телефоном, планшетом и ноутбуком)
+  useEffect(() => {
+    void hydratePurchasesFromTelegramCloud().then((cloud) => {
+      if (!cloud) return;
+      setMeta((m) => {
+        const mergedUnlocked: Record<string, 1 | 2 | 3> = { ...(m.unlockedBlockByPack ?? {}) };
+        const mergedCkpt: Record<string, 1 | 2 | 3> = { ...m.checkpointBlockByPack };
+        for (const [k, v] of Object.entries(cloud.u ?? {})) {
+          mergedUnlocked[k] = Math.max(mergedUnlocked[k] ?? 1, v) as 1 | 2 | 3;
+        }
+        for (const [k, v] of Object.entries(cloud.c ?? {})) {
+          mergedCkpt[k] = Math.max(mergedCkpt[k] ?? 1, v) as 1 | 2 | 3;
+        }
+        return {
+          ...m,
+          unlockedBlockByPack: mergedUnlocked,
+          checkpointBlockByPack: mergedCkpt,
+        };
+      });
+    });
+  }, []);
+
   const getUnlockedBlockForPack = useCallback(
     (m: PersistentMeta, targetPackId: PackId): 1 | 2 | 3 => {
+      if (m.proUnlocked || m.adUnlockedPacks.includes(targetPackId)) return 3;
       return m.unlockedBlockByPack?.[targetPackId] ?? 1;
     },
     []
@@ -1006,16 +1084,19 @@ export function App() {
         const prevUnlocked = m.unlockedBlockByPack?.[targetPackId] ?? 1;
         const nextUnlocked = Math.max(prevUnlocked, targetBlock) as 1 | 2 | 3;
         const prevCkpt = m.checkpointBlockByPack[targetPackId] ?? 1;
+        const nextUnlockedMap: Record<string, 1 | 2 | 3> = {
+          ...(m.unlockedBlockByPack ?? {}),
+          [targetPackId]: nextUnlocked,
+        };
+        const nextCkptMap: Record<string, 1 | 2 | 3> = {
+          ...m.checkpointBlockByPack,
+          [targetPackId]: Math.max(prevCkpt, nextUnlocked) as 1 | 2 | 3,
+        };
+        syncPurchasesToTelegramCloud(nextUnlockedMap, nextCkptMap);
         return {
           ...m,
-          unlockedBlockByPack: {
-            ...(m.unlockedBlockByPack ?? {}),
-            [targetPackId]: nextUnlocked,
-          },
-          checkpointBlockByPack: {
-            ...m.checkpointBlockByPack,
-            [targetPackId]: Math.max(prevCkpt, nextUnlocked) as 1 | 2 | 3,
-          },
+          unlockedBlockByPack: nextUnlockedMap,
+          checkpointBlockByPack: nextCkptMap,
           telemetry: {
             ...m.telemetry,
             unlockMoreClicks: (m.telemetry.unlockMoreClicks ?? 0) + 1,
@@ -1030,7 +1111,7 @@ export function App() {
           },
         };
       });
-      setToastMsg(targetBlock === 3 ? 'Блок III открыт' : 'Блок II открыт');
+      setToastMsg(targetBlock === 3 ? 'Блок 3 открыт' : 'Блок 2 открыт');
       window.setTimeout(() => setToastMsg(null), 2600);
     },
     []
@@ -1045,12 +1126,17 @@ export function App() {
     ) => {
       const res = await openTelegramStarsCheckout(targetBlock, targetPackId);
       if (res === 'cancelled') return;
+      if (res === 'unavailable') {
+        setToastMsg('Оплата Stars открывается в Telegram (@vkreslegame)');
+        window.setTimeout(() => setToastMsg(null), 2800);
+        openTelegramDeepLinkOutsideTma(`pack_${targetPackId}`);
+        return;
+      }
       if (res === 'failed') {
         setToastMsg('Оплата не завершена — попробуйте ещё раз');
         window.setTimeout(() => setToastMsg(null), 2600);
         return;
       }
-      // 'paid' (в боевом TG Stars) или 'unavailable' (вне TG / до включения TELEGRAM_STARS_LIVE)
       sfxVictory();
       vibrate([14, 30, 20]);
       unlockNextBlockForPack(targetPackId, targetBlock, source);
@@ -1294,6 +1380,7 @@ export function App() {
     ): { card: DilemmaCard; remQueue: QueuedEvent[] } => {
       const targetBlock = getBlockForWeek(nextWeek).blockNum;
       const midKeys = Object.keys(activePack.specialCards).filter((k) => k.includes('_10'));
+      const b2Keys = Object.keys(activePack.specialCards).filter((k) => k.includes('_24'));
       const finKeys = Object.keys(activePack.specialCards).filter((k) => k.includes('_20'));
 
       if (nextWeek === 12 && midKeys[0]) {
@@ -1303,7 +1390,8 @@ export function App() {
         };
       }
       if (nextWeek === 24 && !isEndless) {
-        return { card: prepareBalancedCard(buildBlock2BossCard(activePack)), remQueue: nextQueue };
+        const boss24 = b2Keys[0] ? activePack.specialCards[b2Keys[0]] : buildBlock2BossCard(activePack);
+        return { card: prepareBalancedCard(boss24), remQueue: nextQueue };
       }
       if (nextWeek === CAMPAIGN_TOTAL_SHIFTS && !isEndless && finKeys[0]) {
         return {
@@ -1333,6 +1421,9 @@ export function App() {
       if (candidates.length === 0) {
         bagRef.current = shuffle(buildFullDeck(activePack));
         candidates = bagRef.current.filter(eligibleFilter);
+        if (candidates.length === 0) {
+          candidates = bagRef.current.filter((c) => (c.blockMin ?? 1) <= targetBlock);
+        }
       }
 
       const picked = candidates[0] ?? activePack.deckCards[0];
@@ -1417,6 +1508,10 @@ export function App() {
       setEndlessMode(false);
       setMenuDrawerOpen(false);
       setExitingCards([]);
+      setRunSwipeHighlights([]);
+      setShortsCombainOpen(false);
+      setSavesUsedInRun(0);
+      setPendingGachaCrash(null);
       resetCardDomTransformImmediate();
 
       let firstCard: DilemmaCard;
@@ -1610,14 +1705,39 @@ export function App() {
         return { ...prevSms, swipesLeft: prevSms.swipesLeft - 1 };
       });
 
+      // Записываем свайп для 13.5-сек Шортс-комбайна и проверки реального прототипа (Черчилль / тупняки)
+      const rawUnmirrored = pack.deckCards.find((c) => c.id === currentCard.id);
+      const matchedRealCase =
+        currentCard.realCase && rawUnmirrored
+          ? opt.label ===
+            (currentCard.realCase.matchingSide === 'left'
+              ? rawUnmirrored.left.label
+              : rawUnmirrored.right.label)
+          : undefined;
+      setRunSwipeHighlights((prev) => [
+        ...prev,
+        {
+          week,
+          speaker: currentCard.speaker,
+          text: currentCard.text,
+          chosenLabel: opt.label,
+          side,
+          matchedRealCase,
+          realCase: currentCard.realCase,
+        },
+      ]);
+
       let endDef: EndingDef | undefined;
+      let crashedPillarLabel = 'Баланс';
       for (const k of ['s1', 's2', 's3', 's4'] as StatKey[]) {
         if (nextStats[k] <= 0) {
           endDef = pack.endings.find((e) => e.stat === k && e.extreme === 'low');
+          crashedPillarLabel = pack.pillars.find((pl) => pl.key === k)?.label ?? 'Показатель';
           break;
         }
         if (nextStats[k] >= 100) {
           endDef = pack.endings.find((e) => e.stat === k && e.extreme === 'high');
+          crashedPillarLabel = pack.pillars.find((pl) => pl.key === k)?.label ?? 'Показатель';
           break;
         }
       }
@@ -1660,6 +1780,8 @@ export function App() {
 
         return {
           ...prev,
+          deathsTotal:
+            endDef && !endDef.isVictory ? (prev.deathsTotal ?? 0) + 1 : (prev.deathsTotal ?? 0),
           bestWeeksByPack: {
             ...prev.bestWeeksByPack,
             [pack.id]: Math.max(prevBest, nextWeek),
@@ -1691,6 +1813,27 @@ export function App() {
       if (endDef) {
         const finalEnd = endDef;
         const isNew = !meta.unlockedEndings.includes(finalEnd.id);
+        const prevDeaths = meta.deathsTotal ?? 0;
+        const eligibleForGachaSave =
+          !finalEnd.isVictory &&
+          week < CAMPAIGN_TOTAL_SHIFTS &&
+          (prevDeaths >= GACHA_FREE_DEATHS_GRACE || activeBlock.blockNum >= 2);
+
+        if (eligibleForGachaSave) {
+          sfxGameOver();
+          setIncomingSms(null);
+          setPendingGachaCrash({
+            endDef: finalEnd,
+            isNew,
+            crashedStatLabel: crashedPillarLabel,
+            nextWeek,
+            nextFlags,
+            nextUsed,
+            nextQ,
+          });
+          return;
+        }
+
         setFlags(nextFlags);
         setWeek(nextWeek);
         if (recorderRef.current) {
@@ -2889,6 +3032,17 @@ export function App() {
               </div>
 
               <div className="ahh-actions">
+                <button
+                  type="button"
+                  className="apple-cam-pill"
+                  onClick={() => setDuelModalState({ open: true, ghost: null })}
+                  style={{
+                    background: 'rgba(251, 191, 36, 0.16)',
+                    borderColor: 'rgba(251, 191, 36, 0.38)',
+                  }}
+                >
+                  <span>⚔️ Дуэль</span>
+                </button>
                 {hasActiveRun ? (
                   <button
                     type="button"
@@ -2991,28 +3145,20 @@ export function App() {
                   ))}
                 </div>
 
-                {JOB_PACKS.filter((jp) => {
+                {SHOWCASE_PACKS.filter((jp) => {
                   if (jobFilter === 'practice') return jp.hubTrack === 'practice';
                   if (jobFilter === 'story') return jp.hubTrack === 'story';
                   if (jobFilter === 'tech') {
-                    return [
-                      'scs_designer',
-                      'cctv_installer',
-                      'sec_sysadmin',
-                      'it_product',
-                      'ux_designer',
-                      'ai_agent',
-                    ].includes(jp.id);
+                    return ['it_product', 'renovation_pro'].includes(jp.id);
                   }
                   if (jobFilter === 'commerce') {
                     return [
-                      'sales_manager',
+                      'office_manager',
                       'sales_rop',
                       'barista_pro',
-                      'office_manager',
-                      'tender_44fz',
-                      'it_cfo',
                       'wb_seller',
+                      'pvz_december',
+                      'car_flipper',
                     ].includes(jp.id);
                   }
                   return true;
@@ -3076,7 +3222,8 @@ export function App() {
 
                       {(() => {
                         const unlockedBlk = getUnlockedBlockForPack(meta, jp.id);
-                        const starsPrice = getTelegramStarsPriceForPack(jp.id);
+                        const priceB2 = getTelegramStarsPriceForPack(jp.id, 2);
+                        const priceB3 = getTelegramStarsPriceForPack(jp.id, 3);
                         return (
                           <div className="apr-modules-bar">
                             <button
@@ -3105,7 +3252,7 @@ export function App() {
                                   );
                                 }}
                               >
-                                Блок 2 · {starsPrice} ★
+                                Блок 2 · {priceB2} ★
                               </button>
                             )}
 
@@ -3127,7 +3274,7 @@ export function App() {
                                   );
                                 }}
                               >
-                                Блок 3 · {starsPrice} ★
+                                Блок 3 · {priceB3} ★
                               </button>
                             ) : (
                               <button
@@ -3138,7 +3285,7 @@ export function App() {
                                   window.setTimeout(() => setToastMsg(null), 2200);
                                 }}
                               >
-                                Блок 3 · {starsPrice} ★
+                                Блок 3 · {priceB3} ★
                               </button>
                             )}
                           </div>
@@ -3168,7 +3315,7 @@ export function App() {
             ) : (
               <div className="apple-cards-scroll">
                 <div className="ios-context-chips">
-                  {JOB_PACKS.map((jp) => (
+                  {SHOWCASE_PACKS.map((jp) => (
                     <button
                       key={jp.id}
                       type="button"
@@ -3345,6 +3492,67 @@ export function App() {
             const targetBlk = intermission.nextBlock.blockNum === 3 ? 3 : 2;
             void handlePurchaseOrUnlockBlock(pack.id, targetBlk, 'intermission');
           }}
+          onBackToHub={() => {
+            setIntermission(null);
+            setInHub(true);
+          }}
+        />
+      )}
+
+      {pendingGachaCrash && (
+        <GachaContinueModal
+          pack={pack}
+          week={week}
+          crashedStatLabel={pendingGachaCrash.crashedStatLabel}
+          starsPrice={getGachaSaveStarsPrice(savesUsedInRun)}
+          onAcceptSave={async () => {
+            const res = await openTelegramStarsSaveCheckout(savesUsedInRun);
+            if (res === 'unavailable') {
+              setToastMsg('Продолжение за Stars работает внутри Telegram (@vkreslegame)');
+              window.setTimeout(() => setToastMsg(null), 2800);
+              openTelegramDeepLinkOutsideTma(`pack_${pack.id}`);
+              return;
+            }
+            if (res !== 'paid') return;
+
+            sfxCoffeeSave();
+            vibrate([16, 30, 20]);
+            const healed: Stats = { ...stats };
+            (['s1', 's2', 's3', 's4'] as StatKey[]).forEach((k) => {
+              if (healed[k] <= 0) healed[k] = 36;
+              if (healed[k] >= 100) healed[k] = 64;
+            });
+            setStats(healed);
+            setSavesUsedInRun((n) => n + 1);
+
+            const incomingCard = nextCard;
+            const usedWithIncoming = new Set(pendingGachaCrash.nextUsed);
+            usedWithIncoming.add(incomingCard.id);
+            const { card: upcomingBehind, remQueue } = drawNextForPack(
+              pack,
+              pendingGachaCrash.nextWeek + 1,
+              usedWithIncoming,
+              pendingGachaCrash.nextQ,
+              endlessMode
+            );
+            setFlags(pendingGachaCrash.nextFlags);
+            setUsedOnce(pendingGachaCrash.nextUsed);
+            setScheduled(remQueue);
+            setWeek(pendingGachaCrash.nextWeek);
+            setCurrentCard(incomingCard);
+            setNextCard(upcomingBehind);
+            setCardSeq((s) => s + 1);
+            setPendingGachaCrash(null);
+            setToastMsg('Кресло удержано — продолжаем смену!');
+            window.setTimeout(() => setToastMsg(null), 2400);
+          }}
+          onDeclineAndFinish={() => {
+            const crash = pendingGachaCrash;
+            setPendingGachaCrash(null);
+            setFlags(crash.nextFlags);
+            setWeek(crash.nextWeek);
+            setActiveEnding({ def: crash.endDef, isNew: crash.isNew });
+          }}
         />
       )}
 
@@ -3427,10 +3635,13 @@ export function App() {
           iqTotal={iqTotal}
           isPackFullyUnlocked={packFullyOpen}
           decisionLog={decisionLog}
+          runSwipeHighlights={runSwipeHighlights}
           faceSnapshotUrl={faceSnapshotUrl}
           recordedReel={recordedReel}
           isFinalizingReel={isFinalizingReel}
           onOpenRecordedReel={() => setReelShareModalOpen(true)}
+          onOpenShortsCombain={() => setShortsCombainOpen(true)}
+          onOpenDuelChallenge={() => setDuelModalState({ open: true, ghost: null })}
           onStartReactionRun={() => {
             setActiveEnding(null);
             startPackRun(pack.id, savedCheckpoint, true);
@@ -3446,7 +3657,14 @@ export function App() {
               },
             }));
           }}
-          onUnlockMoreFromEnding={() => recordUnlockMoreAndOpen(pack.id, 'ending', false)}
+          onUnlockMoreFromEnding={() => {
+            const curUnlocked = getUnlockedBlockForPack(meta, pack.id);
+            const nextTarget: 2 | 3 = curUnlocked < 2 ? 2 : 3;
+            void handlePurchaseOrUnlockBlock(pack.id, nextTarget, 'ending', () => {
+              setActiveEnding(null);
+              startPackRun(pack.id, nextTarget, false);
+            });
+          }}
           onRestartFromCheckpoint={() => startPackRun(pack.id, savedCheckpoint, true)}
           onRestartFromZero={() => startPackRun(pack.id, 1, true)}
           onSwitchPack={() => {
@@ -3486,6 +3704,51 @@ export function App() {
 
       {museumOpen && (
         <MuseumModal pack={pack} meta={meta} onClose={() => setMuseumOpen(false)} />
+      )}
+
+      {shortsCombainOpen && activeEnding && (
+        <ShortsCombainModal
+          pack={pack}
+          ending={activeEnding.def}
+          weeksSurvived={week}
+          swipes={runSwipeHighlights}
+          faceSnapshotUrl={faceSnapshotUrl}
+          onClose={() => setShortsCombainOpen(false)}
+        />
+      )}
+
+      {duelModalState.open && (
+        <DuelExperienceModal
+          pack={getJobPack(duelModalState.ghost?.packId ?? pack.id)}
+          availablePacks={SHOWCASE_PACKS}
+          initialGhost={duelModalState.ghost}
+          onSelectPack={(pid) => setMeta((m) => ({ ...m, selectedPackId: pid }))}
+          onClose={() => setDuelModalState({ open: false, ghost: null })}
+        />
+      )}
+
+      {toastMsg && (inHub || Boolean(intermission) || Boolean(activeEnding)) && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 6500,
+            background: 'rgba(20, 16, 34, 0.96)',
+            color: '#fff',
+            border: '1px solid rgba(255,255,255,0.2)',
+            padding: '10px 18px',
+            borderRadius: 999,
+            fontSize: 13,
+            fontWeight: 700,
+            boxShadow: '0 10px 30px rgba(0,0,0,0.45)',
+            pointerEvents: 'none',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {toastMsg}
+        </div>
       )}
 
       {reelShareModalOpen && recordedReel && (

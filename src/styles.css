@@ -5790,8 +5790,24 @@ body {
 }
 
 .dilemma-card.apple-spring-card .dc-portrait-area {
-  height: 53% !important;
-  min-height: 196px !important;
+  flex: 1 1 45%;
+  height: auto !important;
+  min-height: 118px !important;
+  max-height: 50%;
+}
+
+@media (max-height: 700px) {
+  .dilemma-card.apple-spring-card .dc-speaker-bar {
+    padding: 8px 15px 4px;
+  }
+  .dilemma-card.apple-spring-card .dc-question-body {
+    padding: 6px 15px 8px;
+    min-height: 0;
+  }
+  .dilemma-card.apple-spring-card .dc-question-body p {
+    font-size: 15.5px;
+    line-height: 1.35;
+  }
 }
 
 .dilemma-card.apple-spring-card .dc-speaker-bar {
@@ -7518,8 +7534,8 @@ body {
   filter: blur(1.5px);
 }
 
-/* Старая шторка поверх портрета больше не используется — портрет (и лицо с камеры) остаются чистыми */
-.dilemma-card .reigns-choice-curtain {
+/* Старая шторка скрыта ТОЛЬКО на основных карточках игры (в «Оценке» она показывает полный текст выбора!) */
+.dilemma-card.apple-spring-card .reigns-choice-curtain {
   display: none !important;
 }
 
@@ -8262,6 +8278,17 @@ body {
   background: linear-gradient(150deg, #f8ecd0 0%, #e7d19f 48%, #f6e7c4 100%) !important;
 }
 
+.dilemma-card.card-tier-foil .dc-speaker-bar,
+.dilemma-card.card-tier-foil .dc-question-body,
+.dilemma-card.card-tier-foil .dc-inline-choices,
+.dilemma-card.card-tier-polychrome .dc-speaker-bar,
+.dilemma-card.card-tier-polychrome .dc-question-body,
+.dilemma-card.card-tier-polychrome .dc-inline-choices,
+.dc-tier-badge {
+  position: relative;
+  z-index: 12;
+}
+
 .dilemma-card.card-tier-foil .dc-speaker-bar {
   background: linear-gradient(90deg, rgba(196, 148, 56, 0.22), rgba(255, 245, 214, 0.4), rgba(196, 148, 56, 0.18));
   border-bottom: 1px solid rgba(176, 130, 44, 0.28);
@@ -8271,7 +8298,7 @@ body {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 2;
   pointer-events: none;
   border-radius: inherit;
   background: linear-gradient(
@@ -8406,7 +8433,11 @@ body {
   color: #ffffff !important;
 }
 
-/* Яркий радужный призматический перелив поверх портрета в Блоке III */
+/* Деликатный радужный перелив поверх портрета в Блоке III (без выжигания лица color-dodge) */
+.dilemma-card.card-tier-polychrome .dc-portrait-area {
+  border-bottom: 1px solid rgba(196, 172, 255, 0.22) !important;
+}
+
 .dilemma-card.card-tier-polychrome .dc-portrait-area::after {
   content: '';
   position: absolute;
@@ -8415,26 +8446,26 @@ body {
   pointer-events: none;
   background: linear-gradient(
     122deg,
-    rgba(255, 48, 164, 0.36) 0%,
-    rgba(255, 214, 62, 0.32) 22%,
-    rgba(46, 246, 190, 0.36) 46%,
-    rgba(72, 164, 255, 0.38) 68%,
-    rgba(182, 86, 255, 0.38) 88%,
-    rgba(255, 48, 164, 0.36) 100%
+    rgba(255, 48, 164, 0.28) 0%,
+    rgba(255, 214, 62, 0.22) 22%,
+    rgba(46, 246, 190, 0.26) 46%,
+    rgba(72, 164, 255, 0.28) 68%,
+    rgba(182, 86, 255, 0.3) 88%,
+    rgba(255, 48, 164, 0.28) 100%
   );
   background-size: 320% 320%;
   background-position: calc(50% + var(--foil-shift, 0%)) 50%;
-  mix-blend-mode: color-dodge;
-  opacity: 0.72;
+  mix-blend-mode: soft-light;
+  opacity: 0.65;
   animation: balatroPolychromeFlow 4.8s ease-in-out infinite alternate;
 }
 
-/* Слой 1: Призматическая радужная вуаль по всей тёмной карте */
+/* Слой 1: Призматическая радужная вуаль под текстом */
 .dilemma-card.card-tier-polychrome .dc-focus-plane::before {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 8;
+  z-index: 2;
   pointer-events: none;
   border-radius: inherit;
   background:
@@ -8454,12 +8485,12 @@ body {
   animation: balatroPolychromeFlow 5.2s ease-in-out infinite alternate;
 }
 
-/* Слой 2: Тонкие голографические микрополосы + живой блик */
+/* Слой 2: Тонкий кант рамки под текстом */
 .dilemma-card.card-tier-polychrome .dc-focus-plane::after {
   content: '';
   position: absolute;
   inset: 0;
-  z-index: 9;
+  z-index: 3;
   pointer-events: none;
   border-radius: inherit;
   background:

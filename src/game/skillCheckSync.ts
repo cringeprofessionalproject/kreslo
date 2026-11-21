@@ -1,4 +1,5 @@
 import { getSkillCheckById, type SkillCheckCard, type SkillCheckDef, type SkillCheckId } from './skillChecksData';
+import { getTelegramBotAppUrl, isRunningInsideTelegramMiniApp } from './telegramStars';
 
 export type CheckVisibilityMode = 'screening' | 'challenge';
 
@@ -437,6 +438,9 @@ export function saveCandidateCompletionLocally(token: string, receipt: string): 
 }
 
 export function buildCheckShareUrl(slug: string, token: string): string {
+  if (isRunningInsideTelegramMiniApp()) {
+    return getTelegramBotAppUrl(`chk_${slug}-${token}`);
+  }
   if (typeof window === 'undefined') {
     return `https://kreslo.heuristics.ru/?check=${encodeURIComponent(`${slug}.${token}`)}`;
   }
@@ -471,7 +475,25 @@ export interface ParsedUrlCheckRoute {
 export function parseUrlCheckRoute(): ParsedUrlCheckRoute | null {
   if (typeof window === 'undefined') return null;
   const params = new URLSearchParams(window.location.search);
-  const rawCheck = params.get('check');
+  let rawCheck = params.get('check');
+
+  // Поддержка прямого запуска в Telegram Mini App (?startapp=chk_<slug>-<token>)
+  if (!rawCheck) {
+    const tgStart =
+      (
+        window as unknown as {
+          Telegram?: { WebApp?: { initDataUnsafe?: { start_param?: string } } };
+        }
+      ).Telegram?.WebApp?.initDataUnsafe?.start_param || params.get('tgWebAppStartParam');
+    if (tgStart && tgStart.startsWith('chk_')) {
+      const body = tgStart.slice(4);
+      const dashIdx = body.indexOf('-');
+      if (dashIdx > 0) {
+        rawCheck = `${body.slice(0, dashIdx)}.${body.slice(dashIdx + 1)}`;
+      }
+    }
+  }
+
   if (!rawCheck || !rawCheck.includes('.')) return null;
   const dotIdx = rawCheck.indexOf('.');
   const slug = rawCheck.slice(0, dotIdx).trim();
