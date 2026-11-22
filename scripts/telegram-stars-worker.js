@@ -138,7 +138,7 @@ export default {
             [
               {
                 text: btnText,
-                web_app: { url: `https://cringeprofessionalproject.github.io/kreslo/?bot=vkreslegame${param}` },
+                web_app: { url: `https://kreslo.heuristics.ru/?bot=vkreslegame${param}` },
               },
             ],
           ],

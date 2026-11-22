@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '..');
 
-const WEB_PROD_BASE = 'https://cringeprofessionalproject.github.io/kreslo/';
+const WEB_PROD_BASE = 'https://kreslo.heuristics.ru/';
 const TG_BOT_BASE = 'https://t.me/vkreslegame';
 
 async function main() {

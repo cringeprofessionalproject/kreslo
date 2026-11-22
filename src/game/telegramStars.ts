@@ -131,7 +131,7 @@ export function getTelegramBotAppUrl(startParam?: string): string {
   return `https://t.me/${TELEGRAM_PRIMARY_BOT}`;
 }
 
-export const PUBLIC_WEB_GAME_BASE_URL = 'https://cringeprofessionalproject.github.io/kreslo/';
+export const PUBLIC_WEB_GAME_BASE_URL = 'https://kreslo.heuristics.ru/';
 
 export function getDirectWebPlayUrl(slugOrPackId: string): string {
   const clean = slugOrPackId.replace(/[^A-Za-z0-9_-]/g, '');
