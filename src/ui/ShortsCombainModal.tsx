@@ -94,22 +94,40 @@ export function ShortsCombainModal({
   const [faceSheetOpen, setFaceSheetOpen] = useState<boolean>(false);
   const [soundMuted, setSoundMuted] = useState<boolean>(false);
 
-  const initialCaseBundle = useMemo(
-    () => pickBestRealCaseForHighlight(pack, usableSwipes),
-    [pack, usableSwipes]
+  // Кейсы — ТОЛЬКО те, что игрок реально отыграл в этой партии
+  const runCaseSwipes = useMemo(
+    () => swipes.filter((x) => x.realCase),
+    [swipes]
   );
+  const runCases = useMemo(() => {
+    const seen = new Set<string>();
+    const out: RealHistoricalCase[] = [];
+    runCaseSwipes.forEach((x) => {
+      const rc = x.realCase!;
+      const key = `${rc.person}|${rc.year}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        out.push(rc);
+      }
+    });
+    return out;
+  }, [runCaseSwipes]);
+  const initialCaseBundle = useMemo(() => {
+    const last = runCaseSwipes[runCaseSwipes.length - 1];
+    return last?.realCase
+      ? { realCase: last.realCase, playerMatched: last.matchedRealCase, week: last.week }
+      : null;
+  }, [runCaseSwipes]);
   const [includeCaseBlock, setIncludeCaseBlock] = useState<boolean>(() =>
     Boolean(initialCaseBundle)
   );
   const [selectedCase, setSelectedCase] = useState<RealHistoricalCase | null>(
-    () => initialCaseBundle?.realCase ?? allPackCases[0] ?? null
+    () => initialCaseBundle?.realCase ?? null
   );
   const [caseLeadText, setCaseLeadText] = useState<string>(() =>
     initialCaseBundle
       ? buildConversationalCaseLead(initialCaseBundle.realCase, initialCaseBundle.playerMatched)
-      : allPackCases[0]
-        ? buildConversationalCaseLead(allPackCases[0])
-        : ''
+      : ''
   );
 
   // Свободные оверлеи в стиле Instagram / Telegram Stories (по умолчанию экран чистый!)
@@ -166,15 +184,15 @@ export function ShortsCombainModal({
     }
 
     // Умный хайлайт: кульминация игры (живое видео ИЛИ 2 ярких свайпа с лицом) -> ответ из истории -> QR
-    if (recordedReel && recordedReel.durationSec > 0.4) {
-      const dur = recordedReel.durationSec;
+    if (false as boolean) {
+      const dur = recordedReel!.durationSec;
       const start = dur > 7.5 ? Math.max(0, dur - 6.8) : 0;
       list.push({
         id: 'smart_reel',
         kind: 'video',
         label: 'Игра',
-        videoUrl: recordedReel.url,
-        blob: recordedReel.blob,
+        videoUrl: recordedReel!.url,
+        blob: recordedReel!.blob,
         naturalDuration: dur,
         trimStart: Number(start.toFixed(1)),
         trimEnd: Number(dur.toFixed(1)),
@@ -182,8 +200,8 @@ export function ShortsCombainModal({
         fit: 'cover',
       });
     } else {
-      const hypeIdx = initialCaseBundle?.week
-        ? usableSwipes.findIndex((x) => x.week === initialCaseBundle.week)
+      const hypeIdx = selectedCase
+        ? usableSwipes.findIndex((x) => x.realCase?.person === selectedCase.person)
         : -1;
       const picks =
         hypeIdx >= 0
@@ -206,12 +224,12 @@ export function ShortsCombainModal({
         id: 'rc_answer',
         kind: 'real_case',
         realCase: selectedCase,
-        playerMatched: initialCaseBundle?.playerMatched,
+        playerMatched: usableSwipes.find((x) => x.realCase?.person === selectedCase.person)?.matchedRealCase,
         leadText: caseLeadText || buildConversationalCaseLead(selectedCase),
         bodyText: buildConversationalCaseBody(selectedCase),
         duration: 4.3,
       });
-    } else if (!recordedReel) {
+    } else {
       list.push({ id: 'end_card', kind: 'ending', duration: 1.9 });
     }
 
@@ -221,9 +239,7 @@ export function ShortsCombainModal({
     caseLeadText,
     dramaticMode,
     feedMode,
-    initialCaseBundle?.week,
     includeCaseBlock,
-    initialCaseBundle?.playerMatched,
     recordedReel,
     selectedCase,
     usableSwipes,
@@ -296,7 +312,7 @@ export function ShortsCombainModal({
       weeksSurvived,
       clips,
       overlays,
-      soundtrack: soundMuted ? 'mute' : recordedReel ? 'sfx_only' : 'groove',
+      soundtrack: soundMuted ? 'mute' : feedMode === 'raw_playthrough' ? 'sfx_only' : 'groove',
       dramaticMode: feedMode === 'smart_highlight' && dramaticMode,
       faceFx: feedMode === 'smart_highlight' ? faceFx : 'none',
       faceSnapshotUrl,
@@ -318,10 +334,16 @@ export function ShortsCombainModal({
   );
 
   // Поиск стикеров в каталоге + опционально GIPHY онлайн
-  const filteredCatalogStickers = useMemo(
-    () => searchStickerCatalog(gifQuery, gifCat),
-    [gifCat, gifQuery]
+  const [giphyKeyInput, setGiphyKeyInput] = useState<string>('');
+  const [hasGiphyKey, setHasGiphyKey] = useState<boolean>(
+    () =>
+      Boolean(import.meta.env.VITE_GIPHY_API_KEY) ||
+      (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('kreslo_giphy_key')))
   );
+  const filteredCatalogStickers = useMemo(() => {
+    const r = searchStickerCatalog(gifQuery, gifCat);
+    return r.length > 0 || !gifQuery.trim() ? r : searchStickerCatalog('', 'all');
+  }, [gifCat, gifQuery]);
 
   useEffect(() => {
     if (!gifSheetOpen || gifQuery.trim().length < 2) {
@@ -714,6 +736,13 @@ export function ShortsCombainModal({
   const onStageWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
     if (!selectedOverlayId) return;
     e.preventDefault();
+    if (e.shiftKey) {
+      const dd = e.deltaY < 0 ? 6 : -6;
+      setOverlays((prev) =>
+        prev.map((o) => (o.id === selectedOverlayId ? { ...o, rotDeg: o.rotDeg + dd } : o))
+      );
+      return;
+    }
     const factor = e.deltaY < 0 ? 1.06 : 0.94;
     setOverlays((prev) =>
       prev.map((o) =>
@@ -1302,7 +1331,7 @@ export function ShortsCombainModal({
                 </button>
               )}
 
-              {feedMode === 'smart_highlight' && selectedCase && (
+              {feedMode === 'smart_highlight' && selectedCase && runCases.length > 0 && (
                 <button
                   type="button"
                   style={{
@@ -1335,7 +1364,7 @@ export function ShortsCombainModal({
             style={{
               position: 'absolute',
               right: 12,
-              top: '44%',
+              top: '36%',
               display: 'flex',
               flexDirection: 'column',
               gap: 6,
@@ -1372,6 +1401,43 @@ export function ShortsCombainModal({
             >
               −
             </button>
+            {[
+              ['↺', -9],
+              ['↻', 9],
+            ].map(([lbl, d]) => (
+              <button
+                key={String(lbl)}
+                type="button"
+                style={{ ...glassCircleStyle, width: 34, height: 34 }}
+                onClick={() =>
+                  setOverlays((p) =>
+                    p.map((o) =>
+                      o.id === selectedOvObj.id ? { ...o, rotDeg: o.rotDeg + Number(d) } : o
+                    )
+                  )
+                }
+              >
+                {lbl}
+              </button>
+            ))}
+            {selectedOvObj.kind === 'text' && (
+              <button
+                type="button"
+                style={{ ...glassCircleStyle, width: 34, height: 34 }}
+                onClick={() => {
+                  setTextEditorState({
+                    open: true,
+                    editingId: selectedOvObj.id,
+                    text: selectedOvObj.text,
+                    style: selectedOvObj.style,
+                    color: selectedOvObj.color || '#ffffff',
+                  });
+                  window.setTimeout(() => textInputRef.current?.focus(), 40);
+                }}
+              >
+                ✎
+              </button>
+            )}
           </div>
         )}
 
@@ -1648,6 +1714,49 @@ export function ShortsCombainModal({
               </button>
             </div>
 
+            {!hasGiphyKey && (
+              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                <input
+                  type="text"
+                  placeholder="Ключ GIPHY (бесплатно: developers.giphy.com) — для поиска любых гифок"
+                  value={giphyKeyInput}
+                  onChange={(e) => setGiphyKeyInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '7px 10px',
+                    borderRadius: 10,
+                    border: '1px dashed rgba(255,255,255,0.28)',
+                    background: 'rgba(255,255,255,0.05)',
+                    color: '#fff',
+                    fontSize: 11.5,
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const k = giphyKeyInput.trim();
+                    if (k.length < 12) return;
+                    localStorage.setItem('kreslo_giphy_key', k);
+                    setHasGiphyKey(true);
+                    showQuickToast('Поиск GIPHY подключён');
+                  }}
+                  style={{
+                    padding: '0 12px',
+                    borderRadius: 10,
+                    border: 'none',
+                    background: '#ffd166',
+                    color: '#141210',
+                    fontSize: 12,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  OK
+                </button>
+              </div>
+            )}
+
             <div
               style={{
                 flex: 1,
@@ -1881,7 +1990,7 @@ export function ShortsCombainModal({
               >
                 {includeCaseBlock ? 'Включён ✓' : 'Выключен'}
               </button>
-              {allPackCases.map((rc, idx) => (
+              {runCases.map((rc, idx) => (
                 <button
                   key={idx}
                   type="button"
