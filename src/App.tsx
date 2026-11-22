@@ -471,6 +471,7 @@ function DrawerSheet({
   onToggleShareRun,
   onOpenTuneFace,
   onTakeScreenshot,
+  onOpenStoriesStudio,
   onCopyDirectLinks,
   onOpenMuseum,
   onOpenInstall,
@@ -492,6 +493,7 @@ function DrawerSheet({
   onToggleShareRun: () => void;
   onOpenTuneFace?: () => void;
   onTakeScreenshot: () => void;
+  onOpenStoriesStudio: () => void;
   onCopyDirectLinks: (mode: 'web' | 'tg') => void;
   onOpenMuseum: () => void;
   onOpenInstall: () => void;
@@ -678,6 +680,21 @@ function DrawerSheet({
             <div>
               <strong>Статистика и интерес ({unlockClicks})</strong>
               <small>Обезличенная сводка сервера и локальные показатели</small>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="drawer-row-btn"
+            onClick={() => {
+              onClose();
+              onOpenStoriesStudio();
+            }}
+          >
+            <IconFrame size={18} />
+            <div>
+              <strong>Видеоредактор Stories · Склейка и GIF</strong>
+              <small>Обрезка видео, вставка реальных ответов из истории, гифки и титры</small>
             </div>
           </button>
 
@@ -1819,11 +1836,18 @@ export function App() {
       setRunSwipeHighlights((prev) => [
         ...prev,
         {
+          cardId: currentCard.id,
           week,
+          blockNum: curBlock.blockNum,
           speaker: currentCard.speaker,
+          role: currentCard.role,
           text: currentCard.text,
+          leftLabel: currentCard.left.label,
+          rightLabel: currentCard.right.label,
           chosenLabel: opt.label,
           side,
+          statsBefore: { ...stats },
+          statsAfter: { ...nextStats },
           matchedRealCase,
           realCase: currentCard.realCase,
         },
@@ -3116,6 +3140,7 @@ export function App() {
           }}
           onOpenTuneFace={() => setFaceTuneHudOpen(true)}
           onTakeScreenshot={() => void takeLiveScreenshot()}
+          onOpenStoriesStudio={() => setShortsCombainOpen(true)}
           onCopyDirectLinks={(mode) => {
             const slug = DIRECT_PLAY_SLUGS[pack.id] || pack.id;
             const link =
@@ -3831,12 +3856,14 @@ export function App() {
         <MuseumModal pack={pack} meta={meta} onClose={() => setMuseumOpen(false)} />
       )}
 
-      {shortsCombainOpen && activeEnding && (
+      {shortsCombainOpen && (
         <ShortsCombainModal
           pack={pack}
-          ending={activeEnding.def}
+          ending={activeEnding?.def ?? pack.endings[0]}
+          finalStats={stats}
           weeksSurvived={week}
           swipes={runSwipeHighlights}
+          recordedReel={recordedReel}
           faceSnapshotUrl={faceSnapshotUrl}
           onClose={() => setShortsCombainOpen(false)}
         />
@@ -3882,6 +3909,10 @@ export function App() {
           reel={recordedReel}
           masteryPct={computedMasteryPct}
           weeksSurvived={week}
+          onOpenStoriesEditor={() => {
+            setReelShareModalOpen(false);
+            setShortsCombainOpen(true);
+          }}
           onShared={() => {
             sendAnonymousPulse('share_click', pack.id);
             setMeta((m) => ({

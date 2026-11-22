@@ -623,8 +623,8 @@ export function EndingModal({
 
         <div className="ee-actions">
           {onOpenShortsCombain && (
-            <button type="button" className="cta-btn subtle" onClick={onOpenShortsCombain}>
-              Собрать видео-сводку смены (13.5 сек)
+            <button type="button" className="cta-btn primary big" onClick={onOpenShortsCombain}>
+              Монтаж Stories · склейка, кейс и GIF →
             </button>
           )}
           {showVideoControls && (

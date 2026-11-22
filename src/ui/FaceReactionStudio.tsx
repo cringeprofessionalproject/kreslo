@@ -621,6 +621,7 @@ interface ReelReadyShareModalProps {
   reel: RecordedReelResult;
   masteryPct: number;
   weeksSurvived: number;
+  onOpenStoriesEditor?: () => void;
   onShared: () => void;
   onClose: () => void;
 }
@@ -630,6 +631,7 @@ export function ReelReadyShareModal({
   reel,
   masteryPct,
   weeksSurvived,
+  onOpenStoriesEditor,
   onShared,
   onClose,
 }: ReelReadyShareModalProps) {
@@ -707,6 +709,12 @@ export function ReelReadyShareModal({
           <IconShare size={18} />
           <span>Сохранить видео в галерею · {reel.durationSec} сек</span>
         </button>
+
+        {onOpenStoriesEditor && (
+          <button type="button" className="cta-btn subtle" onClick={onOpenStoriesEditor}>
+            Открыть в редакторе Stories (обрезать + кейс + GIF) →
+          </button>
+        )}
 
         <div className="two-col-btns single">
           <button
