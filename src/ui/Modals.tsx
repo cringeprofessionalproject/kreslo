@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { sfxCoffeeSave, sfxVictory } from '../audio';
-import { CAMPAIGN_BLOCKS, getBlockForWeek, type BlockMetaInfo } from '../game/blockCampaignEngine';
+import { getBlockForWeek, type BlockMetaInfo } from '../game/blockCampaignEngine';
 import type { RecordedReelResult } from '../game/reelVideoRecorder';
 import { renderEditorialSharePoster } from '../game/shareCardRenderer';
 import type { RunSwipeHighlight } from '../game/shortsHighlightBuilder';
@@ -106,7 +106,12 @@ interface BlockIntermissionProps {
   stats: Stats;
   iqHits: number;
   iqTotal: number;
+  decisionLog?: { id: string; title: string; fact: string; wasSmart: boolean }[];
+  runSwipeHighlights?: RunSwipeHighlight[];
+  recordedReel?: RecordedReelResult | null;
+  isFinalizingReel?: boolean;
   isNextBlockUnlocked: boolean;
+  onOpenShareVideo?: () => void;
   onContinueNextBlock: () => void;
   onUnlockMoreAndContinue: () => void;
   onBackToHub: () => void;
@@ -119,17 +124,22 @@ export function BlockIntermissionModal({
   stats,
   iqHits,
   iqTotal,
+  decisionLog,
+  runSwipeHighlights,
+  recordedReel,
+  isFinalizingReel,
   isNextBlockUnlocked,
+  onOpenShareVideo,
   onContinueNextBlock,
   onUnlockMoreAndContinue,
   onBackToHub,
 }: BlockIntermissionProps) {
   const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 80;
-  // Свайп вниз закрывает в каталог (а не вызывает оплату!)
   const dismissAction = isNextBlockUnlocked ? onContinueNextBlock : onBackToHub;
   const { sheetProps, backdropStyle } = useSheetPullToDismiss(dismissAction);
   const targetBlk = nextBlock.blockNum === 3 ? 3 : 2;
   const blockStars = getTelegramStarsPriceForPack(pack.id, targetBlk);
+  const rcBundle = pickBestRealCaseForHighlight(pack, runSwipeHighlights ?? []);
 
   return (
     <div
@@ -145,30 +155,13 @@ export function BlockIntermissionModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="sheet-grabber-bar" />
-        <span className="eyebrow-tag">РУБЕЖ ПРОЙДЕН · ЧЕКПОИНТ СОХРАНЁН</span>
+        <span className="eyebrow-tag">РУБЕЖ ПРОЙДЕН · ИТОГ {clearedBlock.endWeek} СМЕН</span>
 
-        <div className="blocks-stepper">
-          {CAMPAIGN_BLOCKS.map((b) => {
-            const state =
-              b.blockNum <= clearedBlock.blockNum
-                ? 'done'
-                : b.blockNum === nextBlock.blockNum
-                  ? 'current'
-                  : 'upcoming';
-            return (
-              <div key={b.blockNum} className={`bs-item ${state}`}>
-                <span className="bs-num">Блок {b.roman}</span>
-                <small>
-                  {b.startWeek}–{b.endWeek}
-                </small>
-              </div>
-            );
-          })}
-        </div>
-
-        <h2 className="sheet-serif-title">{clearedBlock.title} позади</h2>
-        <p className="ending-desc">
-          Дальше — <b>{nextBlock.title}</b>. {nextBlock.subtitle}
+        <h2 className="sheet-serif-title" style={{ margin: '2px 0 0' }}>
+          {clearedBlock.title} пройдена
+        </h2>
+        <p className="ending-desc" style={{ margin: '0 0 4px' }}>
+          Вы удержали баланс на всех 4 шкалах до {clearedBlock.endWeek}-й смены.
         </p>
 
         <div className="elegant-stats-strip">
@@ -184,28 +177,125 @@ export function BlockIntermissionModal({
           </div>
         </div>
 
-        {isNextBlockUnlocked ? (
-          <button type="button" className="cta-btn primary big" onClick={onContinueNextBlock}>
-            Продолжить · Смена {nextBlock.startWeek} →
-          </button>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
-            <button
-              type="button"
-              className={`cta-btn primary big ${
-                nextBlock.blockNum === 3 ? 'tier-unlock-polychrome' : 'tier-unlock-foil'
-              }`}
-              onClick={onUnlockMoreAndContinue}
-            >
-              {isRunningInsideTelegramMiniApp()
-                ? `Открыть Блок ${targetBlk} · ${blockStars} ★ →`
-                : `Открыть Блок ${targetBlk} в Telegram · ${blockStars} ★ →`}
-            </button>
-            <button type="button" className="cta-btn subtle" onClick={onBackToHub}>
-              К выбору колоды
-            </button>
+        {recordedReel && (
+          <div
+            onClick={onOpenShareVideo}
+            style={{
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <video
+              src={recordedReel.url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: 152,
+                aspectRatio: '9 / 16',
+                objectFit: 'cover',
+                borderRadius: 14,
+                border: '1px solid var(--brass-soft)',
+                boxShadow: '0 10px 28px rgba(0,0,0,0.45)',
+              }}
+            />
           </div>
         )}
+
+        {decisionLog && decisionLog.length > 0 && (() => {
+          const traps = decisionLog.filter((d) => !d.wasSmart);
+          const shown = (traps.length > 0 ? traps : decisionLog).slice(-6);
+          return (
+            <details className="ee-review" style={{ width: '100%' }}>
+              <summary>
+                <span>Разбор решений</span>
+                <b className={traps.length === 0 ? 'clean' : ''}>
+                  {traps.length === 0
+                    ? 'Ни одной ловушки'
+                    : `Ловушек: ${traps.length} из ${decisionLog.length}`}
+                </b>
+              </summary>
+              <ul>
+                {shown.map((d) => (
+                  <li key={d.id} className={d.wasSmart ? 'ok' : 'trap'}>
+                    <strong>{d.title}</strong>
+                    <span>{d.fact}</span>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          );
+        })()}
+
+        {rcBundle && (
+          <div
+            style={{
+              width: '100%',
+              padding: '11px 13px',
+              borderRadius: 12,
+              background: 'var(--paper)',
+              color: 'var(--ink)',
+              border: '1px solid var(--paper-Rule)',
+              textAlign: 'left',
+            }}
+          >
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 10,
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                color: rcBundle.realCase.kind === 'blunder' ? 'var(--vermilion)' : 'var(--forest)',
+                marginBottom: 3,
+              }}
+            >
+              {rcBundle.realCase.kind === 'blunder'
+                ? `Известный просчёт · ${rcBundle.realCase.person} (${rcBundle.realCase.year})`
+                : `Исторический прецедент · ${rcBundle.realCase.person} (${rcBundle.realCase.year})`}
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 3 }}>
+              {rcBundle.realCase.headline}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--ink-muted)', lineHeight: 1.38 }}>
+              {rcBundle.realCase.story}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%' }}>
+          {onOpenShareVideo && (
+            <button
+              type="button"
+              className="cta-btn primary big icon-inline-btn"
+              disabled={Boolean(isFinalizingReel)}
+              onClick={onOpenShareVideo}
+            >
+              <IconShare size={18} />
+              <span>{isFinalizingReel ? 'Готовим видео…' : 'Поделиться видео'}</span>
+            </button>
+          )}
+
+          {isNextBlockUnlocked ? (
+            <button type="button" className="cta-btn subtle" onClick={onContinueNextBlock}>
+              Продолжить · Смена {nextBlock.startWeek} →
+            </button>
+          ) : (
+            <div className="two-col-btns">
+              <button type="button" className="cta-btn subtle" onClick={onUnlockMoreAndContinue}>
+                {isRunningInsideTelegramMiniApp()
+                  ? `Дальше · Блок ${targetBlk} (${blockStars} ★)`
+                  : `Дальше в Telegram (${blockStars} ★)`}
+              </button>
+              <button type="button" className="cta-btn subtle" onClick={onBackToHub}>
+                К колодам
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -306,17 +396,17 @@ export function EndingModal({
   isNewEnding,
   iqHits,
   iqTotal,
-  isPackFullyUnlocked,
+  isPackFullyUnlocked: _isPackFullyUnlocked,
   decisionLog,
   runSwipeHighlights,
   faceSnapshotUrl,
-  recordedReel: _recordedReel,
+  recordedReel,
   isFinalizingReel,
   onOpenRecordedReel: _onOpenRecordedReel,
   onOpenShortsCombain,
   onOpenDuelChallenge,
   onTrackShare,
-  onUnlockMoreFromEnding,
+  onUnlockMoreFromEnding: _onUnlockMoreFromEnding,
   onRestartFromCheckpoint,
   onRestartFromZero,
   onSwitchPack,
@@ -326,7 +416,6 @@ export function EndingModal({
   const [posterPreviewUrl, setPosterPreviewUrl] = useState<string | null>(null);
   const [posterBlob, setPosterBlob] = useState<Blob | null>(null);
   const [posterFile, setPosterFile] = useState<File | null>(null);
-  const [unlockedJustNow, setUnlockedJustNow] = useState(false);
 
   const primaryRestart =
     checkpointBlock > 1 && !ending.isVictory ? onRestartFromCheckpoint : onRestartFromZero;
@@ -573,17 +662,33 @@ export function EndingModal({
           );
         })()}
 
-        {!isPackFullyUnlocked && !unlockedJustNow && (
-          <button
-            type="button"
-            className="ee-unlock-inline"
-            onClick={() => {
-              onUnlockMoreFromEnding();
+        {recordedReel && (
+          <div
+            onClick={onOpenShortsCombain}
+            style={{
+              width: '100%',
+              display: 'flex',
+              justifyContent: 'center',
+              marginBottom: 4,
+              cursor: 'pointer',
             }}
           >
-            <span>Открыть следующий модуль (до 36-й смены)</span>
-            <b>Продолжить →</b>
-          </button>
+            <video
+              src={recordedReel.url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              style={{
+                width: 156,
+                aspectRatio: '9 / 16',
+                objectFit: 'cover',
+                borderRadius: 14,
+                border: '1px solid var(--brass-soft)',
+                boxShadow: '0 10px 28px rgba(0,0,0,0.45)',
+              }}
+            />
+          </div>
         )}
 
         <div className="ee-actions">

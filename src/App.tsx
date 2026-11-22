@@ -47,12 +47,12 @@ import { applyAtmosphereToDocument, getPackAtmosphere } from './game/sceneAtmosp
 import { parseDuelRouteFromWindow, type DuelGhostData } from './game/duelMode';
 import type { RunSwipeHighlight } from './game/shortsHighlightBuilder';
 import {
-  GACHA_FREE_DEATHS_GRACE,
   getDirectWebPlayUrl,
   getGachaSaveStarsPrice,
   getTelegramBotAppUrl,
   getTelegramStarsPriceForPack,
   hydratePurchasesFromTelegramCloud,
+  isRunningInsideTelegramMiniApp,
   openTelegramDeepLinkOutsideTma,
   openTelegramStarsCheckout,
   openTelegramStarsSaveCheckout,
@@ -1947,11 +1947,12 @@ export function App() {
       if (endDef) {
         const finalEnd = endDef;
         const isNew = !meta.unlockedEndings.includes(finalEnd.id);
-        const prevDeaths = meta.deathsTotal ?? 0;
+        // Предлагаем продолжение за Stars ТОЛЬКО внутри Telegram и ТОЛЬКО тем, кто уже играет платные Блоки 2–3
         const eligibleForGachaSave =
           !finalEnd.isVictory &&
           week < CAMPAIGN_TOTAL_SHIFTS &&
-          (prevDeaths >= GACHA_FREE_DEATHS_GRACE || activeBlock.blockNum >= 2);
+          activeBlock.blockNum >= 2 &&
+          isRunningInsideTelegramMiniApp();
 
         if (eligibleForGachaSave) {
           sfxGameOver();
@@ -2023,25 +2024,34 @@ export function App() {
       setNextCard(upcomingBehind);
       setCardSeq((s) => s + 1);
 
-      if (justClearedBlock1) {
+      if (justClearedBlock1 || justClearedBlock2) {
+        if (recorderRef.current) {
+          setIsFinalizingReel(true);
+        }
         window.setTimeout(() => {
           sfxVictory();
           setLifelineCharges((c) => Math.min(3, c + 1));
-          setIntermission({
-            clearedBlock: CAMPAIGN_BLOCKS[0],
-            nextBlock: CAMPAIGN_BLOCKS[1],
-          });
-        }, 260);
-        return;
-      }
-      if (justClearedBlock2) {
-        window.setTimeout(() => {
-          sfxVictory();
-          setLifelineCharges((c) => Math.min(3, c + 1));
-          setIntermission({
-            clearedBlock: CAMPAIGN_BLOCKS[1],
-            nextBlock: CAMPAIGN_BLOCKS[2],
-          });
+          if (
+            shareRunActive &&
+            (webcamStream || customPhotoUrl) &&
+            (trackedCutoutCanvas || rawVideoEl)
+          ) {
+            const snapUrl = captureFaceSnapshotDataUrl(
+              trackedCutoutCanvas ?? rawVideoEl,
+              !trackedCutoutCanvas
+            );
+            if (snapUrl) setFaceSnapshotUrl(snapUrl);
+          }
+          setIntermission(
+            justClearedBlock1
+              ? { clearedBlock: CAMPAIGN_BLOCKS[0], nextBlock: CAMPAIGN_BLOCKS[1] }
+              : { clearedBlock: CAMPAIGN_BLOCKS[1], nextBlock: CAMPAIGN_BLOCKS[2] }
+          );
+          if (recorderRef.current) {
+            window.setTimeout(() => {
+              void stopReelRecording(false);
+            }, 350);
+          }
         }, 260);
         return;
       }
@@ -3639,9 +3649,14 @@ export function App() {
           stats={stats}
           iqHits={iqHits}
           iqTotal={iqTotal}
+          decisionLog={decisionLog}
+          runSwipeHighlights={runSwipeHighlights}
+          recordedReel={recordedReel}
+          isFinalizingReel={isFinalizingReel}
           isNextBlockUnlocked={
             getUnlockedBlockForPack(meta, pack.id) >= intermission.nextBlock.blockNum
           }
+          onOpenShareVideo={() => setShortsCombainOpen(true)}
           onContinueNextBlock={() => {
             setIntermission(null);
             sfxCardFlip();
