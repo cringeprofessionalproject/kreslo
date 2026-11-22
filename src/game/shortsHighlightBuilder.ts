@@ -128,6 +128,8 @@ export interface MontageTextOverlay {
 
 export type MontageOverlay = MontageGifOverlay | MontageTextOverlay;
 
+export type FaceFx = 'none' | 'pop' | 'pulse' | 'shake' | 'big';
+
 export interface MontageProject {
   pack: JobPack;
   ending: EndingDef;
@@ -138,6 +140,8 @@ export interface MontageProject {
   soundtrack: MontageSoundtrackMode;
   /** Клиентская умная режиссура: авто-зум на лицо/шкалы, слоу-мо перед роковым свайпом и тряска удара */
   dramaticMode?: boolean;
+  /** Отдельный слой лица: хайп-эффекты (увеличение, пульс, тряска) только на лице, без зума всей сцены */
+  faceFx?: FaceFx;
   faceSnapshotUrl?: string | null;
 }
 
@@ -624,19 +628,6 @@ function renderSwipeClipScene(
       atm.accent
     );
 
-    // МАГНИТНОЕ ЛИЦО ЧЕЛОВЕКА ПРЯМО НА ГЕРОЕ КАРТОЧКИ (главная фишка живого прохождения!)
-    if (humanFace) {
-      ctx.save();
-      ctx.translate(0, -cardH / 2 + artH * 0.43);
-      ctx.rotate(rotRad * 1.35);
-      try {
-        ctx.drawImage(humanFace, -124, -144, 248, 288);
-      } catch {
-        // ignore if frame not ready
-      }
-      ctx.restore();
-    }
-
     // Плашка номера смены поверх портрета
     drawRRect(ctx, -cardW / 2 + 22, -cardH / 2 + 20, 174, 38, 19);
     ctx.fillStyle = 'rgba(12, 16, 20, 0.78)';
@@ -706,34 +697,45 @@ function renderSwipeClipScene(
     ctx.textAlign = 'right';
     ctx.fillText(rightShort.slice(0, 20), cardW / 2 - 26, btnY + 68);
 
-    // Раскрывающаяся шторка полного выбора при захвате карточки
-    if (dragRatio > 0.18) {
-      const revAlpha = Math.min(1, (dragRatio - 0.18) / 0.35);
+    ctx.restore();
+
+    // ОТДЕЛЬНЫЙ СЛОЙ ЛИЦА (поверх клипа карточки): хайп-эффекты применяются только к нему
+    if (humanFace) {
+      const fx = project.faceFx ?? 'pop';
+      let fs = 1;
+      let jx = 0;
+      let jy = 0;
+      let jr = 0;
+      const win = localPhase > 0.3 && localPhase < 0.86;
+      if (fx === 'big') fs = 1.55;
+      else if (fx === 'pop' && win) {
+        const inP = Math.min(1, (localPhase - 0.3) / 0.12);
+        const outP = Math.max(0, (localPhase - 0.76) / 0.1);
+        const e = 1 - Math.pow(1 - inP, 3);
+        fs = 1 + 0.62 * e * (1 - outP) + Math.sin(inP * Math.PI) * 0.1;
+      } else if (fx === 'pulse' && win) {
+        fs = 1 + 0.16 * Math.abs(Math.sin(localPhase * Math.PI * 7));
+      } else if (fx === 'shake' && win) {
+        fs = 1.22;
+        jx = Math.sin(localPhase * 160) * 7;
+        jy = Math.cos(localPhase * 140) * 5;
+        jr = Math.sin(localPhase * 120) * 0.05;
+      }
       ctx.save();
-      ctx.globalAlpha = revAlpha;
-      const curtainCol = sw.side === 'right' ? '#195c46' : '#9e2f25';
-      drawRRect(ctx, -cardW / 2 + 20, btnY - 34, cardW - 40, 124, 22);
-      ctx.fillStyle = curtainCol;
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(244, 239, 228, 0.8)';
-      ctx.font = '800 16px "JetBrains Mono", monospace';
-      ctx.textAlign = 'left';
-      ctx.fillText(
-        sw.side === 'right' ? 'ВЫБРАНО ВПРАВО →' : '← ВЫБРАНО ВЛЕВО',
-        -cardW / 2 + 44,
-        btnY + 4
-      );
-
-      ctx.fillStyle = '#ffffff';
-      ctx.font = '800 23px "Manrope", system-ui, sans-serif';
-      wrapLines(ctx, sw.chosenLabel, cardW - 88, 2).forEach((cl, ci) => {
-        ctx.fillText(cl, -cardW / 2 + 44, btnY + 38 + ci * 30);
-      });
+      ctx.translate(jx, -cardH / 2 + artH * 0.43 + jy);
+      ctx.rotate(rotRad * 1.35 + jr);
+      ctx.scale(fs, fs);
+      if (fs > 1.02) {
+        ctx.shadowColor = 'rgba(0,0,0,0.55)';
+        ctx.shadowBlur = 26;
+      }
+      try {
+        ctx.drawImage(humanFace, -124, -144, 248, 288);
+      } catch {
+        // ignore if frame not ready
+      }
       ctx.restore();
     }
-
-    ctx.restore();
 
     // Рамка карточки
     drawRRect(ctx, -cardW / 2, -cardH / 2, cardW, cardH, 32);
@@ -741,6 +743,39 @@ function renderSwipeClipScene(
     ctx.lineWidth = 3;
     ctx.stroke();
 
+    ctx.restore();
+  }
+  // ВСПЛЫВАЮЩАЯ ПЛАШКА РЕШЕНИЯ СВЕРХУ (для зрителей: что именно выбрал игрок)
+  if (localPhase > 0.36) {
+    const bp = Math.min(1, (localPhase - 0.36) / 0.1);
+    const be = 1 - Math.pow(1 - bp, 3);
+    const out = localPhase > 0.94 ? (localPhase - 0.94) / 0.06 : 0;
+    const good = sw.side === 'right';
+    const col = good ? '#5ed4a8' : '#ff8a7a';
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, be * (1 - out));
+    ctx.font = '800 29px "Manrope", system-ui, sans-serif';
+    const lines = wrapLines(ctx, sw.chosenLabel, W - 156, 3);
+    const bh = 58 + lines.length * 38;
+    const by = hudTop + 100 + (1 - be) * -40;
+    ctx.translate(W / 2, by + bh / 2);
+    ctx.scale(0.94 + 0.06 * be, 0.94 + 0.06 * be);
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 28;
+    drawRRect(ctx, -(W - 92) / 2, -bh / 2, W - 92, bh, 26);
+    ctx.fillStyle = 'rgba(10, 14, 18, 0.94)';
+    ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.font = '800 15px "JetBrains Mono", monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('РЕШЕНИЕ', -(W - 92) / 2 + 28, -bh / 2 + 31);
+    ctx.fillStyle = '#f4efe4';
+    ctx.font = '800 29px "Manrope", system-ui, sans-serif';
+    lines.forEach((ln, i) => ctx.fillText(ln, -(W - 92) / 2 + 28, -bh / 2 + 66 + i * 38));
     ctx.restore();
   }
 }
@@ -1224,7 +1259,7 @@ function dramaticTimeWarp(rawPhase: number): number {
 /**
  * Вычисляет параметры виртуальной операторской камеры (зум на лицо, перевод фокуса на шкалы и ударную тряску).
  */
-function computeSmartDirectorCamera(
+export function computeSmartDirectorCamera(
   rawPhase: number,
   W: number,
   H: number,
@@ -1327,9 +1362,8 @@ export function renderMontageFrameAtTime(
       climaxSpan?.clip.id === clip.id &&
       (clip.kind === 'swipe' || clip.kind === 'video');
 
-    const cam = isClimax
-      ? computeSmartDirectorCamera(rawPhase, VW, VH, clip.kind === 'video')
-      : { zoom: 1, focusX: VW / 2, focusY: VH / 2, shakeX: 0, shakeY: 0, vignette: 0 };
+    // Зум и тряска всей сцены отключены: хайп делается только слоем лица (faceFx)
+    const cam = { zoom: 1, focusX: VW / 2, focusY: VH / 2, shakeX: 0, shakeY: 0, vignette: 0 };
 
     ctx.save();
     if (cam.zoom > 1.002 || cam.shakeX !== 0 || cam.shakeY !== 0) {

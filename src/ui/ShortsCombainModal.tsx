@@ -17,6 +17,7 @@ import {
   pickBestRealCaseForHighlight,
   renderMontageFrameAtTime,
   type CaptionVisualStyle,
+  type FaceFx,
   type MontageClip,
   type MontageGifOverlay,
   type MontageOverlay,
@@ -88,13 +89,17 @@ export function ShortsCombainModal({
 
   // Режим: «Умный хайлайт» (зумы + слоу-мо + как ответили в истории) или чистая «Запись»
   const [feedMode, setFeedMode] = useState<StoriesFeedMode>('smart_highlight');
-  const [dramaticMode, setDramaticMode] = useState<boolean>(true);
-  const [includeCaseBlock, setIncludeCaseBlock] = useState<boolean>(true);
+  const dramaticMode = true;
+  const [faceFx, setFaceFx] = useState<FaceFx>('pop');
+  const [faceSheetOpen, setFaceSheetOpen] = useState<boolean>(false);
   const [soundMuted, setSoundMuted] = useState<boolean>(false);
 
   const initialCaseBundle = useMemo(
     () => pickBestRealCaseForHighlight(pack, usableSwipes),
     [pack, usableSwipes]
+  );
+  const [includeCaseBlock, setIncludeCaseBlock] = useState<boolean>(() =>
+    Boolean(initialCaseBundle)
   );
   const [selectedCase, setSelectedCase] = useState<RealHistoricalCase | null>(
     () => initialCaseBundle?.realCase ?? allPackCases[0] ?? null
@@ -177,7 +182,13 @@ export function ShortsCombainModal({
         fit: 'cover',
       });
     } else {
-      const picks = usableSwipes.slice(-2);
+      const hypeIdx = initialCaseBundle?.week
+        ? usableSwipes.findIndex((x) => x.week === initialCaseBundle.week)
+        : -1;
+      const picks =
+        hypeIdx >= 0
+          ? usableSwipes.slice(Math.max(0, hypeIdx - 1), hypeIdx + 1)
+          : usableSwipes.slice(-2);
       picks.forEach((sw, idx) => {
         const isLast = idx === picks.length - 1;
         list.push({
@@ -210,6 +221,7 @@ export function ShortsCombainModal({
     caseLeadText,
     dramaticMode,
     feedMode,
+    initialCaseBundle?.week,
     includeCaseBlock,
     initialCaseBundle?.playerMatched,
     recordedReel,
@@ -286,11 +298,13 @@ export function ShortsCombainModal({
       overlays,
       soundtrack: soundMuted ? 'mute' : recordedReel ? 'sfx_only' : 'groove',
       dramaticMode: feedMode === 'smart_highlight' && dramaticMode,
+      faceFx: feedMode === 'smart_highlight' ? faceFx : 'none',
       faceSnapshotUrl,
     }),
     [
       clips,
       dramaticMode,
+      faceFx,
       ending,
       faceSnapshotUrl,
       feedMode,
@@ -1269,25 +1283,22 @@ export function ShortsCombainModal({
                   type="button"
                   style={{
                     ...glassCircleStyle,
-                    borderColor: dramaticMode
-                      ? 'rgba(255, 209, 102, 0.65)'
-                      : 'rgba(255,255,255,0.18)',
-                    color: dramaticMode ? '#ffd166' : '#ffffff',
+                    width: 'auto',
+                    padding: '0 10px',
+                    fontSize: 11.5,
+                    borderColor:
+                      faceFx !== 'none' ? 'rgba(255, 209, 102, 0.65)' : 'rgba(255,255,255,0.18)',
+                    color: faceFx !== 'none' ? '#ffd166' : '#ffffff',
                   }}
                   onClick={() => {
                     sfxUiTap();
-                    const next = !dramaticMode;
-                    setDramaticMode(next);
-                    showQuickToast(
-                      next ? 'Умный зум и слоу-мо включены' : 'Обычная камера без зума'
-                    );
+                    setGifSheetOpen(false);
+                    setCaseSheetOpen(false);
+                    setFaceSheetOpen((v) => !v);
                   }}
-                  title="Умный драматизм (зумы и замедление)"
+                  title="Эффекты лица"
                 >
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <circle cx="11" cy="11" r="7" />
-                    <path d="M20 20l-4-4M11 8v6M8 11h6" strokeLinecap="round" />
-                  </svg>
+                  Лицо
                 </button>
               )}
 
@@ -1731,6 +1742,86 @@ export function ShortsCombainModal({
           </div>
         )}
 
+        {faceSheetOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(12, 16, 22, 0.94)',
+              backdropFilter: 'blur(22px)',
+              WebkitBackdropFilter: 'blur(22px)',
+              borderTopLeftRadius: 22,
+              borderTopRightRadius: 22,
+              borderTop: '1px solid rgba(255,255,255,0.14)',
+              zIndex: 28,
+              padding: '14px 16px 24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <strong style={{ fontSize: 14 }}>Эффект на лице</strong>
+              <button
+                type="button"
+                onClick={() => setFaceSheetOpen(false)}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: 999,
+                  border: 'none',
+                  background: '#ffffff',
+                  color: '#0b0e14',
+                  fontSize: 12,
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                }}
+              >
+                Готово
+              </button>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {(
+                [
+                  ['none', 'Без эффекта'],
+                  ['pop', 'Наезд на лицо'],
+                  ['pulse', 'Пульс'],
+                  ['shake', 'Тряска'],
+                  ['big', 'Крупно всегда'],
+                ] as [FaceFx, string][]
+              ).map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => {
+                    sfxUiTap();
+                    setFaceFx(k);
+                    playheadRef.current = 0;
+                    setPlayheadSec(0);
+                    setIsPlaying(true);
+                  }}
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: 999,
+                    border: 'none',
+                    background: faceFx === k ? '#ffd166' : 'rgba(255,255,255,0.09)',
+                    color: faceFx === k ? '#141210' : '#ffffff',
+                    fontSize: 12.5,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>
+              Лицо — отдельный слой: увеличивается только оно, сцена остаётся на месте.
+            </div>
+          </div>
+        )}
+
         {/* КОМПАКТНАЯ ШТОРКА «А КАК НА ЭТОТ ВОПРОС ОТВЕТИЛ…» */}
         {caseSheetOpen && selectedCase && (
           <div
@@ -1907,7 +1998,7 @@ export function ShortsCombainModal({
         )}
 
         {/* НИЖНИЙ БЛОК STORIES: ЕДИНАЯ ЛЕНТА ТАЙМЛАЙНА С РУЧКАМИ ОБРЕЗКИ + КНОПКА ПОДЕЛИТЬСЯ */}
-        {!textEditorState.open && !gifSheetOpen && !caseSheetOpen && !isDraggingOverlay && (
+        {!textEditorState.open && !gifSheetOpen && !caseSheetOpen && !faceSheetOpen && !isDraggingOverlay && (
           <div
             style={{
               position: 'absolute',
