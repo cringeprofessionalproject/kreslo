@@ -1,4 +1,5 @@
 import type { EndingDef, JobPack, Stats } from '../types';
+import { getPackAtmosphere } from './sceneAtmospheres';
 
 export type FacePlacement = 'circle_bottom' | 'card_head';
 
@@ -340,15 +341,16 @@ export function drawGameScreenToCanvas(
   const VW = 720;
   const VH = 1280;
 
-  // 1. Фон как в живом мобильном экране
+  // 1. Фон как в живом мобильном экране (с учётом атмосферы выбранной колоды)
+  const atm = getPackAtmosphere(s.pack.id, s.blockRoman === 'III' ? 3 : s.blockRoman === 'II' ? 2 : 1, false);
   const bg = c.createRadialGradient(VW / 2, VH * 0.3, 40, VW / 2, VH * 0.5, VH * 0.85);
-  bg.addColorStop(0, '#1A2B24');
-  bg.addColorStop(1, '#0D1512');
+  bg.addColorStop(0, atm.bgGlow);
+  bg.addColorStop(1, atm.bgCanvas);
   c.fillStyle = bg;
   c.fillRect(0, 0, VW, VH);
 
   // 2. Компактная верхняя шапка + 4 лаконичные капсулы показателей (освобождаем ~76% кадра под карточку!)
-  c.fillStyle = 'rgba(14, 21, 18, 0.92)';
+  c.fillStyle = 'rgba(12, 16, 20, 0.88)';
   c.fillRect(0, 0, VW, 80);
 
   roundRect(c, 26, 16, 368, 48, 24);
@@ -467,20 +469,20 @@ export function drawGameScreenToCanvas(
       }
     }
 
-    c.fillStyle = '#16241E';
+    c.fillStyle = atm.cardHeader;
     c.fillRect(-cw / 2, -ch / 2, cw, artH);
 
     const glowGrad = c.createRadialGradient(0, -ch / 2 + artH * 0.52, 24, 0, -ch / 2 + artH * 0.52, 220);
-    glowGrad.addColorStop(0, 'rgba(200, 155, 79, 0.24)');
-    glowGrad.addColorStop(1, 'rgba(22, 36, 30, 0)');
+    glowGrad.addColorStop(0, atm.accentSoft);
+    glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
     c.fillStyle = glowGrad;
     c.fillRect(-cw / 2, -ch / 2, cw, artH);
 
-    c.fillStyle = '#223B31';
+    c.fillStyle = atm.bgElevated;
     c.beginPath();
     c.arc(0, -ch / 2 + artH - 118, 144, 0, Math.PI * 2);
     c.fill();
-    c.strokeStyle = 'rgba(200, 155, 79, 0.52)';
+    c.strokeStyle = atm.accent;
     c.lineWidth = 2;
     c.stroke();
 

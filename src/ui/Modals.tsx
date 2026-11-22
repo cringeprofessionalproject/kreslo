@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 import { sfxCoffeeSave, sfxVictory } from '../audio';
 import { CAMPAIGN_BLOCKS, getBlockForWeek, type BlockMetaInfo } from '../game/blockCampaignEngine';
-import {
-  shareRecordedReelToGallery,
-  type RecordedReelResult,
-} from '../game/reelVideoRecorder';
+import type { RecordedReelResult } from '../game/reelVideoRecorder';
 import { renderEditorialSharePoster } from '../game/shareCardRenderer';
 import type { RunSwipeHighlight } from '../game/shortsHighlightBuilder';
 import { pickBestRealCaseForHighlight } from '../game/shortsHighlightBuilder';
@@ -313,7 +310,7 @@ export function EndingModal({
   decisionLog,
   runSwipeHighlights,
   faceSnapshotUrl,
-  recordedReel,
+  recordedReel: _recordedReel,
   isFinalizingReel,
   onOpenRecordedReel: _onOpenRecordedReel,
   onOpenShortsCombain,
@@ -339,7 +336,6 @@ export function EndingModal({
 
   const masteryPct = iqTotal > 0 ? Math.round((iqHits / iqTotal) * 100) : 78;
   const blockReached = getBlockForWeek(weeksSurvived);
-  const showVideoControls = Boolean(recordedReel) || Boolean(isFinalizingReel);
 
   useEffect(() => {
     let cancelled = false;
@@ -366,37 +362,6 @@ export function EndingModal({
       cancelled = true;
     };
   }, [attemptNumber, ending, faceSnapshotUrl, finalStats, iqHits, iqTotal, pack, weeksSurvived]);
-
-  const handleSaveVideoDirect = async () => {
-    if (!recordedReel) return;
-    // Вызываем системный iOS Share Sheet первой строкой обработчика (без потери User Activation)
-    const outcome = await shareRecordedReelToGallery(recordedReel);
-    if (outcome === 'shared') {
-      sfxVictory();
-      onTrackShare();
-      setShareToast('Видео сохранено / отправлено');
-      window.setTimeout(() => setShareToast(null), 2800);
-      return;
-    }
-    if (outcome === 'aborted') {
-      return;
-    }
-    // Нет системного меню «Поделиться» с файлами (ПК или встроенный браузер мессенджера)
-    const isIosDevice =
-      typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent);
-    if (isIosDevice) {
-      setShareToast('Откройте игру в Safari — там видео сохраняется прямо в Фото');
-      window.setTimeout(() => setShareToast(null), 3600);
-      return;
-    }
-    const a = document.createElement('a');
-    a.href = recordedReel.url;
-    a.download = recordedReel.file.name;
-    a.click();
-    onTrackShare();
-    setShareToast('Видео скачано');
-    window.setTimeout(() => setShareToast(null), 2600);
-  };
 
   const handlePosterShareClick = async () => {
     if (
@@ -623,30 +588,21 @@ export function EndingModal({
 
         <div className="ee-actions">
           {onOpenShortsCombain && (
-            <button type="button" className="cta-btn primary big" onClick={onOpenShortsCombain}>
-              Монтаж Stories · склейка, кейс и GIF →
-            </button>
-          )}
-          {showVideoControls && (
             <button
               type="button"
               className="cta-btn primary big icon-inline-btn"
-              disabled={!recordedReel}
-              onClick={handleSaveVideoDirect}
+              disabled={Boolean(isFinalizingReel)}
+              onClick={onOpenShortsCombain}
             >
               <IconShare size={18} />
-              <span>
-                {!recordedReel
-                  ? 'Готовим видео…'
-                  : `Сохранить видео в галерею · ${recordedReel.durationSec} сек`}
-              </span>
+              <span>{isFinalizingReel ? 'Готовим видео…' : 'Поделиться видео'}</span>
             </button>
           )}
 
           {ending.isVictory && onContinueEndless ? (
             <button
               type="button"
-              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              className="cta-btn subtle"
               onClick={onContinueEndless}
             >
               Бесконечный режим →
@@ -654,7 +610,7 @@ export function EndingModal({
           ) : checkpointBlock > 1 && !ending.isVictory ? (
             <button
               type="button"
-              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              className="cta-btn subtle"
               onClick={onRestartFromCheckpoint}
             >
               С чекпоинта (Блок {checkpointBlock === 2 ? 'II' : 'III'})
@@ -662,7 +618,7 @@ export function EndingModal({
           ) : (
             <button
               type="button"
-              className={`cta-btn ${showVideoControls ? 'subtle' : 'primary big'}`}
+              className="cta-btn subtle"
               onClick={onRestartFromZero}
             >
               Попробовать ещё раз

@@ -39,6 +39,7 @@ export interface RunSwipeHighlight {
   side: 'left' | 'right';
   statsBefore?: Stats;
   statsAfter?: Stats;
+  faceSnapUrl?: string | null;
   matchedRealCase?: boolean;
   realCase?: RealHistoricalCase;
 }
@@ -150,6 +151,10 @@ export interface MontageRenderAssets {
   portraits: Map<string, HTMLImageElement>;
   /** Живое фото лица игрока (если было) */
   faceImg: HTMLImageElement | null;
+  /** Снимки лица игрока в момент конкретного свайпа (по номеру смены) */
+  swipeFaces?: Map<number, HTMLImageElement>;
+  /** Живой поток вырезанного лица с камеры прямо сейчас (если камера активна) */
+  liveFaceSource?: HTMLCanvasElement | HTMLVideoElement | HTMLImageElement | null;
   /** Загруженные пользователем GIF / стикеры */
   customStickers: Map<string, CustomStickerMedia>;
   /** Источники кадров для видеоклипов (HTMLVideoElement в превью или Canvas в экспорте) */
@@ -487,9 +492,12 @@ function renderSwipeClipScene(
     curStats.s4 >= 84;
 
   const atm = drawSceneAtmosphereBg(ctx, W, H, project.pack.id, sw.blockNum ?? 2, anyDanger);
+  const hasTopText = project.overlays.some((o) => o.kind === 'text' && o.text.trim().length > 0);
+  const humanFace: HTMLCanvasElement | HTMLVideoElement | HTMLImageElement | null =
+    assets.liveFaceSource ?? assets.swipeFaces?.get(sw.week) ?? assets.faceImg ?? null;
 
-  // Шапка игры + 4 живых индикатора показателей (расположены с учётом верхнего титра Stories)
-  const hudTop = 186;
+  // Шапка игры + 4 живых индикатора показателей (поднимаем выше, если нет верхнего титра)
+  const hudTop = hasTopText ? 174 : 72;
   ctx.save();
   drawRRect(ctx, 36, hudTop, W - 72, 84, 20);
   ctx.fillStyle = 'rgba(12, 16, 20, 0.76)';
@@ -535,10 +543,10 @@ function renderSwipeClipScene(
   ctx.restore();
 
   // Подложка следующей карты в колоде (эффект глубины стопки)
-  const cardW = 620;
-  const cardH = 820;
+  const cardW = 636;
+  const cardH = hasTopText ? 840 : 920;
   const centerX = W / 2;
-  const centerY = 716;
+  const centerY = hasTopText ? 718 : 668;
 
   ctx.save();
   const nextScale = 0.94 + 0.05 * commitProgress;
@@ -589,11 +597,12 @@ function renderSwipeClipScene(
     ctx.save();
     ctx.clip();
 
-    const artH = 368;
-    const pKey = `card_${sw.cardId ?? sw.speaker}`;
+    const artH = Math.round(cardH * 0.47);
+    const baseKey = `card_${sw.cardId ?? sw.speaker}`;
+    const headlessKey = `card_headless_${sw.cardId ?? sw.speaker}`;
     drawPortraitOrFallback(
       ctx,
-      assets.portraits.get(pKey),
+      humanFace ? (assets.portraits.get(headlessKey) ?? assets.portraits.get(baseKey)) : assets.portraits.get(baseKey),
       -cardW / 2,
       -cardH / 2,
       cardW,
@@ -601,6 +610,19 @@ function renderSwipeClipScene(
       atm.cardHeader,
       atm.accent
     );
+
+    // МАГНИТНОЕ ЛИЦО ЧЕЛОВЕКА ПРЯМО НА ГЕРОЕ КАРТОЧКИ (главная фишка живого прохождения!)
+    if (humanFace) {
+      ctx.save();
+      ctx.translate(0, -cardH / 2 + artH * 0.43);
+      ctx.rotate(rotRad * 1.35);
+      try {
+        ctx.drawImage(humanFace, -124, -144, 248, 288);
+      } catch {
+        // ignore if frame not ready
+      }
+      ctx.restore();
+    }
 
     // Плашка номера смены поверх портрета
     drawRRect(ctx, -cardW / 2 + 22, -cardH / 2 + 20, 174, 38, 19);
@@ -707,25 +729,6 @@ function renderSwipeClipScene(
     ctx.stroke();
 
     ctx.restore();
-  }
-
-  // Кружок живого лица в углу (если есть селфи/камера)
-  if (assets.faceImg) {
-    ctx.save();
-    const r = 68;
-    const fx = 108;
-    const fy = H - 144;
-    ctx.beginPath();
-    ctx.arc(fx, fy, r, 0, Math.PI * 2);
-    ctx.closePath();
-    ctx.clip();
-    ctx.drawImage(assets.faceImg, fx - r, fy - r, r * 2, r * 2);
-    ctx.restore();
-    ctx.strokeStyle = atm.accent;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(108, H - 144, 68, 0, Math.PI * 2);
-    ctx.stroke();
   }
 }
 
@@ -978,7 +981,8 @@ function renderEndingClipScene(
   ctx.lineWidth = 4;
   ctx.stroke();
 
-  // Портрет исхода
+  // Портрет исхода (с живым лицом игрока в медальоне, если оно есть!)
+  const endingHumanFace = assets.liveFaceSource ?? assets.faceImg ?? null;
   ctx.save();
   ctx.beginPath();
   ctx.arc(0, -196, 86, 0, Math.PI * 2);
@@ -986,7 +990,10 @@ function renderEndingClipScene(
   ctx.clip();
   drawPortraitOrFallback(
     ctx,
-    assets.portraits.get(`ending_${project.ending.id}`),
+    endingHumanFace
+      ? (assets.portraits.get(`ending_headless_${project.ending.id}`) ??
+          assets.portraits.get(`ending_${project.ending.id}`))
+      : assets.portraits.get(`ending_${project.ending.id}`),
     -86,
     -282,
     172,
@@ -994,6 +1001,13 @@ function renderEndingClipScene(
     atm.cardHeader,
     atm.accent
   );
+  if (endingHumanFace) {
+    try {
+      ctx.drawImage(endingHumanFace, -68, -274, 136, 158);
+    } catch {
+      // ignore
+    }
+  }
   ctx.restore();
 
   drawRRect(ctx, -220, -86, 440, 54, 14);
@@ -1380,37 +1394,64 @@ function seekHtmlVideo(video: HTMLVideoElement, targetSec: number): Promise<void
   });
 }
 
+function sliceAudioBufferRange(
+  buf: AudioBuffer,
+  startSec: number,
+  endSec: number
+): AudioBuffer {
+  const sr = buf.sampleRate;
+  const i0 = Math.max(0, Math.min(buf.length - 1, Math.floor(startSec * sr)));
+  const i1 = Math.max(i0 + 1, Math.min(buf.length, Math.ceil(endSec * sr)));
+  const len = i1 - i0;
+  const out = new AudioBuffer({
+    numberOfChannels: buf.numberOfChannels,
+    length: len,
+    sampleRate: sr,
+  });
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+    out.copyToChannel(buf.getChannelData(ch).subarray(i0, i1), ch);
+  }
+  return out;
+}
+
 /**
- * Экспортирует полный монтажный проект в готовый к сохранению в Фото / отправке в Stories H.264 + AAC MP4!
- * Использует ускоренный кодировщик Mediabunny (WebCodecs) с покадровым декодером CanvasSink для видеовставок.
+ * Экспортирует выбранное представление ролика (с учётом обрезки startSec..endSec) в готовый MP4.
  */
 export async function exportMontageProjectToMp4(
   project: MontageProject,
   baseAssets: Omit<MontageRenderAssets, 'videoFrames'>,
   previewVideoEls: Map<string, HTMLVideoElement>,
-  onProgress?: (pct: number, stageLabel: string) => void
+  onProgress?: (pct: number, stageLabel: string) => void,
+  trimRange?: { startSec: number; endSec: number }
 ): Promise<{ blob: Blob; file: File; url: string; mime: string }> {
   const W = 720;
   const H = 1280;
   const FPS = 30;
   const { spans, totalDuration } = computeTimelineSpans(project.clips);
-  const totalFrames = Math.max(15, Math.ceil(totalDuration * FPS));
+  const rangeStart = Math.max(0, Math.min(totalDuration - 0.3, trimRange?.startSec ?? 0));
+  const rangeEnd = Math.max(
+    rangeStart + 0.4,
+    Math.min(totalDuration, trimRange?.endSec ?? totalDuration)
+  );
+  const exportDuration = rangeEnd - rangeStart;
+  const totalFrames = Math.max(12, Math.ceil(exportDuration * FPS));
 
-  onProgress?.(3, 'Сведение звуковой дорожки…');
-  const masterAudio = await buildMontageMasterAudioBuffer(project);
+  onProgress?.(4, 'Подготовка звука…');
+  const fullMasterAudio = await buildMontageMasterAudioBuffer(project);
+  const masterAudio = fullMasterAudio
+    ? sliceAudioBufferRange(fullMasterAudio, rangeStart, rangeEnd)
+    : null;
 
   const canvas = document.createElement('canvas');
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext('2d')!;
 
-  // 1. Быстрый WebCodecs-экспорт через Mediabunny (в 3–6 раз быстрее реального времени + идеальный MP4 для iPhone!)
   try {
     const mb = await import('mediabunny');
     const canAvc = await mb.canEncodeVideo('avc', { width: W, height: H });
 
     if (canAvc) {
-      // Подготавливаем аппаратные декодеры CanvasSink для всех обрезанных видеоклипов
       const sinkIterators = new Map<
         string,
         {
@@ -1436,9 +1477,9 @@ export async function exportMontageProjectToMp4(
               });
               const clipFrameTimestamps: number[] = [];
               for (let fi = 0; fi < totalFrames; fi++) {
-                const t = fi / FPS;
-                if (t >= sp.startSec && t < sp.endSec) {
-                  clipFrameTimestamps.push(sp.clip.trimStart + (t - sp.startSec));
+                const projT = rangeStart + fi / FPS;
+                if (projT >= sp.startSec && projT < sp.endSec) {
+                  clipFrameTimestamps.push(sp.clip.trimStart + (projT - sp.startSec));
                 }
               }
               if (clipFrameTimestamps.length > 0) {
@@ -1453,7 +1494,7 @@ export async function exportMontageProjectToMp4(
               inp.dispose();
             }
           } catch {
-            // Запасной вариант через seekHtmlVideo сработает автоматически
+            // fallback via seekHtmlVideo
           }
         }
       }
@@ -1490,8 +1531,9 @@ export async function exportMontageProjectToMp4(
       const frameMap = new Map<string, CanvasImageSource | null>();
       try {
         for (let fi = 0; fi < totalFrames; fi++) {
-          const t = fi / FPS;
-          const activeSpan = spans.find((s) => t >= s.startSec && t < s.endSec);
+          const outT = fi / FPS;
+          const projT = rangeStart + outT;
+          const activeSpan = spans.find((s) => projT >= s.startSec && projT < s.endSec);
 
           if (activeSpan && activeSpan.clip.kind === 'video') {
             const clipId = activeSpan.clip.id;
@@ -1504,30 +1546,29 @@ export async function exportMontageProjectToMp4(
               if (vidEl) {
                 await seekHtmlVideo(
                   vidEl,
-                  activeSpan.clip.trimStart + (t - activeSpan.startSec)
+                  activeSpan.clip.trimStart + (projT - activeSpan.startSec)
                 );
                 frameMap.set(clipId, vidEl);
               }
             }
           }
 
-          // Для кастомных видео-стикеров также синхронизируем время
           for (const [, cust] of baseAssets.customStickers) {
             if (cust.kind === 'video_loop' && cust.videoEl && cust.videoEl.duration > 0) {
-              await seekHtmlVideo(cust.videoEl, t % cust.videoEl.duration);
+              await seekHtmlVideo(cust.videoEl, outT % cust.videoEl.duration);
             }
           }
 
-          renderMontageFrameAtTime(ctx, W, H, t, project, {
+          renderMontageFrameAtTime(ctx, W, H, projT, project, {
             ...baseAssets,
             videoFrames: frameMap,
           });
 
-          await canvasSource.add(t, 1 / FPS);
+          await canvasSource.add(outT, 1 / FPS);
 
-          if (fi % 4 === 0 || fi === totalFrames - 1) {
+          if (fi % 5 === 0 || fi === totalFrames - 1) {
             const pct = 8 + Math.round(((fi + 1) / totalFrames) * 88);
-            onProgress?.(pct, `Рендер кадров HD… ${pct}%`);
+            onProgress?.(pct, `Готовим видео… ${pct}%`);
             await new Promise((r) => setTimeout(r, 0));
           }
         }
@@ -1541,9 +1582,9 @@ export async function exportMontageProjectToMp4(
       await output.finalize();
 
       if (target.buffer && target.buffer.byteLength > 512) {
-        onProgress?.(100, 'Готово!');
+        onProgress?.(100, 'Готово');
         const mp4Blob = new Blob([target.buffer], { type: 'video/mp4' });
-        const file = new File([mp4Blob], `kreslo-story-${Date.now().toString().slice(-5)}.mp4`, {
+        const file = new File([mp4Blob], `kreslo-${Date.now().toString().slice(-5)}.mp4`, {
           type: 'video/mp4',
           lastModified: Date.now(),
         });
@@ -1556,7 +1597,7 @@ export async function exportMontageProjectToMp4(
       }
     }
   } catch {
-    // Переходим на резервный захват MediaRecorder ниже
+    // fallback below
   }
 
   // 2. Резервный путь через MediaRecorder (если браузер без WebCodecs)

@@ -691,10 +691,10 @@ function DrawerSheet({
               onOpenStoriesStudio();
             }}
           >
-            <IconFrame size={18} />
+            <IconShare size={18} />
             <div>
-              <strong>Видеоредактор Stories · Склейка и GIF</strong>
-              <small>Обрезка видео, вставка реальных ответов из истории, гифки и титры</small>
+              <strong>Поделиться видео</strong>
+              <small>Прохождение с лицом, вставка из истории, обрезка и гифки</small>
             </div>
           </button>
 
@@ -1434,7 +1434,7 @@ export function App() {
       if (result) {
         setRecordedReel(result);
         if (openPreview) {
-          setReelShareModalOpen(true);
+          setShortsCombainOpen(true);
         }
       }
       return result;
@@ -1833,6 +1833,13 @@ export function App() {
               ? rawUnmirrored.left.label
               : rawUnmirrored.right.label)
           : undefined;
+      const swipeFaceSnap =
+        shareRunActive && (webcamStream || customPhotoUrl) && (trackedCutoutCanvas || rawVideoEl)
+          ? captureFaceSnapshotDataUrl(trackedCutoutCanvas ?? rawVideoEl, !trackedCutoutCanvas)
+          : null;
+      if (swipeFaceSnap) {
+        setFaceSnapshotUrl(swipeFaceSnap);
+      }
       setRunSwipeHighlights((prev) => [
         ...prev,
         {
@@ -1848,6 +1855,7 @@ export function App() {
           side,
           statsBefore: { ...stats },
           statsAfter: { ...nextStats },
+          faceSnapUrl: swipeFaceSnap,
           matchedRealCase,
           realCase: currentCard.realCase,
         },
@@ -3701,7 +3709,24 @@ export function App() {
             setPendingGachaCrash(null);
             setFlags(crash.nextFlags);
             setWeek(crash.nextWeek);
+            if (
+              shareRunActive &&
+              (webcamStream || customPhotoUrl) &&
+              (trackedCutoutCanvas || rawVideoEl)
+            ) {
+              const snapUrl = captureFaceSnapshotDataUrl(
+                trackedCutoutCanvas ?? rawVideoEl,
+                !trackedCutoutCanvas
+              );
+              if (snapUrl) setFaceSnapshotUrl(snapUrl);
+            }
             setActiveEnding({ def: crash.endDef, isNew: crash.isNew });
+            if (recorderRef.current) {
+              setIsFinalizingReel(true);
+              window.setTimeout(() => {
+                void stopReelRecording(false);
+              }, 350);
+            }
           }}
         />
       )}
@@ -3865,6 +3890,9 @@ export function App() {
           swipes={runSwipeHighlights}
           recordedReel={recordedReel}
           faceSnapshotUrl={faceSnapshotUrl}
+          liveFaceSource={shareRunActive ? (trackedCutoutCanvas ?? rawVideoEl) : null}
+          hasLiveFace={Boolean(shareRunActive && (webcamStream || customPhotoUrl))}
+          onRequestEnableFace={() => void activateSharePlaythroughMode()}
           onClose={() => setShortsCombainOpen(false)}
         />
       )}
