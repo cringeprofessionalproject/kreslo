@@ -128,7 +128,21 @@ export interface MontageTextOverlay {
 
 export type MontageOverlay = MontageGifOverlay | MontageTextOverlay;
 
-export type FaceFx = 'none' | 'pop' | 'pulse' | 'shake' | 'big';
+export type FaceFx = 'auto' | 'none' | 'pop' | 'pulse' | 'shake' | 'big';
+
+/** Авто-выбор эффекта лица по тому, что произошло с показателями после ответа игрока */
+function pickAutoFaceFx(sw: RunSwipeHighlight, a: Stats, b: Stats): Exclude<FaceFx, 'auto'> {
+  const keys: StatKey[] = ['s1', 's2', 's3', 's4'];
+  const deltas = keys.map((k) => b[k] - a[k]);
+  const minD = Math.min(...deltas);
+  const maxD = Math.max(...deltas);
+  const danger = keys.some((k) => b[k] <= 20 || b[k] >= 84);
+  if (danger || minD <= -14) return 'shake';
+  if (sw.realCase?.kind === 'blunder' && sw.matchedRealCase) return 'shake';
+  if (maxD >= 14 && minD > -7) return 'pop';
+  if (Math.abs(minD) >= 8 || maxD >= 8) return 'pulse';
+  return 'pop';
+}
 
 export interface MontageProject {
   pack: JobPack;
@@ -511,7 +525,7 @@ function renderSwipeClipScene(
   const atm = drawSceneAtmosphereBg(ctx, W, H, project.pack.id, sw.blockNum ?? 2, anyDanger);
   const hasTopText = project.overlays.some((o) => o.kind === 'text' && o.text.trim().length > 0);
   const humanFace: HTMLCanvasElement | HTMLVideoElement | HTMLImageElement | null =
-    assets.liveFaceSource ?? assets.swipeFaces?.get(sw.week) ?? assets.faceImg ?? null;
+    assets.swipeFaces?.get(sw.week) ?? assets.faceImg ?? assets.liveFaceSource ?? null;
 
   // Шапка игры + 4 живых индикатора показателей (поднимаем выше, если нет верхнего титра)
   const hudTop = hasTopText ? 174 : 72;
@@ -701,7 +715,8 @@ function renderSwipeClipScene(
 
     // ОТДЕЛЬНЫЙ СЛОЙ ЛИЦА (поверх клипа карточки): хайп-эффекты применяются только к нему
     if (humanFace) {
-      const fx = project.faceFx ?? 'pop';
+      const fxSetting = project.faceFx ?? 'auto';
+      const fx = fxSetting === 'auto' ? pickAutoFaceFx(sw, statsA, statsB) : fxSetting;
       let fs = 1;
       let jx = 0;
       let jy = 0;

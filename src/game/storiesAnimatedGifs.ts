@@ -366,7 +366,7 @@ export async function searchOnlineGifsIfConfigured(query: string): Promise<Exter
   }
   if (!giphyKey) return [];
   try {
-    const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(
+    const url = `https://api.giphy.com/v1/stickers/search?api_key=${encodeURIComponent(
       giphyKey.trim()
     )}&q=${encodeURIComponent(query.trim())}&limit=16&rating=pg-13&lang=ru`;
     const res = await fetch(url);

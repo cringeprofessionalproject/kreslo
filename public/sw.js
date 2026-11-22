@@ -1,4 +1,4 @@
-const CACHE_NAME = 'heuristics-kreslo-sim-v48';
+const CACHE_NAME = 'heuristics-kreslo-sim-v49';
 const PRECACHE = [
   './',
   './index.html',
@@ -35,6 +35,7 @@ self.addEventListener('fetch', (event) => {
   if (!url.startsWith(self.location.origin) || url.includes('/api/')) return;
 
   const isHeavyStaticAsset =
+    /\/assets\/[^/]+-[A-Za-z0-9_-]{6,}\.(js|css)$/.test(url) ||
     url.includes('/assets/mediapipe/') ||
     url.includes('/assets/fonts/') ||
     url.includes('/assets/portraits/') ||

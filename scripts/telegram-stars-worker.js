@@ -28,13 +28,13 @@ export default {
         return new Response('[]', { headers: { ...cors, 'Content-Type': 'application/json' } });
       }
       const cache = caches.default;
-      const cacheKey = new Request(`https://cache.local/gif?q=${encodeURIComponent(q.toLowerCase())}`);
+      const cacheKey = new Request(`https://cache.local/gif?t=stk&q=${encodeURIComponent(q.toLowerCase())}`);
       const hit = await cache.match(cacheKey);
       if (hit) return new Response(hit.body, { headers: { ...cors, 'Content-Type': 'application/json' } });
       let list = [];
       try {
         const r = await fetch(
-          `https://api.giphy.com/v1/gifs/search?api_key=${env.GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg-13&lang=ru`
+          `https://api.giphy.com/v1/stickers/search?api_key=${env.GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg-13&lang=ru`
         );
         const j = await r.json();
         list = (j.data || [])

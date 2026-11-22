@@ -90,7 +90,7 @@ export function ShortsCombainModal({
   // Режим: «Умный хайлайт» (зумы + слоу-мо + как ответили в истории) или чистая «Запись»
   const [feedMode, setFeedMode] = useState<StoriesFeedMode>('smart_highlight');
   const dramaticMode = true;
-  const [faceFx, setFaceFx] = useState<FaceFx>('pop');
+  const [faceFx, setFaceFx] = useState<FaceFx>('auto');
   const [faceSheetOpen, setFaceSheetOpen] = useState<boolean>(false);
   const [soundMuted, setSoundMuted] = useState<boolean>(false);
 
@@ -280,6 +280,15 @@ export function ShortsCombainModal({
 
   const audioPreviewCtxRef = useRef<AudioContext | null>(null);
   const audioPreviewSrcRef = useRef<AudioBufferSourceNode | null>(null);
+
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+  const pinchRef = useRef<{
+    dist: number;
+    angle: number;
+    scale: number;
+    rot: number;
+    id: string;
+  } | null>(null);
 
   const dragOverlayRef = useRef<{
     overlayId: string;
@@ -638,6 +647,32 @@ export function ShortsCombainModal({
     const nx = (e.clientX - rect.left) / rect.width;
     const ny = (e.clientY - rect.top) / rect.height;
 
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size === 2 && selectedOverlayId) {
+      // Два пальца: масштаб + поворот выбранного объекта (как в Instagram / Telegram)
+      const [p1, p2] = [...pointersRef.current.values()];
+      const ov = overlays.find((o) => o.id === selectedOverlayId);
+      if (ov) {
+        pinchRef.current = {
+          dist: Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1,
+          angle: Math.atan2(p2.y - p1.y, p2.x - p1.x),
+          scale: ov.scale,
+          rot: ov.rotDeg,
+          id: ov.id,
+        };
+        dragOverlayRef.current = null;
+        setIsDraggingOverlay(false);
+        setIsOverTrash(false);
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // ignore
+        }
+        return;
+      }
+    }
+    if (pointersRef.current.size > 1) return;
+
     const hit = [...overlays].reverse().find((ov) => {
       const rx = ov.kind === 'text' ? 0.34 * ov.scale : 0.15 * ov.scale;
       const ry = ov.kind === 'text' ? 0.065 * ov.scale : 0.1 * ov.scale;
@@ -669,6 +704,25 @@ export function ShortsCombainModal({
   };
 
   const onStagePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    }
+    const pz = pinchRef.current;
+    if (pz && pointersRef.current.size >= 2) {
+      const [p1, p2] = [...pointersRef.current.values()];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y) || 1;
+      const ang = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+      const nextScale = Math.max(0.3, Math.min(3.2, (pz.scale * dist) / pz.dist));
+      const nextRot = pz.rot + ((ang - pz.angle) * 180) / Math.PI;
+      setOverlays((prev) =>
+        prev.map((o) =>
+          o.id === pz.id
+            ? { ...o, scale: Number(nextScale.toFixed(3)), rotDeg: Number(nextRot.toFixed(1)) }
+            : o
+        )
+      );
+      return;
+    }
     const d = dragOverlayRef.current;
     const canvas = previewCanvasRef.current;
     if (!d || !canvas || d.pointerId !== e.pointerId) return;
@@ -694,6 +748,14 @@ export function ShortsCombainModal({
   };
 
   const onStagePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pinchRef.current) {
+      if (pointersRef.current.size < 2) {
+        pinchRef.current = null;
+        dragOverlayRef.current = null;
+      }
+      return;
+    }
     const d = dragOverlayRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     try {
@@ -741,7 +803,7 @@ export function ShortsCombainModal({
     setOverlays((prev) =>
       prev.map((o) =>
         o.id === selectedOverlayId
-          ? { ...o, scale: Math.max(0.45, Math.min(2.3, Number((o.scale * factor).toFixed(2)))) }
+          ? { ...o, scale: Math.max(0.3, Math.min(3.2, Number((o.scale * factor).toFixed(2)))) }
           : o
       )
     );
@@ -1367,6 +1429,26 @@ export function ShortsCombainModal({
           >
             <button
               type="button"
+              aria-label="Удалить"
+              style={{
+                ...glassCircleStyle,
+                width: 34,
+                height: 34,
+                background: 'rgba(224, 79, 62, 0.88)',
+                border: '1px solid rgba(255,255,255,0.3)',
+              }}
+              onClick={() => {
+                sfxUiTap();
+                setOverlays((p) => p.filter((o) => o.id !== selectedOvObj.id));
+                setSelectedOverlayId(null);
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
               style={{ ...glassCircleStyle, width: 34, height: 34 }}
               onClick={() =>
                 setOverlays((p) =>
@@ -1713,7 +1795,7 @@ export function ShortsCombainModal({
                 flex: 1,
                 overflowY: 'auto',
                 display: 'grid',
-                gridTemplateColumns: 'repeat(4, 1fr)',
+                gridTemplateColumns: 'repeat(3, 1fr)',
                 gap: 8,
                 alignContent: 'start',
               }}
@@ -1727,16 +1809,19 @@ export function ShortsCombainModal({
                     aspectRatio: '1 / 1',
                     borderRadius: 12,
                     border: '1px solid rgba(255,255,255,0.1)',
-                    background: 'rgba(255,255,255,0.05)',
-                    padding: 4,
+                    background:
+                      'repeating-conic-gradient(rgba(255,255,255,0.07) 0% 25%, rgba(255,255,255,0.02) 0% 50%) 50% / 16px 16px',
+                    padding: 6,
                     overflow: 'hidden',
                     cursor: 'pointer',
+                    opacity: loadingStickerId === og.id ? 0.5 : 1,
                   }}
                 >
                   <img
                     src={og.previewUrl}
                     alt={og.title}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }}
+                    loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
                 </button>
               ))}
@@ -1768,7 +1853,7 @@ export function ShortsCombainModal({
                       src={st.webpUrl}
                       alt={st.title}
                       loading="lazy"
-                      style={{ width: 46, height: 46, objectFit: 'contain' }}
+                      style={{ width: 68, height: 68, objectFit: 'contain' }}
                     />
                   ) : (
                     <span
@@ -1844,6 +1929,7 @@ export function ShortsCombainModal({
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {(
                 [
+                  ['auto', 'Авто'],
                   ['none', 'Без эффекта'],
                   ['pop', 'Наезд на лицо'],
                   ['pulse', 'Пульс'],
@@ -1877,7 +1963,7 @@ export function ShortsCombainModal({
               ))}
             </div>
             <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>
-              Лицо — отдельный слой: увеличивается только оно, сцена остаётся на месте.
+              «Авто» сама выбирает эффект по тому, что случилось после ответа: удар по шкалам — тряска, большой плюс — наезд, средний сдвиг — пульс. Берётся лицо из момента ответа.
             </div>
           </div>
         )}
