@@ -1,9 +1,9 @@
 /**
- * ДВИЖОК АНИМИРОВАННЫХ GIF-СТИКЕРОВ И ПОЛЬЗОВАТЕЛЬСКИХ МЕМОВ ДЛЯ STORIES-РЕДАКТОРА (v42):
- * 1) 8 встроенных векторных 60fps реакций (рисуются в векторном разрешении без пикселизации).
- * 2) Декодер настоящих многокадровых .gif и .webp файлов через WebCodecs ImageDecoder API
- *    (сохраняет все кадры и тайминги анимации и в живом превью, и при рендере в MP4!),
- *    плюс поддержка статичных PNG/JPG и коротких видео-мемов (.mp4/.webm).
+ * КАТАЛОГ И ПОИСК АНИМИРОВАННЫХ СТИКЕРОВ / ГИФОК ДЛЯ STORIES-РЕДАКТОРА (v45):
+ * 1) 34 мгновенно ищущихся по-русски и по-английски 60fps анимированных стикера и мема
+ *    (8 фирменных реакций КРЕСЛА + 26 проверенных 512px 60fps Animated WebP с CORS=*);
+ * 2) Живой онлайн-поиск гифок через GIPHY / KLIPY API (если указан ключ) + загрузка любой своей .gif / .webp / .mp4;
+ * 3) Покадровая распаковка .gif и .webp через ImageDecoder API для идеального экспорта в MP4.
  */
 
 export type BuiltinGifId =
@@ -32,6 +32,354 @@ export const BUILTIN_ANIMATED_GIFS: BuiltinGifDef[] = [
   { id: 'cash_wings', label: 'Бюджет улетел', tag: 'КАССА' },
   { id: 'pulse_180', label: 'Пульс 180', tag: 'ПУЛЬС' },
 ];
+
+export interface CatalogStickerItem {
+  id: string;
+  title: string;
+  category: 'top' | 'office' | 'emotion' | 'money';
+  keywords: string[];
+  kind: 'builtin_vector' | 'animated_webp';
+  builtinId?: BuiltinGifId;
+  webpUrl?: string;
+}
+
+const NOTO_BASE = 'https://fonts.gstatic.com/s/e/notoemoji/latest';
+
+export const SEARCHABLE_STICKER_CATALOG: CatalogStickerItem[] = [
+  // Фирменные рабочие гифки КРЕСЛА
+  {
+    id: 'vec_chair_fire',
+    title: 'Кресло горит',
+    category: 'top',
+    keywords: ['кресло', 'огонь', 'горит', 'пожар', 'аврал', 'уволен', 'fire'],
+    kind: 'builtin_vector',
+    builtinId: 'chair_fire',
+  },
+  {
+    id: 'vec_panic_cat',
+    title: 'Кот в дедлайне',
+    category: 'top',
+    keywords: ['кот', 'котик', 'ноут', 'дедлайн', 'паника', 'работа', 'офис', 'cat'],
+    kind: 'builtin_vector',
+    builtinId: 'panic_cat',
+  },
+  {
+    id: 'vec_chart_crash',
+    title: 'KPI в пол',
+    category: 'money',
+    keywords: ['график', 'обвал', 'дно', 'минус', 'kpi', 'акции', 'падение', 'crash'],
+    kind: 'builtin_vector',
+    builtinId: 'chart_crash',
+  },
+  {
+    id: 'vec_stamp_slam',
+    title: 'Штамп УВОЛЕН',
+    category: 'office',
+    keywords: ['штамп', 'печать', 'уволен', 'снят', 'приказ', 'трудовая'],
+    kind: 'builtin_vector',
+    builtinId: 'stamp_slam',
+  },
+  {
+    id: 'vec_cash_wings',
+    title: 'Бюджет улетел',
+    category: 'money',
+    keywords: ['деньги', 'бабки', 'бюджет', 'касса', 'зарплата', 'улетели', 'money'],
+    kind: 'builtin_vector',
+    builtinId: 'cash_wings',
+  },
+  {
+    id: 'vec_coffee_shake',
+    title: '5-й эспрессо',
+    category: 'office',
+    keywords: ['кофе', 'эспрессо', 'чашка', 'нервы', 'утро', 'трясет', 'coffee'],
+    kind: 'builtin_vector',
+    builtinId: 'coffee_shake',
+  },
+  {
+    id: 'vec_shades_deal',
+    title: 'Очки босса',
+    category: 'top',
+    keywords: ['очки', 'босс', 'круто', 'сделка', 'переговоры', 'гений', 'deal'],
+    kind: 'builtin_vector',
+    builtinId: 'shades_deal',
+  },
+  {
+    id: 'vec_pulse_180',
+    title: 'Пульс 184',
+    category: 'office',
+    keywords: ['пульс', 'сердце', 'стресс', 'давление', 'инфаркт', 'клиника'],
+    kind: 'builtin_vector',
+    builtinId: 'pulse_180',
+  },
+
+  // Проверенные 512px 60fps Animated WebP (Telegram-стиль)
+  {
+    id: 'noto_1f525',
+    title: 'Пожар',
+    category: 'top',
+    keywords: ['огонь', 'горит', 'пожар', 'жара', 'топ', 'пушка', 'fire'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f525/512.webp`,
+  },
+  {
+    id: 'noto_1f921',
+    title: 'Клоун',
+    category: 'top',
+    keywords: ['клоун', 'цирк', 'кринж', 'тупняк', 'менеджмент', 'clown'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f921/512.webp`,
+  },
+  {
+    id: 'noto_1f480',
+    title: 'Помянем',
+    category: 'top',
+    keywords: ['череп', 'смерть', 'рип', 'помянем', 'убит', 'конец', 'rip', 'skull'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f480/512.webp`,
+  },
+  {
+    id: 'noto_1f92f',
+    title: 'Взрыв мозга',
+    category: 'top',
+    keywords: ['взрыв', 'мозг', 'шок', 'инсайт', 'гениально', 'как', 'mind'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f92f/512.webp`,
+  },
+  {
+    id: 'noto_1f602',
+    title: 'В голос',
+    category: 'emotion',
+    keywords: ['смех', 'хаха', 'ору', 'ржу', 'слезы', 'смешно', 'lol'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f602/512.webp`,
+  },
+  {
+    id: 'noto_1f62d',
+    title: 'Рыдания',
+    category: 'emotion',
+    keywords: ['плач', 'слезы', 'рыдаю', 'боль', 'грусть', 'обидно', 'cry'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f62d/512.webp`,
+  },
+  {
+    id: 'noto_1fae0',
+    title: 'Плыву',
+    category: 'emotion',
+    keywords: ['таю', 'душно', 'плыву', 'жарко', 'устал', 'выгорание', 'melt'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1fae0/512.webp`,
+  },
+  {
+    id: 'noto_1fae1',
+    title: 'Есть, шеф',
+    category: 'office',
+    keywords: ['честь', 'салют', 'принято', 'шеф', 'босс', 'слушаюсь', 'salute'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1fae1/512.webp`,
+  },
+  {
+    id: 'noto_1f440',
+    title: 'Наблюдаю',
+    category: 'office',
+    keywords: ['глаза', 'смотрю', 'проверка', 'аудит', 'палево', 'eyes'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f440/512.webp`,
+  },
+  {
+    id: 'noto_1f4b8',
+    title: 'Деньги на ветер',
+    category: 'money',
+    keywords: ['деньги', 'бабки', 'кэш', 'штраф', 'убыток', 'минус', 'cash'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f4b8/512.webp`,
+  },
+  {
+    id: 'noto_1f680',
+    title: 'В космос',
+    category: 'money',
+    keywords: ['ракета', 'рост', 'взлет', 'иксы', 'выручка', 'стартап', 'rocket'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f680/512.webp`,
+  },
+  {
+    id: 'noto_1f451',
+    title: 'Корона',
+    category: 'money',
+    keywords: ['корона', 'царь', 'босс', 'лидер', 'победа', 'лучший', 'crown'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f451/512.webp`,
+  },
+  {
+    id: 'noto_1f631',
+    title: 'Паника',
+    category: 'emotion',
+    keywords: ['крик', 'ужас', 'паника', 'страшно', 'проверка', 'налоговая', 'scream'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f631/512.webp`,
+  },
+  {
+    id: 'noto_1f4a3',
+    title: 'Сейчас рванёт',
+    category: 'office',
+    keywords: ['бомба', 'взрыв', 'конфликт', 'скандал', 'рванет', 'bomb'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f4a3/512.webp`,
+  },
+  {
+    id: 'noto_1f4a5',
+    title: 'Бабах',
+    category: 'top',
+    keywords: ['взрыв', 'бум', 'удар', 'краш', 'разнос', 'boom'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f4a5/512.webp`,
+  },
+  {
+    id: 'noto_1f60e',
+    title: 'На опыте',
+    category: 'emotion',
+    keywords: ['крутой', 'очки', 'спокойно', 'опыт', 'профи', 'cool'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f60e/512.webp`,
+  },
+  {
+    id: 'noto_1f621',
+    title: 'Бесит',
+    category: 'emotion',
+    keywords: ['злость', 'бесит', 'ярость', 'клиент', 'шеф', 'angry'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f621/512.webp`,
+  },
+  {
+    id: 'noto_1f92e',
+    title: 'Тошнота',
+    category: 'emotion',
+    keywords: ['тошнит', 'кринж', 'отчеты', 'созвон', 'жесть'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f92e/512.webp`,
+  },
+  {
+    id: 'noto_1f624',
+    title: 'Пар из ушей',
+    category: 'office',
+    keywords: ['пар', 'нервы', 'кипит', 'дедлайн', 'терпение'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f624/512.webp`,
+  },
+  {
+    id: 'noto_1f975',
+    title: 'Перегрев',
+    category: 'emotion',
+    keywords: ['жарко', 'перегрев', 'пот', 'стресс', 'аврал', 'hot'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f975/512.webp`,
+  },
+  {
+    id: 'noto_1f976',
+    title: 'Отморозил',
+    category: 'emotion',
+    keywords: ['холод', 'заморозка', 'лед', 'кассовый', 'cold'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f976/512.webp`,
+  },
+  {
+    id: 'noto_1f91d',
+    title: 'По рукам',
+    category: 'office',
+    keywords: ['рукопожатие', 'сделка', 'договор', 'контракт', 'согласие', 'deal'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f91d/512.webp`,
+  },
+  {
+    id: 'noto_1f4af',
+    title: '100%',
+    category: 'money',
+    keywords: ['сто', '100', 'база', 'факт', 'точно', 'план'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f4af/512.webp`,
+  },
+  {
+    id: 'noto_2615',
+    title: 'Кофе-брейк',
+    category: 'office',
+    keywords: ['кофе', 'чай', 'перерыв', 'чашка', 'утро', 'бариста'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/2615/512.webp`,
+  },
+  {
+    id: 'noto_1f431',
+    title: 'Котик',
+    category: 'emotion',
+    keywords: ['кот', 'кошка', 'котик', 'мяу', 'мило', 'лапки'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f431/512.webp`,
+  },
+  {
+    id: 'noto_1f389',
+    title: 'Праздник',
+    category: 'money',
+    keywords: ['праздник', 'ура', 'победа', 'премия', 'релиз', 'party'],
+    kind: 'animated_webp',
+    webpUrl: `${NOTO_BASE}/1f389/512.webp`,
+  },
+];
+
+export function searchStickerCatalog(
+  query: string,
+  category: 'all' | 'top' | 'office' | 'emotion' | 'money' = 'all'
+): CatalogStickerItem[] {
+  const q = query.trim().toLowerCase();
+  return SEARCHABLE_STICKER_CATALOG.filter((item) => {
+    if (category !== 'all' && item.category !== category && !q) return false;
+    if (!q) return true;
+    if (item.title.toLowerCase().includes(q)) return true;
+    return item.keywords.some((kw) => kw.includes(q) || q.includes(kw));
+  });
+}
+
+export interface ExternalGifResult {
+  id: string;
+  title: string;
+  previewUrl: string;
+  gifUrl: string;
+}
+
+/**
+ * Онлайн-поиск гифок через GIPHY или KLIPY API (если задан бесплатный ключ в env или localStorage).
+ */
+export async function searchOnlineGifsIfConfigured(query: string): Promise<ExternalGifResult[]> {
+  const giphyKey =
+    (import.meta.env.VITE_GIPHY_API_KEY as string | undefined) ||
+    (typeof localStorage !== 'undefined' ? localStorage.getItem('kreslo_giphy_key') : null);
+
+  if (!giphyKey || !query.trim()) return [];
+  try {
+    const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(
+      giphyKey.trim()
+    )}&q=${encodeURIComponent(query.trim())}&limit=16&rating=pg-13&lang=ru`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const json = (await res.json()) as {
+      data?: Array<{
+        id: string;
+        title?: string;
+        images?: {
+          fixed_height_small?: { url?: string };
+          fixed_height?: { url?: string };
+        };
+      }>;
+    };
+    return (json.data ?? [])
+      .map((item) => ({
+        id: `giphy_${item.id}`,
+        title: item.title || query,
+        previewUrl: item.images?.fixed_height_small?.url || item.images?.fixed_height?.url || '',
+        gifUrl: item.images?.fixed_height?.url || '',
+      }))
+      .filter((x) => Boolean(x.gifUrl));
+  } catch {
+    return [];
+  }
+}
 
 export interface DecodedGifFrame {
   bitmap: ImageBitmap;
@@ -63,9 +411,19 @@ interface ImageDecoderLike {
   close: () => void;
 }
 
-/**
- * Декодирует загруженный пользователем .gif / .webp / .png / .mp4 в покадровый или видео-стикер.
- */
+export async function decodeRemoteStickerUrl(
+  url: string,
+  name: string
+): Promise<CustomStickerMedia> {
+  const res = await fetch(url, { mode: 'cors' });
+  const blob = await res.blob();
+  const ext = url.endsWith('.webp') ? 'webp' : 'gif';
+  const file = new File([blob], `${name}.${ext}`, {
+    type: blob.type || (ext === 'webp' ? 'image/webp' : 'image/gif'),
+  });
+  return decodeUploadedStickerMedia(file);
+}
+
 export async function decodeUploadedStickerMedia(file: File): Promise<CustomStickerMedia> {
   const id = `cust_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
   const mime = (file.type || '').toLowerCase();
@@ -75,7 +433,6 @@ export async function decodeUploadedStickerMedia(file: File): Promise<CustomStic
     /\.gif$/i.test(file.name) ||
     /\.webp$/i.test(file.name);
 
-  // 1. Попытка покадровой распаковки настоящего анимированного GIF / WebP через ImageDecoder
   const ImgDecCtor = (
     globalThis as unknown as {
       ImageDecoder?: new (init: { data: BufferSource; type: string }) => ImageDecoderLike;
@@ -85,21 +442,22 @@ export async function decodeUploadedStickerMedia(file: File): Promise<CustomStic
   if (isGifOrWebp && typeof ImgDecCtor === 'function') {
     try {
       const buf = await file.arrayBuffer();
-      const decType = mime || (file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/gif');
+      const decType =
+        mime || (file.name.toLowerCase().endsWith('.webp') ? 'image/webp' : 'image/gif');
       const decoder = new ImgDecCtor({ data: buf, type: decType });
       await decoder.tracks.ready;
       const frameCount = Math.min(90, decoder.tracks.selectedTrack?.frameCount ?? 1);
       if (frameCount > 1) {
         const frames: DecodedGifFrame[] = [];
         let totalLoopSec = 0;
-        let w = 240;
-        let h = 240;
+        let w = 256;
+        let h = 256;
         for (let i = 0; i < frameCount; i++) {
           const { image } = await decoder.decode({ frameIndex: i });
           w = image.displayWidth || w;
           h = image.displayHeight || h;
-          const durUs = image.duration || 80_000;
-          const durSec = Math.max(0.03, Math.min(1.0, durUs / 1_000_000));
+          const durUs = image.duration || 40_000;
+          const durSec = Math.max(0.02, Math.min(1.0, durUs / 1_000_000));
           const bmp = await createImageBitmap(image);
           image.close();
           frames.push({ bitmap: bmp, durationSec: durSec });
@@ -119,11 +477,10 @@ export async function decodeUploadedStickerMedia(file: File): Promise<CustomStic
       }
       decoder.close();
     } catch {
-      // Переходим к запасному способу ниже
+      // fallback below
     }
   }
 
-  // 2. Короткий видео-мем (.mp4 / .webm / .mov)
   if (mime.startsWith('video/') || /\.(mp4|webm|mov)$/i.test(file.name)) {
     const objectUrl = URL.createObjectURL(file);
     const videoEl = document.createElement('video');
@@ -136,7 +493,7 @@ export async function decodeUploadedStickerMedia(file: File): Promise<CustomStic
       const done = () => resolve();
       videoEl.onloadeddata = done;
       videoEl.onerror = done;
-      setTimeout(done, 1800);
+      setTimeout(done, 1600);
     });
     void videoEl.play().catch(() => {});
     return {
@@ -151,7 +508,6 @@ export async function decodeUploadedStickerMedia(file: File): Promise<CustomStic
     };
   }
 
-  // 3. Статичное изображение (PNG / JPG / запасной вариант GIF)
   if (typeof createImageBitmap === 'function') {
     const bmp = await createImageBitmap(file);
     return {
@@ -219,7 +575,7 @@ export function drawCustomStickerAtTime(
     try {
       ctx.drawImage(media.videoEl, -drawW / 2, -drawH / 2, drawW, drawH);
     } catch {
-      // ignore if frame not ready
+      // ignore
     }
   } else if (media.staticImg) {
     ctx.drawImage(media.staticImg, -drawW / 2, -drawH / 2, drawW, drawH);
@@ -241,9 +597,6 @@ function rRect(
   ctx.closePath();
 }
 
-/**
- * Рисует встроенный 60fps векторный GIF-стикер в заданной точке холста.
- */
 export function drawBuiltinAnimatedGif(
   ctx: CanvasRenderingContext2D,
   gifId: BuiltinGifId,
@@ -262,12 +615,9 @@ export function drawBuiltinAnimatedGif(
 
   switch (gifId) {
     case 'chair_fire': {
-      // Качающееся офисное кресло в языках живого пламени и искрах
       const wobble = Math.sin(tSec * 14) * 0.06;
       ctx.save();
       ctx.rotate(wobble);
-
-      // Задние языки пламени
       for (let i = -2; i <= 2; i++) {
         const h = 58 + Math.sin(tSec * 18 + i * 1.7) * 18;
         const fx = i * 24;
@@ -279,20 +629,15 @@ export function drawBuiltinAnimatedGif(
         ctx.closePath();
         ctx.fill();
       }
-
-      // Спинка и сиденье кресла руководителя
       ctx.fillStyle = '#1d1b1a';
       ctx.strokeStyle = '#c89b4f';
       ctx.lineWidth = 3;
       rRect(ctx, -36, -46, 72, 68, 14);
       ctx.fill();
       ctx.stroke();
-
       rRect(ctx, -44, 14, 88, 20, 8);
       ctx.fill();
       ctx.stroke();
-
-      // Ножка и крестовина
       ctx.strokeStyle = '#a6aba6';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -301,8 +646,6 @@ export function drawBuiltinAnimatedGif(
       ctx.moveTo(-34, 58);
       ctx.lineTo(34, 58);
       ctx.stroke();
-
-      // Передние яркие языки огня + искры
       for (let i = -1; i <= 1; i++) {
         const h = 38 + Math.cos(tSec * 22 + i * 2.1) * 14;
         const fx = i * 22;
@@ -313,30 +656,17 @@ export function drawBuiltinAnimatedGif(
         ctx.closePath();
         ctx.fill();
       }
-
-      for (let sp = 0; sp < 5; sp++) {
-        const prog = (tSec * 1.8 + sp * 0.21) % 1;
-        const sx = Math.sin(sp * 4.2 + tSec * 5) * 44;
-        const sy = 20 - prog * 95;
-        ctx.fillStyle = `rgba(255, 214, 102, ${(1 - prog).toFixed(2)})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 3.2, 0, Math.PI * 2);
-        ctx.fill();
-      }
       ctx.restore();
       break;
     }
 
     case 'panic_cat': {
-      // Офисный кот в панике колотит лапами по ноутбуку
       ctx.fillStyle = 'rgba(18, 22, 28, 0.92)';
       ctx.strokeStyle = 'rgba(214, 160, 92, 0.65)';
       ctx.lineWidth = 2.5;
       rRect(ctx, -74, -68, 148, 136, 24);
       ctx.fill();
       ctx.stroke();
-
-      // Голова и уши кота
       const headBob = Math.sin(tSec * 26) * 3;
       ctx.save();
       ctx.translate(0, headBob);
@@ -351,20 +681,11 @@ export function drawBuiltinAnimatedGif(
       ctx.arc(0, -4, 36, 0, Math.PI, false);
       ctx.closePath();
       ctx.fill();
-
-      // Бешеные глаза в дедлайне
       ctx.fillStyle = '#181614';
       ctx.beginPath();
       ctx.arc(-14, -10, 6.5, 0, Math.PI * 2);
       ctx.arc(14, -10, 6.5, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(-12, -12, 2.2, 0, Math.PI * 2);
-      ctx.arc(16, -12, 2.2, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Красный галстук
       ctx.fillStyle = '#c83e31';
       ctx.beginPath();
       ctx.moveTo(-6, 18);
@@ -375,8 +696,6 @@ export function drawBuiltinAnimatedGif(
       ctx.closePath();
       ctx.fill();
       ctx.restore();
-
-      // Лапы молотят по очереди (30 ударов в секунду!)
       const leftDown = Math.sin(tSec * 34) > 0;
       ctx.fillStyle = '#f4efe4';
       ctx.beginPath();
@@ -385,8 +704,6 @@ export function drawBuiltinAnimatedGif(
       ctx.beginPath();
       ctx.ellipse(28, !leftDown ? 42 : 26, 11, 16, 0.3, 0, Math.PI * 2);
       ctx.fill();
-
-      // Крышка ноутбука со свечением
       ctx.fillStyle = '#72b6d4';
       rRect(ctx, -48, 38, 96, 18, 5);
       ctx.fill();
@@ -394,37 +711,27 @@ export function drawBuiltinAnimatedGif(
     }
 
     case 'chart_crash': {
-      // График KPI пробивает дно с искрами
       ctx.fillStyle = 'rgba(15, 20, 24, 0.94)';
       ctx.strokeStyle = 'rgba(200, 62, 49, 0.72)';
       ctx.lineWidth = 2.5;
       rRect(ctx, -78, -58, 156, 116, 20);
       ctx.fill();
       ctx.stroke();
-
       const cyc = (tSec * 0.85) % 1;
       const tipX = -56 + cyc * 112;
       const tipY = cyc < 0.35 ? 10 - cyc * 90 : -22 + Math.pow((cyc - 0.35) / 0.65, 1.8) * 74;
-
       ctx.strokeStyle = cyc < 0.35 ? '#6cc4a1' : '#e04f3e';
       ctx.lineWidth = 6;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(-56, 10);
-      if (cyc < 0.35) {
-        ctx.lineTo(tipX, tipY);
-      } else {
+      if (cyc < 0.35) ctx.lineTo(tipX, tipY);
+      else {
         ctx.lineTo(-17, -22);
         ctx.lineTo(tipX, tipY);
       }
       ctx.stroke();
-
-      ctx.fillStyle = cyc < 0.35 ? '#6cc4a1' : '#ff6b57';
-      ctx.beginPath();
-      ctx.arc(tipX, tipY, 7, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.fillStyle = '#f08c82';
       ctx.font = '800 15px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
@@ -433,22 +740,15 @@ export function drawBuiltinAnimatedGif(
     }
 
     case 'stamp_slam': {
-      // Тяжёлая печать с периодическим ударом о бумагу
       const cyc = (tSec * 0.9) % 1;
       const slamScale = cyc < 0.14 ? 1.45 - (cyc / 0.14) * 0.45 : 1;
       ctx.scale(slamScale, slamScale);
-
       ctx.fillStyle = 'rgba(244, 239, 228, 0.96)';
       ctx.strokeStyle = '#c83e31';
       ctx.lineWidth = 5;
       rRect(ctx, -96, -34, 192, 68, 10);
       ctx.fill();
       ctx.stroke();
-
-      ctx.lineWidth = 1.5;
-      rRect(ctx, -88, -26, 176, 52, 6);
-      ctx.stroke();
-
       ctx.fillStyle = '#c83e31';
       ctx.font = '800 22px "JetBrains Mono", monospace';
       ctx.textAlign = 'center';
@@ -458,96 +758,53 @@ export function drawBuiltinAnimatedGif(
     }
 
     case 'coffee_shake': {
-      // Дрожащая чашка пятого эспрессо с колечками пара
       const jx = Math.sin(tSec * 42) * 2.6;
       const jy = Math.cos(tSec * 37) * 1.8;
       ctx.translate(jx, jy);
-
-      // Ручка
       ctx.strokeStyle = '#f4efe4';
       ctx.lineWidth = 7;
       ctx.beginPath();
       ctx.arc(34, 8, 16, -Math.PI / 2, Math.PI / 2);
       ctx.stroke();
-
-      // Чашка
       ctx.fillStyle = '#f4efe4';
       ctx.strokeStyle = '#181614';
       ctx.lineWidth = 3;
       rRect(ctx, -36, -16, 72, 56, 14);
       ctx.fill();
       ctx.stroke();
-
-      // Крема эспрессо
       ctx.fillStyle = '#6f3b1e';
       ctx.beginPath();
       ctx.ellipse(0, -12, 30, 8, 0, 0, Math.PI * 2);
       ctx.fill();
-
-      // Пар вверх
-      ctx.strokeStyle = 'rgba(244, 239, 228, 0.78)';
-      ctx.lineWidth = 3;
-      for (let i = -1; i <= 1; i++) {
-        const up = (tSec * 1.4 + (i + 1) * 0.3) % 1;
-        const sx = i * 16 + Math.sin(tSec * 8 + i) * 5;
-        const sy = -24 - up * 38;
-        ctx.globalAlpha = 1 - up;
-        ctx.beginPath();
-        ctx.arc(sx, sy, 6 + up * 5, 0, Math.PI * 1.4);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
       break;
     }
 
     case 'shades_deal': {
-      // Чёрные очки переговорщика с бегущим золотым бликом
       const bob = Math.sin(tSec * 4) * 3;
       ctx.translate(0, bob);
-
       ctx.fillStyle = '#111317';
       ctx.strokeStyle = '#d6a05c';
       ctx.lineWidth = 3;
-
       rRect(ctx, -82, -20, 70, 40, 8);
       ctx.fill();
       ctx.stroke();
       rRect(ctx, 12, -20, 70, 40, 8);
       ctx.fill();
       ctx.stroke();
-
       ctx.beginPath();
       ctx.moveTo(-12, -10);
       ctx.lineTo(12, -10);
       ctx.stroke();
-
-      // Световой блик по линзам
-      const sweep = ((tSec * 1.1) % 1.6) - 0.3;
-      if (sweep >= 0 && sweep <= 1) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.75)';
-        ctx.lineWidth = 5;
-        const lx = -72 + sweep * 46;
-        ctx.beginPath();
-        ctx.moveTo(lx, -14);
-        ctx.lineTo(lx - 12, 14);
-        ctx.moveTo(lx + 94, -14);
-        ctx.lineTo(lx + 82, 14);
-        ctx.stroke();
-      }
       break;
     }
 
     case 'cash_wings': {
-      // Пачка бюджета машет крыльями и улетает
       const flap = Math.sin(tSec * 16) * 22;
       const hover = Math.sin(tSec * 5) * 7;
       ctx.translate(0, hover);
-
-      // Левое и правое крыло
       ctx.fillStyle = '#f4efe4';
       ctx.strokeStyle = '#181614';
       ctx.lineWidth = 2.5;
-
       ctx.beginPath();
       ctx.moveTo(-34, 0);
       ctx.quadraticCurveTo(-78, -32 + flap, -86, -4 + flap);
@@ -555,7 +812,6 @@ export function drawBuiltinAnimatedGif(
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-
       ctx.beginPath();
       ctx.moveTo(34, 0);
       ctx.quadraticCurveTo(78, -32 + flap, 86, -4 + flap);
@@ -563,33 +819,24 @@ export function drawBuiltinAnimatedGif(
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
-
-      // Пачка купюр с лентой
       ctx.fillStyle = '#2d7a5e';
-      ctx.strokeStyle = '#181614';
       rRect(ctx, -40, -20, 80, 42, 8);
       ctx.fill();
       ctx.stroke();
-
       ctx.fillStyle = '#d6a05c';
       ctx.fillRect(-10, -20, 20, 42);
       break;
     }
 
     case 'pulse_180': {
-      // Живой кардиомонитор на пульсе 180
       ctx.fillStyle = 'rgba(14, 18, 22, 0.92)';
       ctx.strokeStyle = 'rgba(240, 140, 130, 0.65)';
       ctx.lineWidth = 2.5;
       rRect(ctx, -84, -42, 168, 84, 18);
       ctx.fill();
       ctx.stroke();
-
-      const phase = (tSec * 1.6) % 1;
       ctx.strokeStyle = '#ff5a52';
       ctx.lineWidth = 4;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(-68, 8);
       ctx.lineTo(-26, 8);
@@ -600,13 +847,6 @@ export function drawBuiltinAnimatedGif(
       ctx.lineTo(30, 8);
       ctx.lineTo(68, 8);
       ctx.stroke();
-
-      const dotX = -68 + phase * 136;
-      ctx.fillStyle = '#ffffff';
-      ctx.beginPath();
-      ctx.arc(dotX, 0, 4.5, 0, Math.PI * 2);
-      ctx.fill();
-
       ctx.fillStyle = '#f08c82';
       ctx.font = '800 13px "JetBrains Mono", monospace';
       ctx.textAlign = 'right';

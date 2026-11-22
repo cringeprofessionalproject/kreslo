@@ -117,6 +117,7 @@ export interface MontageTextOverlay {
   kind: 'text';
   text: string;
   style: CaptionVisualStyle;
+  color?: string;
   x: number; // 0..1
   y: number; // 0..1
   scale: number;
@@ -135,6 +136,8 @@ export interface MontageProject {
   clips: MontageClip[];
   overlays: MontageOverlay[];
   soundtrack: MontageSoundtrackMode;
+  /** Клиентская умная режиссура: авто-зум на лицо/шкалы, слоу-мо перед роковым свайпом и тряска удара */
+  dramaticMode?: boolean;
   faceSnapshotUrl?: string | null;
 }
 
@@ -277,7 +280,17 @@ export function buildConversationalCaseLead(
 }
 
 export function buildConversationalCaseBody(rc: RealHistoricalCase): string {
-  return `${rc.headline}. ${rc.story}`;
+  // Короткая, ёмкая выжимка для Stories/Reels без «простыни» мелкого текста (до 190 символов)
+  const raw = rc.story.trim();
+  if (raw.length <= 185) return raw;
+  const sentences = raw.split(/(?<=[.!?])\s+/);
+  let acc = '';
+  for (const s of sentences) {
+    const next = acc ? `${acc} ${s}` : s;
+    if (next.length > 195 && acc.length >= 70) break;
+    acc = next;
+  }
+  return acc.length <= 205 ? acc : `${acc.slice(0, 196).replace(/[,\s]+$/, '')}…`;
 }
 
 export function getDefaultHookPresets(pack: JobPack, ending: EndingDef, weeks: number): string[] {
@@ -733,8 +746,8 @@ function renderSwipeClipScene(
 }
 
 /**
- * Разговорная документальная вставка «А КАК В РЕАЛЬНОСТИ ОТВЕТИЛ ...?»
- * С динамическим наездом камеры, портретом героя и покадровой подсветкой читаемых слов.
+ * Кинематографичный 2-тактный блок «А КАК НА ЭТОТ ВОПРОС ОТВЕТИЛ ...?» в стиле топовых Reels/Stories
+ * (крупная вёрстка без мелкой простыни текста и без пересечения с пользовательскими подписями).
  */
 function renderRealCaseCutawayScene(
   ctx: CanvasRenderingContext2D,
@@ -748,55 +761,51 @@ function renderRealCaseCutawayScene(
   const rc = clip.realCase;
   const isBlunder = rc.kind === 'blunder';
   const atm = getPackAtmosphere(project.pack.id, 3, isBlunder);
-  const accentCol = isBlunder ? '#e05344' : '#58c49b';
+  const accentCol = isBlunder ? '#ff6454' : '#5ed4a8';
 
-  // Кинематографичный наезд камеры в начале склейки (whip-zoom)
-  const zoomIn = localPhase < 0.14 ? 1.09 - (localPhase / 0.14) * 0.09 : 1 + localPhase * 0.02;
+  const zoomIn = localPhase < 0.14 ? 1.11 - (localPhase / 0.14) * 0.11 : 1 + localPhase * 0.025;
 
   ctx.save();
   ctx.translate(W / 2, H / 2);
   ctx.scale(zoomIn, zoomIn);
   ctx.translate(-W / 2, -H / 2);
 
-  // Глубокий документальный фон
-  const bg = ctx.createRadialGradient(W * 0.5, H * 0.3, 20, W * 0.5, H * 0.5, H * 0.78);
-  bg.addColorStop(0, isBlunder ? '#2b1314' : '#132822');
-  bg.addColorStop(1, '#090c0f');
+  // Глубокий кинематографичный фон
+  const bg = ctx.createRadialGradient(W * 0.5, H * 0.34, 24, W * 0.5, H * 0.52, H * 0.8);
+  bg.addColorStop(0, isBlunder ? '#2e1416' : '#132a23');
+  bg.addColorStop(1, '#080b0e');
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, W, H);
 
-  // Верхняя документальная метка хроники
-  drawRRect(ctx, 48, 196, W - 96, 54, 14);
-  ctx.fillStyle = isBlunder ? 'rgba(224, 83, 68, 0.18)' : 'rgba(88, 196, 155, 0.18)';
+  // Компактная плашка года (с безопасным отступом под верхний бар Stories)
+  drawRRect(ctx, W / 2 - 196, 178, 392, 46, 23);
+  ctx.fillStyle = isBlunder ? 'rgba(255, 100, 84, 0.16)' : 'rgba(94, 212, 168, 0.16)';
   ctx.fill();
   ctx.strokeStyle = accentCol;
-  ctx.lineWidth = 1.8;
+  ctx.lineWidth = 1.6;
   ctx.stroke();
 
   ctx.fillStyle = accentCol;
-  ctx.font = '800 18px "JetBrains Mono", monospace';
+  ctx.font = '800 16px "JetBrains Mono", monospace';
   ctx.textAlign = 'center';
   ctx.fillText(
-    isBlunder
-      ? `РЕАЛЬНАЯ ХРОНИКА ПРОВАЛА · ${rc.year}`
-      : `РЕАЛЬНЫЙ ОТВЕТ ИЗ ИСТОРИИ · ${rc.year}`,
+    isBlunder ? `ИЗВЕСТНЫЙ ПРОВАЛ · ${rc.year}` : `ОТВЕТ В РЕАЛЬНОСТИ · ${rc.year}`,
     W / 2,
-    230
+    207
   );
 
-  // Круглый портрет-медальон исторического лица
-  const medR = 92;
+  // Портрет-медальон героя истории
+  const medR = 84;
   const medX = W / 2;
-  const medY = 374;
+  const medY = 334;
   ctx.save();
   ctx.beginPath();
   ctx.arc(medX, medY, medR, 0, Math.PI * 2);
   ctx.closePath();
   ctx.clip();
-  const rcImg = assets.portraits.get(`rc_${rc.person}`);
   drawPortraitOrFallback(
     ctx,
-    rcImg,
+    assets.portraits.get(`rc_${rc.person}`),
     medX - medR,
     medY - medR,
     medR * 2,
@@ -812,37 +821,42 @@ function renderRealCaseCutawayScene(
   ctx.arc(medX, medY, medR, 0, Math.PI * 2);
   ctx.stroke();
 
-  // Разговорная подводка («А вот как на этом же месте ответил Стивен Янг...»)
-  ctx.fillStyle = '#d6a05c';
-  ctx.font = '800 28px "Manrope", system-ui, sans-serif';
+  // Живая разговорная подводка («А вот как в этой же ситуации ответил Рид Хастингс...»)
+  ctx.fillStyle = '#f4efe4';
+  ctx.font = '800 29px "Manrope", system-ui, sans-serif';
   ctx.textAlign = 'center';
-  const leadLines = wrapLines(ctx, clip.leadText || buildConversationalCaseLead(rc), W - 104, 3);
+  const leadLines = wrapLines(ctx, clip.leadText || buildConversationalCaseLead(rc), W - 96, 3);
   leadLines.forEach((ln, idx) => {
-    ctx.fillText(ln, W / 2, 520 + idx * 36);
+    ctx.fillText(ln, W / 2, 468 + idx * 38);
   });
 
-  // Карточка прямой речи / сути истории с динамической караоке-подсветкой слов!
-  const boxTop = 520 + leadLines.length * 36 + 18;
-  const boxH = 430;
-  drawRRect(ctx, 44, boxTop, W - 88, boxH, 26);
-  ctx.fillStyle = 'rgba(244, 239, 228, 0.97)';
+  // Стеклянная тёмная Reels-карточка с крупным караоке-текстом (макс 5–6 строк крупным кеглем!)
+  const boxTop = 468 + leadLines.length * 38 + 20;
+  const boxH = 384;
+  drawRRect(ctx, 44, boxTop, W - 88, boxH, 28);
+  ctx.fillStyle = 'rgba(15, 20, 26, 0.88)';
   ctx.fill();
-  ctx.strokeStyle = accentCol;
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
+  ctx.lineWidth = 2;
   ctx.stroke();
+
+  // Короткий ударный тезис сверху
+  ctx.fillStyle = accentCol;
+  ctx.font = '800 23px "Manrope", system-ui, sans-serif';
+  ctx.textAlign = 'left';
+  const headLine = rc.headline.length > 44 ? `${rc.headline.slice(0, 42)}…` : rc.headline;
+  ctx.fillText(headLine, 78, boxTop + 50);
 
   const fullText = (clip.bodyText || buildConversationalCaseBody(rc)).trim();
   const words = fullText.split(/\s+/).filter(Boolean);
-  const readProg = Math.max(0, Math.min(1, (localPhase - 0.08) / 0.72));
+  const readProg = Math.max(0, Math.min(1, (localPhase - 0.06) / 0.72));
   const litWordCount = Math.max(1, Math.ceil(words.length * readProg));
 
-  ctx.font = '800 27px "Manrope", system-ui, sans-serif';
-  ctx.textAlign = 'left';
-
+  ctx.font = '700 28px "Manrope", system-ui, sans-serif';
   const maxLineW = W - 156;
   let curX = 78;
-  let curY = boxTop + 56;
-  const lineH = 39;
+  let curY = boxTop + 104;
+  const lineH = 42;
   let lineCount = 1;
 
   for (let wi = 0; wi < words.length; wi++) {
@@ -851,7 +865,7 @@ function renderRealCaseCutawayScene(
     const wordW = ctx.measureText(word).width;
     if (curX + wordW > 78 + maxLineW && curX > 78) {
       lineCount++;
-      if (lineCount > 8) break;
+      if (lineCount > 5) break;
       curX = 78;
       curY += lineH;
     }
@@ -860,51 +874,50 @@ function renderRealCaseCutawayScene(
     const isRead = wi < litWordCount;
 
     if (isCurrentWord) {
-      drawRRect(ctx, curX - 5, curY - 26, wordW + 10, 34, 7);
-      ctx.fillStyle = isBlunder ? 'rgba(200, 62, 49, 0.18)' : 'rgba(30, 107, 82, 0.18)';
+      drawRRect(ctx, curX - 6, curY - 28, wordW + 12, 36, 8);
+      ctx.fillStyle = accentCol;
       ctx.fill();
+      ctx.fillStyle = '#090c0f';
+    } else {
+      ctx.fillStyle = isRead ? '#f4efe4' : 'rgba(244, 239, 228, 0.34)';
     }
 
-    ctx.fillStyle = isRead ? '#181614' : 'rgba(92, 84, 73, 0.42)';
     ctx.fillText(word, curX, curY);
     curX += wordW + spaceW;
   }
 
-  // Источник внизу карточки
-  ctx.fillStyle = '#6c6356';
-  ctx.font = '700 17px "JetBrains Mono", monospace';
-  ctx.textAlign = 'left';
-  ctx.fillText(`Пруф: ${rc.source.slice(0, 44)}`, 78, boxTop + boxH - 28);
+  ctx.fillStyle = 'rgba(244, 239, 228, 0.48)';
+  ctx.font = '600 16px "JetBrains Mono", monospace';
+  ctx.fillText(`Источник: ${rc.source.slice(0, 42)}`, 78, boxTop + boxH - 26);
 
-  // Плашка сравнения с ходом игрока (врывается во второй половине сцены)
-  if (clip.playerMatched !== undefined && localPhase > 0.48) {
-    const pop = Math.min(1, (localPhase - 0.48) / 0.14);
+  // Плашка сравнения с твоим ходом
+  if (clip.playerMatched !== undefined && localPhase > 0.42) {
+    const pop = Math.min(1, (localPhase - 0.42) / 0.14);
     ctx.save();
-    ctx.translate(W / 2, boxTop + boxH + 54);
-    ctx.scale(0.88 + 0.12 * pop, 0.88 + 0.12 * pop);
+    ctx.translate(W / 2, boxTop + boxH + 52);
+    ctx.scale(0.9 + 0.1 * pop, 0.9 + 0.1 * pop);
 
     const compareText = clip.playerMatched
       ? isBlunder
-        ? 'ТВОЙ ХОД СОВПАЛ — ТЕ ЖЕ ГРАБЛИ!'
-        : 'ТВОЙ ХОД СОВПАЛ 1-В-1 С ИСТОРИЕЙ'
+        ? 'ТЫ СДЕЛАЛ ТОТ ЖЕ САМЫЙ ХОД'
+        : 'ТВОЙ ОТВЕТ СОВПАЛ 1-В-1'
       : isBlunder
-        ? 'А ТЫ ОБОШЁЛ ЭТУ ЛОВУШКУ!'
-        : 'А ТЫ В ЭТОЙ ТОЧКЕ ПОШЁЛ ИНАЧЕ';
+        ? 'А ТЫ ОБОШЁЛ ЭТИ ГРАБЛИ'
+        : 'А ТЫ ОТВЕТИЛ ИНАЧЕ';
 
-    drawRRect(ctx, -280, -28, 560, 56, 28);
+    drawRRect(ctx, -246, -26, 492, 52, 26);
     ctx.fillStyle = accentCol;
     ctx.fill();
 
     ctx.fillStyle = '#090c0f';
-    ctx.font = '800 20px "JetBrains Mono", monospace';
+    ctx.font = '800 19px "JetBrains Mono", monospace';
     ctx.textAlign = 'center';
     ctx.fillText(compareText, 0, 7);
     ctx.restore();
   }
 
-  // Короткая вспышка киноплёнки на склейке (0..0.10)
-  if (localPhase < 0.1) {
-    ctx.fillStyle = `rgba(244, 239, 228, ${((1 - localPhase / 0.1) * 0.45).toFixed(2)})`;
+  if (localPhase < 0.09) {
+    ctx.fillStyle = `rgba(244, 239, 228, ${((1 - localPhase / 0.09) * 0.4).toFixed(2)})`;
     ctx.fillRect(0, 0, W, H);
   }
 
@@ -1124,26 +1137,25 @@ function renderOverlayItem(
       ctx.strokeStyle = atm.accent;
       ctx.lineWidth = 2.5;
       ctx.stroke();
-      ctx.fillStyle = '#181614';
+      ctx.fillStyle = ov.color && ov.color !== '#ffffff' ? ov.color : '#181614';
     } else if (ov.style === 'stories_dark') {
       drawRRect(ctx, -boxW / 2, -boxH / 2, boxW, boxH, 20);
-      ctx.fillStyle = 'rgba(12, 15, 20, 0.86)';
+      ctx.fillStyle = 'rgba(10, 13, 18, 0.84)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.22)';
       ctx.lineWidth = 1.5;
       ctx.stroke();
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = ov.color || '#ffffff';
     } else if (ov.style === 'accent_tag') {
       drawRRect(ctx, -boxW / 2, -boxH / 2, boxW, boxH, 18);
-      ctx.fillStyle = atm.accent;
+      ctx.fillStyle = ov.color && ov.color !== '#ffffff' ? ov.color : atm.accent;
       ctx.fill();
       ctx.fillStyle = '#141210';
     } else {
-      // kinetic_bold — чистый крупный текст с плотной обводкой/тенью как в Reels
-      ctx.shadowColor = 'rgba(0,0,0,0.88)';
-      ctx.shadowBlur = 14;
+      ctx.shadowColor = 'rgba(0,0,0,0.92)';
+      ctx.shadowBlur = 16;
       ctx.shadowOffsetY = 4;
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = ov.color || '#ffffff';
     }
 
     ctx.textAlign = 'center';
@@ -1172,6 +1184,110 @@ function renderOverlayItem(
 }
 
 /**
+ * Нелинейная кривая времени для живого видеоклипа в режиме «Умный хайлайт» (100% на клиенте без сервера):
+ * - первые 60% сцены идут бодро (1.23x), убирая паузы;
+ * - в фазе 0.60..0.92 включается настоящее слоу-мо (0.56x) синхронно с наездом камеры на лицо и ударом сердца;
+ * - в финальные 0.92..1.00 — резкий удар с тряской камеры.
+ * Интеграл скорости равен ровно 1.0, поэтому видео и звук сходятся кадр-в-кадр!
+ */
+export function mapDramaticVideoProgress(u: number): { progress: number; rate: number } {
+  const c = Math.max(0, Math.min(1, u));
+  if (c <= 0.6) {
+    const r1 = 0.74 / 0.6;
+    return { progress: c * r1, rate: r1 };
+  }
+  if (c <= 0.92) {
+    const r2 = 0.18 / 0.32; // 0.5625x slow-mo
+    return { progress: 0.74 + (c - 0.6) * r2, rate: r2 };
+  }
+  return { progress: 0.92 + (c - 0.92) * 1.0, rate: 1.0 };
+}
+
+/**
+ * Нелинейная кривая времени для «Умного хайлайта» (100% на клиенте без сервера):
+ * замедляет фазу раздумья и реакции лица (bullet-time slow-mo 0.45x) и резко ускоряет вылет карточки!
+ */
+function dramaticTimeWarp(rawPhase: number): number {
+  if (rawPhase <= 0.26) {
+    return (rawPhase / 0.26) * 0.34;
+  }
+  if (rawPhase <= 0.76) {
+    // Замедление времени в момент выбора и реакции на лице
+    const sub = (rawPhase - 0.26) / 0.5;
+    return 0.34 + sub * 0.36;
+  }
+  // Резкий хлесткий выброс карточки
+  const tail = (rawPhase - 0.76) / 0.24;
+  return 0.7 + tail * 0.3;
+}
+
+/**
+ * Вычисляет параметры виртуальной операторской камеры (зум на лицо, перевод фокуса на шкалы и ударную тряску).
+ */
+function computeSmartDirectorCamera(
+  rawPhase: number,
+  W: number,
+  H: number,
+  isVideoClip: boolean
+): { zoom: number; focusX: number; focusY: number; shakeX: number; shakeY: number; vignette: number } {
+  if (isVideoClip) {
+    // Синхронно с фазой слоу-мо (0.60..0.92) плавно наезжаем на лицо и карточку, а на 0.92..1.00 даём ударную отдачу
+    if (rawPhase > 0.58 && rawPhase <= 0.92) {
+      const p = (rawPhase - 0.58) / 0.34;
+      const ease = 1 - Math.pow(1 - p, 2);
+      return {
+        zoom: 1 + 0.23 * ease,
+        focusX: W / 2,
+        focusY: H * 0.41,
+        shakeX: 0,
+        shakeY: 0,
+        vignette: 0.34 * ease,
+      };
+    }
+    if (rawPhase > 0.92) {
+      const imp = (rawPhase - 0.92) / 0.08;
+      const damp = Math.exp(-imp * 4.5);
+      return {
+        zoom: 1.23 - 0.15 * imp,
+        focusX: W / 2,
+        focusY: H * 0.32,
+        shakeX: Math.sin(imp * 48) * 11 * damp,
+        shakeY: Math.cos(imp * 40) * 8 * damp,
+        vignette: 0.3 * (1 - imp),
+      };
+    }
+    return { zoom: 1, focusX: W / 2, focusY: H / 2, shakeX: 0, shakeY: 0, vignette: 0 };
+  }
+
+  // Для сцены свайпа: наезд на лицо в слоу-мо -> удар и перевод камеры вверх на падающие шкалы!
+  if (rawPhase > 0.24 && rawPhase <= 0.76) {
+    const p = (rawPhase - 0.24) / 0.52;
+    const ease = Math.sin(p * Math.PI * 0.5);
+    return {
+      zoom: 1 + 0.24 * ease,
+      focusX: W / 2,
+      focusY: H * 0.43,
+      shakeX: 0,
+      shakeY: 0,
+      vignette: 0.38 * ease,
+    };
+  }
+  if (rawPhase > 0.76) {
+    const imp = (rawPhase - 0.76) / 0.24;
+    const damp = Math.exp(-imp * 5.5);
+    return {
+      zoom: 1.24 - 0.14 * imp,
+      focusX: W / 2,
+      focusY: H * (0.43 - 0.18 * Math.min(1, imp * 1.6)),
+      shakeX: Math.sin(imp * 58) * 12 * damp,
+      shakeY: Math.cos(imp * 46) * 9 * damp,
+      vignette: 0.35 * (1 - imp),
+    };
+  }
+  return { zoom: 1, focusX: W / 2, focusY: H / 2, shakeX: 0, shakeY: 0, vignette: 0 };
+}
+
+/**
  * Главная функция рендера кадра монтажного проекта в момент времени tSec.
  */
 export function renderMontageFrameAtTime(
@@ -1195,26 +1311,64 @@ export function renderMontageFrameAtTime(
     spans.find((sp) => clampedT >= sp.startSec && clampedT < sp.endSec) ??
     spans[spans.length - 1];
 
+  // Определяем кульминационный игровой фрагмент для умной режиссуры (зум + слоу-мо + тряска)
+  const climaxSpan = [...spans]
+    .reverse()
+    .find((sp) => sp.clip.kind === 'swipe' || sp.clip.kind === 'video');
+
   if (activeSpan) {
-    const localPhase = Math.max(
+    const rawPhase = Math.max(
       0,
       Math.min(1, (clampedT - activeSpan.startSec) / Math.max(0.05, activeSpan.duration))
     );
     const clip = activeSpan.clip;
+    const isClimax =
+      project.dramaticMode !== false &&
+      climaxSpan?.clip.id === clip.id &&
+      (clip.kind === 'swipe' || clip.kind === 'video');
+
+    const cam = isClimax
+      ? computeSmartDirectorCamera(rawPhase, VW, VH, clip.kind === 'video')
+      : { zoom: 1, focusX: VW / 2, focusY: VH / 2, shakeX: 0, shakeY: 0, vignette: 0 };
+
+    ctx.save();
+    if (cam.zoom > 1.002 || cam.shakeX !== 0 || cam.shakeY !== 0) {
+      ctx.translate(VW / 2 + cam.shakeX, VH / 2 + cam.shakeY);
+      ctx.scale(cam.zoom, cam.zoom);
+      ctx.translate(-cam.focusX, -cam.focusY);
+    }
 
     if (clip.kind === 'video') {
       renderVideoClipScene(ctx, VW, VH, project, clip, assets);
     } else if (clip.kind === 'swipe') {
-      renderSwipeClipScene(ctx, VW, VH, localPhase, project, clip, assets);
+      const effectivePhase = isClimax ? dramaticTimeWarp(rawPhase) : rawPhase;
+      renderSwipeClipScene(ctx, VW, VH, effectivePhase, project, clip, assets);
     } else if (clip.kind === 'real_case') {
-      renderRealCaseCutawayScene(ctx, VW, VH, localPhase, project, clip, assets);
+      renderRealCaseCutawayScene(ctx, VW, VH, rawPhase, project, clip, assets);
     } else if (clip.kind === 'ending') {
-      renderEndingClipScene(ctx, VW, VH, localPhase, project, assets);
+      renderEndingClipScene(ctx, VW, VH, rawPhase, project, assets);
     } else if (clip.kind === 'qr') {
       renderQrClipScene(ctx, VW, VH, project);
     }
+    ctx.restore();
 
-    // Не рисуем поверх 0.45-сек QR-кадра лишние титры, чтобы QR считывался мгновенно
+    // Кинематографическая виньетка во время драматического слоу-мо / наезда на лицо
+    if (cam.vignette > 0.02) {
+      const vig = ctx.createRadialGradient(
+        VW / 2,
+        VH * 0.42,
+        VW * 0.24,
+        VW / 2,
+        VH * 0.5,
+        VH * 0.68
+      );
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, `rgba(0,0,0,${cam.vignette.toFixed(2)})`);
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, VW, VH);
+    }
+
+    // Пользовательские титры и гифки рисуются поверх операторской камеры, чтобы оставаться чёткими
     if (clip.kind !== 'qr') {
       for (const ov of project.overlays) {
         renderOverlayItem(ctx, VW, VH, clampedT, ov, project, assets, selectedOverlayId);
@@ -1245,7 +1399,10 @@ export async function buildMontageMasterAudioBuffer(
   const totalFrames = Math.max(2048, Math.ceil(totalDuration * sampleRate));
   const offline = new OfflineAudioContext(2, totalFrames, sampleRate);
 
-  // Декодируем аудио из видеоклипов, если есть
+  // Декодируем аудио из видеоклипов, если есть (с синхронным замедлением в слоу-мо, если включён Умный хайлайт)
+  const climaxVideoSpan = [...spans]
+    .reverse()
+    .find((s) => s.clip.kind === 'swipe' || s.clip.kind === 'video');
   const videoAudioSpans: Array<{ startSec: number; endSec: number }> = [];
   for (const sp of spans) {
     if (sp.clip.kind === 'video' && sp.clip.blob && sp.clip.volume > 0.01) {
@@ -1254,14 +1411,22 @@ export async function buildMontageMasterAudioBuffer(
         const decoded = await offline.decodeAudioData(arrBuf.slice(0));
         const src = offline.createBufferSource();
         src.buffer = decoded;
-        const g = offline.createGain();
         const dur = sp.duration;
+        const isDramaticVid =
+          project.dramaticMode !== false && climaxVideoSpan?.clip.id === sp.clip.id && dur >= 2.2;
+        if (isDramaticVid) {
+          src.playbackRate.setValueAtTime(0.74 / 0.6, sp.startSec);
+          src.playbackRate.setValueAtTime(0.18 / 0.32, sp.startSec + dur * 0.6);
+          src.playbackRate.setValueAtTime(1.0, sp.startSec + dur * 0.92);
+        }
+        const g = offline.createGain();
         g.gain.setValueAtTime(0.001, sp.startSec);
         g.gain.linearRampToValueAtTime(sp.clip.volume, sp.startSec + Math.min(0.04, dur * 0.2));
         g.gain.setValueAtTime(sp.clip.volume, Math.max(sp.startSec, sp.endSec - 0.04));
         g.gain.linearRampToValueAtTime(0.001, sp.endSec);
         src.connect(g).connect(offline.destination);
         src.start(sp.startSec, sp.clip.trimStart, dur);
+        src.stop(sp.endSec);
         videoAudioSpans.push({ startSec: sp.startSec, endSec: sp.endSec });
       } catch {
         // Видео без аудиодорожки — пропускаем
@@ -1319,22 +1484,51 @@ export async function buildMontageMasterAudioBuffer(
     }
   }
 
-  // Звуковые акценты сцен (свайпы, документальная склейка, финал)
+  // Звуковые акценты сцен + пульс сердца в режиме «Умный хайлайт»
   if (project.soundtrack !== 'mute') {
+    const climaxSpan = [...spans]
+      .reverse()
+      .find((s) => s.clip.kind === 'swipe' || s.clip.kind === 'video');
+
     for (const sp of spans) {
+      const isClimax = project.dramaticMode !== false && climaxSpan?.clip.id === sp.clip.id;
+
+      if (isClimax && sp.duration >= 2.0) {
+        // Двойной глубокий удар сердца (lub-dub) во время слоу-мо и наезда на лицо
+        const hbBase =
+          sp.clip.kind === 'video'
+            ? Math.max(sp.startSec, sp.endSec - 1.9)
+            : sp.startSec + sp.duration * 0.3;
+        [0, 0.22, 0.72, 0.94].forEach((offset, idx) => {
+          const ht = hbBase + offset;
+          if (ht < totalDuration - 0.14) {
+            const hb = offline.createOscillator();
+            const hg = offline.createGain();
+            hb.type = 'sine';
+            hb.frequency.setValueAtTime(idx % 2 === 0 ? 64 : 52, ht);
+            hb.frequency.exponentialRampToValueAtTime(30, ht + 0.12);
+            hg.gain.setValueAtTime(idx % 2 === 0 ? 0.34 : 0.26, ht);
+            hg.gain.exponentialRampToValueAtTime(0.001, ht + 0.13);
+            hb.connect(hg).connect(offline.destination);
+            hb.start(ht);
+            hb.stop(ht + 0.14);
+          }
+        });
+      }
+
       if (sp.clip.kind === 'swipe') {
-        const swipeMoment = sp.startSec + sp.duration * 0.7;
+        const swipeMoment = sp.startSec + sp.duration * (isClimax ? 0.76 : 0.7);
         if (swipeMoment < totalDuration - 0.08) {
           const osc = offline.createOscillator();
           const g = offline.createGain();
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(190, swipeMoment);
-          osc.frequency.exponentialRampToValueAtTime(72, swipeMoment + 0.11);
-          g.gain.setValueAtTime(0.22, swipeMoment);
-          g.gain.exponentialRampToValueAtTime(0.001, swipeMoment + 0.12);
+          osc.frequency.setValueAtTime(isClimax ? 230 : 190, swipeMoment);
+          osc.frequency.exponentialRampToValueAtTime(48, swipeMoment + 0.16);
+          g.gain.setValueAtTime(isClimax ? 0.38 : 0.22, swipeMoment);
+          g.gain.exponentialRampToValueAtTime(0.001, swipeMoment + 0.17);
           osc.connect(g).connect(offline.destination);
           osc.start(swipeMoment);
-          osc.stop(swipeMoment + 0.13);
+          osc.stop(swipeMoment + 0.18);
         }
       } else if (sp.clip.kind === 'real_case') {
         // Глубокий документальный удар при переходе к «А как в реальности ответил...»
@@ -1460,6 +1654,10 @@ export async function exportMontageProjectToMp4(
         }
       >();
 
+      const climaxExportSpan = [...spans]
+        .reverse()
+        .find((s) => s.clip.kind === 'swipe' || s.clip.kind === 'video');
+
       for (const sp of spans) {
         if (sp.clip.kind === 'video' && sp.clip.blob) {
           try {
@@ -1475,11 +1673,17 @@ export async function exportMontageProjectToMp4(
                 fit: sp.clip.fit,
                 poolSize: 2,
               });
+              const isDramaticVid =
+                project.dramaticMode !== false &&
+                climaxExportSpan?.clip.id === sp.clip.id &&
+                sp.duration >= 2.2;
               const clipFrameTimestamps: number[] = [];
               for (let fi = 0; fi < totalFrames; fi++) {
                 const projT = rangeStart + fi / FPS;
                 if (projT >= sp.startSec && projT < sp.endSec) {
-                  clipFrameTimestamps.push(sp.clip.trimStart + (projT - sp.startSec));
+                  const u = (projT - sp.startSec) / Math.max(0.05, sp.duration);
+                  const mappedProgress = isDramaticVid ? mapDramaticVideoProgress(u).progress : u;
+                  clipFrameTimestamps.push(sp.clip.trimStart + mappedProgress * sp.duration);
                 }
               }
               if (clipFrameTimestamps.length > 0) {
@@ -1648,14 +1852,14 @@ export async function exportMontageProjectToMp4(
   await new Promise<void>((resolve) => {
     const tick = () => {
       const elapsed = (performance.now() - t0) / 1000;
-      const clamped = Math.min(totalDuration, elapsed);
-      renderMontageFrameAtTime(ctx, W, H, clamped, project, {
+      const clamped = Math.min(exportDuration, elapsed);
+      renderMontageFrameAtTime(ctx, W, H, rangeStart + clamped, project, {
         ...baseAssets,
         videoFrames: liveVideoFrames,
       });
-      const pct = Math.min(99, Math.round((clamped / totalDuration) * 100));
+      const pct = Math.min(99, Math.round((clamped / exportDuration) * 100));
       onProgress?.(pct, `Запись ролика… ${pct}%`);
-      if (elapsed >= totalDuration) {
+      if (elapsed >= exportDuration) {
         resolve();
         return;
       }
