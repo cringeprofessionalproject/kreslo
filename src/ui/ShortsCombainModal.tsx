@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { sfxUiTap, sfxVictory, vibrate } from '../audio';
+import { getSoundProfile, setSoundProfile, sfxUiTap, sfxVictory, vibrate } from '../audio';
 import { DIRECT_PLAY_SLUGS } from '../game/packs';
 import {
   shareRecordedReelToGallery,
@@ -81,6 +81,13 @@ export function ShortsCombainModal({
   onRequestEnableFace,
   onClose,
 }: ShortsCombainModalProps) {
+  // Пока открыт редактор, фоновая музыка игры выключена — иначе она накладывается на звук видео
+  useEffect(() => {
+    const prev = getSoundProfile();
+    setSoundProfile('off');
+    return () => setSoundProfile(prev);
+  }, []);
+
   const allPackCases = useMemo(() => getAllRealCasesInPack(pack), [pack]);
   const usableSwipes = useMemo(
     () => (swipes.length > 0 ? swipes : buildFallbackSwipesFromPack(pack)),
@@ -227,7 +234,7 @@ export function ShortsCombainModal({
         playerMatched: usableSwipes.find((x) => x.realCase?.person === selectedCase.person)?.matchedRealCase,
         leadText: caseLeadText || buildConversationalCaseLead(selectedCase),
         bodyText: buildConversationalCaseBody(selectedCase),
-        duration: 4.3,
+        duration: 6.4,
       });
     } else {
       list.push({ id: 'end_card', kind: 'ending', duration: 1.9 });

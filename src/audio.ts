@@ -191,7 +191,7 @@ export function triggerHaptic(
     if (tgHaptic) {
       if (style === 'selection') tgHaptic.selectionChanged?.();
       else if (style === 'success' || style === 'error') tgHaptic.notificationOccurred?.(style);
-      else tgHaptic.impactOccurred?.(style === 'medium' ? 'medium' : 'light');
+      else tgHaptic.impactOccurred?.(style === 'medium' ? 'soft' : 'soft');
     }
 
     // 2. Вибромотор Android (Web Vibration API)
@@ -213,6 +213,45 @@ export function triggerHaptic(
     if (allowIosSwitchClick && isIosTouchDevice()) {
       pendingGestureSwitchPulse = true;
       pulseFallbackSwitchInViewport();
+    }
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * «Бархатный» отклик свайпа: серия мягких импульсов нарастает и затихает волной (~0.3 с),
+ * как шелест карточки, вместо одного резкого удара. Для карточки-дела в конце — глубокий «ключ».
+ */
+export function hapticSwipeCommit(isCase = false) {
+  try {
+    const tg = (
+      window as unknown as {
+        Telegram?: {
+          WebApp?: {
+            HapticFeedback?: {
+              impactOccurred?: (s: 'light' | 'medium' | 'heavy' | 'rigid' | 'soft') => void;
+              notificationOccurred?: (t: 'error' | 'success' | 'warning') => void;
+            };
+          };
+        };
+      }
+    ).Telegram?.WebApp?.HapticFeedback;
+    const seq: Array<[number, 'soft' | 'light' | 'medium']> = [
+      [0, 'soft'],
+      [32, 'soft'],
+      [66, 'soft'],
+      [104, 'light'],
+      [148, 'light'],
+      [198, 'soft'],
+      [256, 'soft'],
+    ];
+    if (tg?.impactOccurred) {
+      seq.forEach(([t, st]) => window.setTimeout(() => tg.impactOccurred?.(st), t));
+      if (isCase) window.setTimeout(() => tg.notificationOccurred?.('warning'), 340);
+    }
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(isCase ? [6, 18, 8, 18, 10, 20, 14, 24, 22, 40, 30] : [6, 18, 8, 18, 10, 20, 14]);
     }
   } catch {
     // ignore

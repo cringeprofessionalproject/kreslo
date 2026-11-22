@@ -12,6 +12,7 @@ import {
   sfxCoffeeSave,
   sfxGameOver,
   sfxSwipeCommit,
+  hapticSwipeCommit,
   sfxThresholdLock,
   sfxTiltTick,
   sfxUiTap,
@@ -287,86 +288,37 @@ function OutgoingCardGhost({
     const targetTiltY = dirSign * 14;
     const wasTapOrMicroFlick = Math.abs(snapshot.fromX) < 24;
 
-    const keyframes: Keyframe[] = wasTapOrMicroFlick
-      ? [
-          {
-            offset: 0,
-            transform: `perspective(1100px) translate3d(${snapshot.fromX.toFixed(
-              1
-            )}px, ${snapshot.fromY.toFixed(1)}px, 0) rotate(${snapshot.fromRot.toFixed(
-              2
-            )}deg) rotateY(0deg) scale(1)`,
-            opacity: 1,
-          },
-          {
-            // Короткий тактильный подъём карточки со штампом выбора, чтобы глаз считал решение
-            offset: 0.18,
-            transform: `perspective(1100px) translate3d(${(dirSign * 34).toFixed(
-              1
-            )}px, -10px, 0) rotate(${(dirSign * 4.2).toFixed(2)}deg) rotateY(${(
-              dirSign * 4
-            ).toFixed(1)}deg) scale(1.024)`,
-            opacity: 1,
-          },
-          {
-            // Полная плотность вплоть до пересечения края экрана!
-            offset: 0.74,
-            transform: `perspective(1100px) translate3d(${(targetX * 0.72).toFixed(
-              1
-            )}px, 38px, 0) rotate(${(targetRot * 0.78).toFixed(2)}deg) rotateY(${(
-              targetTiltY * 0.8
-            ).toFixed(1)}deg) scale(0.985)`,
-            opacity: 0.96,
-          },
-          {
-            offset: 1,
-            transform: `perspective(1100px) translate3d(${targetX}px, 92px, 0) rotate(${targetRot}deg) rotateY(${targetTiltY}deg) scale(0.92)`,
-            opacity: 0,
-          },
-        ]
-      : [
-          {
-            offset: 0,
-            transform: `perspective(1100px) translate3d(${snapshot.fromX.toFixed(
-              1
-            )}px, ${snapshot.fromY.toFixed(1)}px, 0) rotate(${snapshot.fromRot.toFixed(
-              2
-            )}deg) rotateY(${(dirSign * 3).toFixed(1)}deg) scale(1)`,
-            opacity: 1,
-          },
-          {
-            offset: 0.42,
-            transform: `perspective(1100px) translate3d(${(
-              snapshot.fromX +
-              (targetX - snapshot.fromX) * 0.46
-            ).toFixed(1)}px, ${(snapshot.fromY + 24).toFixed(1)}px, 0) rotate(${(
-              snapshot.fromRot +
-              (targetRot - snapshot.fromRot) * 0.48
-            ).toFixed(2)}deg) rotateY(${(targetTiltY * 0.55).toFixed(1)}deg) scale(0.995)`,
-            opacity: 1,
-          },
-          {
-            offset: 0.78,
-            transform: `perspective(1100px) translate3d(${(
-              snapshot.fromX +
-              (targetX - snapshot.fromX) * 0.82
-            ).toFixed(1)}px, ${(snapshot.fromY + 56).toFixed(1)}px, 0) rotate(${(
-              targetRot * 0.88
-            ).toFixed(2)}deg) rotateY(${(targetTiltY * 0.88).toFixed(1)}deg) scale(0.965)`,
-            opacity: 0.94,
-          },
-          {
-            offset: 1,
-            transform: `perspective(1100px) translate3d(${targetX}px, ${(
-              snapshot.fromY + 96
-            ).toFixed(1)}px, 0) rotate(${targetRot}deg) rotateY(${targetTiltY}deg) scale(0.92)`,
-            opacity: 0,
-          },
-        ];
+    const fx0 = snapshot.fromX.toFixed(1);
+    const fy0 = snapshot.fromY.toFixed(1);
+    const fr0 = snapshot.fromRot.toFixed(2);
+    // Карточка уменьшается и уходит за край экрана в сторону свайпа
+    const offX = dirSign * Math.max(vw * 1.15, 520);
+    const keyframes: Keyframe[] = [
+      {
+        offset: 0,
+        transform: `translate3d(${fx0}px, ${fy0}px, 0) rotate(${fr0}deg) scale(1)`,
+        opacity: 1,
+      },
+      {
+        offset: 0.4,
+        transform: `translate3d(${(snapshot.fromX + (offX - snapshot.fromX) * 0.38).toFixed(1)}px, 18px, 0) rotate(${(dirSign * 12).toFixed(2)}deg) scale(0.78)`,
+        opacity: 1,
+      },
+      {
+        offset: 1,
+        transform: `translate3d(${offX.toFixed(1)}px, 70px, 0) rotate(${(dirSign * 24).toFixed(2)}deg) scale(0.5)`,
+        opacity: 1,
+      },
+    ];
+    void wasTapOrMicroFlick;
+    void exitDist;
+    void targetX;
+    void targetRot;
+    void targetTiltY;
 
     const anim = el.animate(keyframes, {
-      duration: wasTapOrMicroFlick ? 540 : 480,
-      easing: 'cubic-bezier(0.3, 0.05, 0.22, 1)',
+      duration: 460,
+      easing: 'cubic-bezier(0.45, 0, 0.75, 0.5)',
       fill: 'forwards',
     });
 
@@ -389,7 +341,7 @@ function OutgoingCardGhost({
   return (
     <div
       ref={ghostRef}
-      className={`dilemma-card apple-spring-card outgoing-ghost-card ${ghostTierCls} exit-${snapshot.side}`}
+      className={`dilemma-card apple-spring-card outgoing-ghost-card ${ghostTierCls} ${snapshot.card.realCase ? 'card-real-case' : ''} exit-${snapshot.side}`}
     >
       <div className="dc-portrait-area">
         {snapshot.card.videoClip ? (
@@ -1674,6 +1626,7 @@ export function App() {
       const mult = activeBlock.riskMultiplier;
 
       sfxSwipeCommit(side);
+      hapticSwipeCommit(Boolean(currentCard.realCase));
       if (opt.voiceClip) playVoice(opt.voiceClip);
 
       // Фиксируем улетающую карточку и для GPU-слоя экрана, и для 9:16 видеозаписи!
@@ -2923,6 +2876,8 @@ export function App() {
             key={cardSeq}
             ref={activeCardElRef}
             className={`dilemma-card apple-spring-card fresh-card ${
+              currentCard.realCase ? 'card-real-case' : ''
+            } ${
               curBlock.blockNum === 2
                 ? 'card-tier-foil'
                 : curBlock.blockNum === 3

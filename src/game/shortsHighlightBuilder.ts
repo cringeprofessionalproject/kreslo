@@ -285,16 +285,41 @@ export function buildConversationalCaseLead(
   rc: RealHistoricalCase,
   playerMatched?: boolean
 ): string {
+  const who = `${rc.person}, ${rc.year}`;
   if (rc.kind === 'blunder') {
-    if (playerMatched === true) {
-      return `А в реальности ${rc.person} (${rc.year}) сделал ровно этот же ход — и вот что вышло:`;
-    }
-    return `А вот что устроил ${rc.person} (${rc.year}) ровно в такой же ситуации:`;
+    if (playerMatched === true) return `Тот же ход в реальности — ${who}. Вот чем это кончилось:`;
+    if (playerMatched === false) return `Ты выбрал иначе. А вот что вышло в реальности — ${who}:`;
+    return `А вот что вышло в такой же ситуации — ${who}:`;
   }
-  if (playerMatched === true) {
-    return `Точно так же в реальности ответил ${rc.person} (${rc.year}):`;
+  if (playerMatched === true) return `Так же ответили в реальности — ${who}. И вот что получилось:`;
+  if (playerMatched === false) return `Ты выбрал иначе. А вот что сработало в реальности — ${who}:`;
+  return `А вот как это решили в реальности — ${who}:`;
+}
+
+/** Делит историю на «что сделали» и «чем закончилось», чтобы в ролике всегда был вывод */
+export function splitRealCaseStory(rc: RealHistoricalCase): { decision: string; outcome: string } {
+  const raw = rc.story.trim().replace(/\s+/g, ' ');
+  const sentences = raw.split(/(?<=[.!?])\s+/).filter(Boolean);
+  const clip = (t: string, max: number) => {
+    if (t.length <= max) return t;
+    const cut = t.slice(0, max);
+    const lastStop = Math.max(cut.lastIndexOf('. '), cut.lastIndexOf('; '));
+    if (lastStop > max * 0.55) return cut.slice(0, lastStop + 1);
+    return `${cut.replace(/[,\s—-]+$/, '')}…`;
+  };
+  if (sentences.length >= 2) {
+    return {
+      decision: clip(sentences[0], 170),
+      outcome: clip(sentences.slice(1).join(' '), 230),
+    };
   }
-  return `А вот как в этой же ситуации ответил ${rc.person} (${rc.year}):`;
+  const m = /\s(но|однако|в итоге|после чего|вместо этого)\s/i.exec(raw);
+  if (m && m.index > 45) {
+    const head = raw.slice(0, m.index).replace(/[,\s]+$/, '');
+    const tail = raw.slice(m.index + 1);
+    return { decision: clip(head, 170), outcome: clip(tail.charAt(0).toUpperCase() + tail.slice(1), 230) };
+  }
+  return { decision: clip(raw, 170), outcome: rc.headline };
 }
 
 export function buildConversationalCaseBody(rc: RealHistoricalCase): string {
@@ -880,65 +905,106 @@ function renderRealCaseCutawayScene(
     ctx.fillText(ln, W / 2, 468 + idx * 38);
   });
 
-  // Стеклянная тёмная Reels-карточка с крупным караоке-текстом (макс 5–6 строк крупным кеглем!)
-  const boxTop = 468 + leadLines.length * 38 + 20;
-  const boxH = 384;
+  // Стеклянная тёмная карточка: «Что сделали» → «Чем закончилось» (всегда с выводом)
+  const parts = splitRealCaseStory(rc);
+  const boxTop = 468 + leadLines.length * 38 + 16;
+  const boxH = 500;
   drawRRect(ctx, 44, boxTop, W - 88, boxH, 28);
-  ctx.fillStyle = 'rgba(15, 20, 26, 0.88)';
+  ctx.fillStyle = 'rgba(15, 20, 26, 0.9)';
   ctx.fill();
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.16)';
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Короткий ударный тезис сверху
-  ctx.fillStyle = accentCol;
-  ctx.font = '800 23px "Manrope", system-ui, sans-serif';
-  ctx.textAlign = 'left';
-  const headLine = rc.headline.length > 44 ? `${rc.headline.slice(0, 42)}…` : rc.headline;
-  ctx.fillText(headLine, 78, boxTop + 50);
-
-  const fullText = (clip.bodyText || buildConversationalCaseBody(rc)).trim();
-  const words = fullText.split(/\s+/).filter(Boolean);
-  const readProg = Math.max(0, Math.min(1, (localPhase - 0.06) / 0.72));
-  const litWordCount = Math.max(1, Math.ceil(words.length * readProg));
-
-  ctx.font = '700 28px "Manrope", system-ui, sans-serif';
+  const decWords = parts.decision.split(/\s+/).filter(Boolean);
+  const outWords = parts.outcome.split(/\s+/).filter(Boolean);
+  const totalWords = decWords.length + outWords.length;
+  const readProg = Math.max(0, Math.min(1, (localPhase - 0.05) / 0.78));
+  const litCount = Math.max(1, Math.ceil(totalWords * readProg));
   const maxLineW = W - 156;
-  let curX = 78;
-  let curY = boxTop + 104;
-  const lineH = 42;
-  let lineCount = 1;
 
-  for (let wi = 0; wi < words.length; wi++) {
-    const word = words[wi];
+  const drawWords = (
+    words: string[],
+    offset: number,
+    startY: number,
+    lineH: number,
+    maxLines: number,
+    fontCss: string
+  ): number => {
+    ctx.font = fontCss;
+    ctx.textAlign = 'left';
     const spaceW = ctx.measureText(' ').width;
-    const wordW = ctx.measureText(word).width;
-    if (curX + wordW > 78 + maxLineW && curX > 78) {
-      lineCount++;
-      if (lineCount > 5) break;
-      curX = 78;
-      curY += lineH;
+    let curX = 78;
+    let curY = startY;
+    let lines = 1;
+    for (let wi = 0; wi < words.length; wi++) {
+      const word = words[wi];
+      const wordW = ctx.measureText(word).width;
+      if (curX + wordW > 78 + maxLineW && curX > 78) {
+        lines++;
+        if (lines > maxLines) break;
+        curX = 78;
+        curY += lineH;
+      }
+      const gi = offset + wi;
+      const isCurrent = gi === litCount - 1 && readProg < 0.98;
+      const isRead = gi < litCount;
+      if (isCurrent) {
+        drawRRect(ctx, curX - 5, curY - lineH * 0.74, wordW + 10, lineH * 0.92, 8);
+        ctx.fillStyle = accentCol;
+        ctx.fill();
+        ctx.fillStyle = '#090c0f';
+      } else {
+        ctx.fillStyle = isRead ? '#f4efe4' : 'rgba(244, 239, 228, 0.3)';
+      }
+      ctx.fillText(word, curX, curY);
+      curX += wordW + spaceW;
     }
+    return curY;
+  };
 
-    const isCurrentWord = wi === litWordCount - 1 && readProg < 0.98;
-    const isRead = wi < litWordCount;
+  // 1. Что сделали
+  ctx.fillStyle = 'rgba(244, 239, 228, 0.62)';
+  ctx.font = '800 16px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('ЧТО СДЕЛАЛИ', 78, boxTop + 46);
+  const decEndY = drawWords(
+    decWords,
+    0,
+    boxTop + 90,
+    36,
+    4,
+    '700 25px "Manrope", system-ui, sans-serif'
+  );
 
-    if (isCurrentWord) {
-      drawRRect(ctx, curX - 6, curY - 28, wordW + 12, 36, 8);
-      ctx.fillStyle = accentCol;
-      ctx.fill();
-      ctx.fillStyle = '#090c0f';
-    } else {
-      ctx.fillStyle = isRead ? '#f4efe4' : 'rgba(244, 239, 228, 0.34)';
-    }
+  // разделитель
+  const divY = decEndY + 26;
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.14)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(78, divY);
+  ctx.lineTo(W - 78, divY);
+  ctx.stroke();
 
-    ctx.fillText(word, curX, curY);
-    curX += wordW + spaceW;
-  }
+  // 2. Чем закончилось (вывод)
+  const outLabel = isBlunder ? 'ЧЕМ ЗАКОНЧИЛОСЬ · ПРОВАЛ' : 'ЧЕМ ЗАКОНЧИЛОСЬ · СРАБОТАЛО';
+  ctx.fillStyle = accentCol;
+  ctx.font = '800 16px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(outLabel, 78, divY + 42);
+  drawWords(
+    outWords,
+    decWords.length,
+    divY + 90,
+    38,
+    5,
+    '800 27px "Manrope", system-ui, sans-serif'
+  );
 
-  ctx.fillStyle = 'rgba(244, 239, 228, 0.48)';
-  ctx.font = '600 16px "JetBrains Mono", monospace';
-  ctx.fillText(`Источник: ${rc.source.slice(0, 42)}`, 78, boxTop + boxH - 26);
+  ctx.fillStyle = 'rgba(244, 239, 228, 0.46)';
+  ctx.font = '600 15px "JetBrains Mono", monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText(`Источник: ${rc.source.slice(0, 46)}`, 78, boxTop + boxH - 24);
 
   // Плашка сравнения с твоим ходом
   if (clip.playerMatched !== undefined && localPhase > 0.42) {
@@ -949,11 +1015,11 @@ function renderRealCaseCutawayScene(
 
     const compareText = clip.playerMatched
       ? isBlunder
-        ? 'ТЫ СДЕЛАЛ ТОТ ЖЕ САМЫЙ ХОД'
-        : 'ТВОЙ ОТВЕТ СОВПАЛ 1-В-1'
+        ? 'ТЫ ВЫБРАЛ ТОТ ЖЕ ХОД'
+        : 'ТВОЙ ВЫБОР СОВПАЛ С РЕАЛЬНЫМ'
       : isBlunder
-        ? 'А ТЫ ОБОШЁЛ ЭТИ ГРАБЛИ'
-        : 'А ТЫ ОТВЕТИЛ ИНАЧЕ';
+        ? 'ТЫ ВЫБРАЛ ИНАЧЕ — ГРАБЛИ ОБОЙДЕНЫ'
+        : 'ТЫ ВЫБРАЛ ИНАЧЕ';
 
     drawRRect(ctx, -246, -26, 492, 52, 26);
     ctx.fillStyle = accentCol;

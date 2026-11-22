@@ -8578,3 +8578,101 @@ body {
     filter: hue-rotate(-28deg);
   }
 }
+
+
+/* ───────── Карточка известного кейса: «секретное дело» — золотая рамка, архивный тон, лента, блик ───────── */
+@property --rc-a {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@keyframes rcSpin {
+  to { --rc-a: 360deg; }
+}
+@keyframes rcGlow {
+  0%, 100% { box-shadow: 0 24px 52px rgba(0,0,0,0.68), 0 0 18px rgba(255,209,102,0.35), 0 0 46px rgba(255,170,60,0.18); }
+  50% { box-shadow: 0 24px 52px rgba(0,0,0,0.68), 0 0 34px rgba(255,209,102,0.7), 0 0 82px rgba(255,170,60,0.38); }
+}
+@keyframes rcSweep {
+  0% { transform: translateX(-130%) skewX(-18deg); }
+  55%, 100% { transform: translateX(260%) skewX(-18deg); }
+}
+.dilemma-card.card-real-case {
+  animation: rcGlow 2.2s ease-in-out infinite;
+  border-color: #ffd166 !important;
+  border-width: 2.5px !important;
+}
+/* бегущий яркий контур */
+.dilemma-card.card-real-case::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 5px;
+  background: conic-gradient(
+    from var(--rc-a),
+    rgba(255, 209, 102, 0.15) 0deg,
+    #ffd166 60deg,
+    #ffffff 100deg,
+    #ffb43c 140deg,
+    rgba(255, 209, 102, 0.15) 220deg,
+    rgba(255, 209, 102, 0.15) 360deg
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  animation: rcSpin 2.4s linear infinite;
+  pointer-events: none;
+  z-index: 30;
+}
+/* золотая лента-«гриф» сверху */
+.dilemma-card.card-real-case::after {
+  content: '★  РЕАЛЬНОЕ ДЕЛО ИЗ ИСТОРИИ  ★';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 6px 8px 5px;
+  background: linear-gradient(90deg, #b8801f, #ffd166 30%, #fff1c0 50%, #ffd166 70%, #b8801f);
+  color: #2a1c05;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+  text-align: center;
+  z-index: 31;
+  pointer-events: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+/* архивный тон портрета + виньетка + пробегающий блик */
+.dilemma-card.card-real-case .dc-portrait-area {
+  position: relative;
+  overflow: hidden;
+}
+.dilemma-card.card-real-case .dc-portrait-area > :not(.dc-tier-badge) {
+  filter: sepia(0.55) saturate(1.25) contrast(1.06);
+}
+.dilemma-card.card-real-case .dc-portrait-area::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 45%, rgba(40, 22, 0, 0.55) 100%);
+}
+.dilemma-card.card-real-case .dc-portrait-area::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 38%;
+  z-index: 5;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255,240,190,0), rgba(255,240,190,0.55), rgba(255,240,190,0));
+  animation: rcSweep 3s ease-in-out infinite;
+}
+.dilemma-card.card-real-case .dc-tier-badge {
+  top: 34px;
+}
