@@ -5,11 +5,56 @@
  * Деплой:
  * 1. https://dash.cloudflare.com -> Workers & Pages -> kreslo-stars -> Edit code -> Deploy.
  * 2. Settings -> Variables and Secrets -> BOT_TOKEN = <токен @vkreslegame>
+ * 2b. Variables and Secrets -> GIPHY_KEY = <ключ GIPHY> (тип Secret) — общий поиск GIF для всех игроков через /gif?q=
  * 3. Webhook: https://api.telegram.org/bot<BOT_TOKEN>/setWebhook?url=https://kreslo-stars.koshernoe-detya.workers.dev/
  */
 
 export default {
   async fetch(request, env) {
+    const cors = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Cache-Control': 'public, max-age=3600',
+    };
+
+    // Общий прокси поиска GIF (ключ GIPHY хранится только здесь, игрокам вводить ничего не нужно)
+    const reqUrl = new URL(request.url);
+    if (request.method === 'OPTIONS') {
+      return new Response(null, { headers: cors });
+    }
+    if (request.method === 'GET' && reqUrl.pathname === '/gif') {
+      const q = (reqUrl.searchParams.get('q') || '').trim().slice(0, 60);
+      if (!q || !env.GIPHY_KEY) {
+        return new Response('[]', { headers: { ...cors, 'Content-Type': 'application/json' } });
+      }
+      const cache = caches.default;
+      const cacheKey = new Request(`https://cache.local/gif?q=${encodeURIComponent(q.toLowerCase())}`);
+      const hit = await cache.match(cacheKey);
+      if (hit) return new Response(hit.body, { headers: { ...cors, 'Content-Type': 'application/json' } });
+      let list = [];
+      try {
+        const r = await fetch(
+          `https://api.giphy.com/v1/gifs/search?api_key=${env.GIPHY_KEY}&q=${encodeURIComponent(q)}&limit=16&rating=pg-13&lang=ru`
+        );
+        const j = await r.json();
+        list = (j.data || [])
+          .map((it) => ({
+            id: `giphy_${it.id}`,
+            title: it.title || q,
+            previewUrl: it.images?.fixed_height_small?.url || it.images?.fixed_height?.url || '',
+            gifUrl: it.images?.fixed_height?.url || '',
+          }))
+          .filter((x) => x.gifUrl);
+      } catch {
+        // пустой список
+      }
+      const body = JSON.stringify(list);
+      if (list.length) {
+        await cache.put(cacheKey, new Response(body, { headers: { 'Cache-Control': 'public, max-age=3600' } }));
+      }
+      return new Response(body, { headers: { ...cors, 'Content-Type': 'application/json' } });
+    }
+
     if (request.method !== 'POST') {
       return new Response('ok');
     }

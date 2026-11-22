@@ -334,12 +334,6 @@ export function ShortsCombainModal({
   );
 
   // Поиск стикеров в каталоге + опционально GIPHY онлайн
-  const [giphyKeyInput, setGiphyKeyInput] = useState<string>('');
-  const [hasGiphyKey, setHasGiphyKey] = useState<boolean>(
-    () =>
-      Boolean(import.meta.env.VITE_GIPHY_API_KEY) ||
-      (typeof localStorage !== 'undefined' && Boolean(localStorage.getItem('kreslo_giphy_key')))
-  );
   const filteredCatalogStickers = useMemo(() => {
     const r = searchStickerCatalog(gifQuery, gifCat);
     return r.length > 0 || !gifQuery.trim() ? r : searchStickerCatalog('', 'all');
@@ -1713,49 +1707,6 @@ export function ShortsCombainModal({
                 + Своя GIF
               </button>
             </div>
-
-            {!hasGiphyKey && (
-              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                <input
-                  type="text"
-                  placeholder="Ключ GIPHY (бесплатно: developers.giphy.com) — для поиска любых гифок"
-                  value={giphyKeyInput}
-                  onChange={(e) => setGiphyKeyInput(e.target.value)}
-                  style={{
-                    flex: 1,
-                    padding: '7px 10px',
-                    borderRadius: 10,
-                    border: '1px dashed rgba(255,255,255,0.28)',
-                    background: 'rgba(255,255,255,0.05)',
-                    color: '#fff',
-                    fontSize: 11.5,
-                    outline: 'none',
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    const k = giphyKeyInput.trim();
-                    if (k.length < 12) return;
-                    localStorage.setItem('kreslo_giphy_key', k);
-                    setHasGiphyKey(true);
-                    showQuickToast('Поиск GIPHY подключён');
-                  }}
-                  style={{
-                    padding: '0 12px',
-                    borderRadius: 10,
-                    border: 'none',
-                    background: '#ffd166',
-                    color: '#141210',
-                    fontSize: 12,
-                    fontWeight: 800,
-                    cursor: 'pointer',
-                  }}
-                >
-                  OK
-                </button>
-              </div>
-            )}
 
             <div
               style={{

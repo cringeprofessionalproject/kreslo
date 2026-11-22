@@ -351,7 +351,20 @@ export async function searchOnlineGifsIfConfigured(query: string): Promise<Exter
     (import.meta.env.VITE_GIPHY_API_KEY as string | undefined) ||
     (typeof localStorage !== 'undefined' ? localStorage.getItem('kreslo_giphy_key') : null);
 
-  if (!giphyKey || !query.trim()) return [];
+  if (!query.trim()) return [];
+  // 1. Общий прокси на Cloudflare Worker — работает у всех игроков без ключей
+  try {
+    const proxy = await fetch(
+      `https://kreslo-stars.koshernoe-detya.workers.dev/gif?q=${encodeURIComponent(query.trim())}`
+    );
+    if (proxy.ok) {
+      const list = (await proxy.json()) as ExternalGifResult[];
+      if (Array.isArray(list) && list.length > 0) return list;
+    }
+  } catch {
+    // пробуем локальный ключ
+  }
+  if (!giphyKey) return [];
   try {
     const url = `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(
       giphyKey.trim()
